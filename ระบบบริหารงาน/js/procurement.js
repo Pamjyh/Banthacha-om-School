@@ -209,6 +209,11 @@ async function toggleStatus(id, current){
       else await deleteWithdrawTransaction(id);
     }
     renderProc(); renderDashboard(); renderProjGrid();
+    // อัป project detail ถ้ากำลังเปิดอยู่
+    if(ACTIVE_PROJ_ID){
+      const detailItems = PROC.filter(i=>i.project_id===ACTIVE_PROJ_ID);
+      renderProjDetailItems(detailItems);
+    }
   }catch(e){ alert('อัปเดตไม่ได้: '+e.message); }
 }
 

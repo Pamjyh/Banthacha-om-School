@@ -3,16 +3,18 @@
 // =====================================================================
 function renderProjGrid(){
   const el = document.getElementById('proj-grid');
-  // update stat cards
+  // คำนวณจาก PROC (อัปเดตใน memory เสมอ) — เฉพาะ เบิกแล้ว เท่านั้น
   const totalBudget = PROJECTS.reduce((s,p)=>s+Number(p.budget_amount||0),0);
-  const totalSpent  = PROJECTS.reduce((s,p)=>s+Number(p.total_spent||p.procurement_items?.reduce((a,i)=>a+Number(i.amount||0),0)||0),0);
+  const totalSpent  = PROC.filter(i=>i.withdraw_status==='เบิกแล้ว').reduce((s,i)=>s+Number(i.amount||0),0);
   document.getElementById('proj-stat-count').textContent  = PROJECTS.length;
   document.getElementById('proj-stat-budget').textContent = numFull(totalBudget);
   document.getElementById('proj-stat-spent').textContent  = numFull(totalSpent);
   document.getElementById('proj-stat-remain').textContent = numFull(totalBudget - totalSpent);
   if(!PROJECTS.length){ el.innerHTML='<div class="no-data">ยังไม่มีโครงการ กด "+ เพิ่มโครงการ"</div>'; return; }
   el.innerHTML = PROJECTS.map(p=>{
-    const spent = p.procurement_items?.reduce((a,i)=>a+Number(i.amount||0),0)||0;
+    // ใช้ PROC โดยตรง — อัปเดตทันทีเมื่อ toggle status
+    const projItems = PROC.filter(i=>i.project_id===p.id);
+    const spent  = projItems.filter(i=>i.withdraw_status==='เบิกแล้ว').reduce((a,i)=>a+Number(i.amount||0),0);
     const remain = Number(p.budget_amount||0)-spent;
     const pct = p.budget_amount>0?Math.min(spent/p.budget_amount*100,100):0;
     const over = remain<0;
