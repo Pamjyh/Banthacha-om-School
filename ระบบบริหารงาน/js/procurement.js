@@ -1,0 +1,274 @@
+// =====================================================================
+// PROCUREMENT
+// =====================================================================
+
+// คืน true ถ้า dateStr อยู่ในช่วงปีที่เลือก
+function inYearRange(dateStr, yearType, yearBE) {
+  if (!dateStr || !yearType || !yearBE) return true;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return true;
+  const ce = yearBE - 543;
+  let start, end;
+  if (yearType === 'การศึกษา') {
+    // ปีการศึกษา: 1 พ.ค. CE → 30 เม.ย. CE+1
+    start = new Date(ce, 4, 1);
+    end   = new Date(ce + 1, 3, 30, 23, 59, 59);
+  } else if (yearType === 'งบประมาณ') {
+    // ปีงบประมาณ: 1 ต.ค. CE-1 → 30 ก.ย. CE
+    start = new Date(ce - 1, 9, 1);
+    end   = new Date(ce, 8, 30, 23, 59, 59);
+  } else {
+    // ปีปฏิทิน: 1 ม.ค. CE → 31 ธ.ค. CE
+    start = new Date(ce, 0, 1);
+    end   = new Date(ce, 11, 31, 23, 59, 59);
+  }
+  return d >= start && d <= end;
+}
+
+// คำนวณ BE year ของ date ตาม yearType
+function dateToBeYear(dateStr, yearType) {
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  const ce = d.getFullYear();
+  const m  = d.getMonth(); // 0-indexed
+  if (yearType === 'การศึกษา') return m >= 4 ? ce + 543 : ce + 542; // พ.ค.(4) เป็นต้นไป = ปีใหม่
+  if (yearType === 'งบประมาณ') return m >= 9 ? ce + 544 : ce + 543;
+  return ce + 543; // ปฏิทิน
+}
+
+// สร้าง options ปีใน dropdown proc-fyear
+function populateProcYears() {
+  const sel = document.getElementById('proc-fyear');
+  if (!sel || !PROC_YEAR_TYPE) return;
+  const beYears = new Set();
+  PROC.forEach(i => { if (i.report_date) { const y = dateToBeYear(i.report_date, PROC_YEAR_TYPE); if (y) beYears.add(y); } });
+  if (CYbe) beYears.add(CYbe);
+  const sorted = Array.from(beYears).sort((a, b) => b - a);
+  sel.innerHTML = sorted.map(y => `<option value="${y}">${y}</option>`).join('');
+  // default = ปีปัจจุบัน
+  const defYear = beYears.has(CYbe) ? CYbe : sorted[0];
+  sel.value = defYear || '';
+  PROC_YEAR_VAL = parseInt(sel.value) || 0;
+}
+
+function fillProjSelects(){
+  const opts = '<option value="">— ไม่ระบุ —</option>'+PROJECTS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('pProject').innerHTML = opts;
+  document.getElementById('proc-fproject').innerHTML = '<option value="">โครงการทั้งหมด</option>'+PROJECTS.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+}
+
+function getFilteredProc(){
+  const q=(document.getElementById('proc-search').value||'').toLowerCase();
+  const ft=document.getElementById('proc-ftype').value;
+  const fs=document.getElementById('proc-fstatus').value;
+  const fp=document.getElementById('proc-fproject').value;
+  return PROC.filter(i=>{
+    if(PROC_TAB!=='all'&&i.type!==PROC_TAB) return false;
+    if(ft&&i.type!==ft) return false;
+    if(fs&&i.withdraw_status!==fs) return false;
+    if(fp&&i.project_id!==fp) return false;
+    if(PROC_YEAR_TYPE&&PROC_YEAR_VAL&&!inYearRange(i.report_date,PROC_YEAR_TYPE,PROC_YEAR_VAL)) return false;
+    if(q&&!i.title.toLowerCase().includes(q)&&!(i.person||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function renderProc(){
+  const rows=getFilteredProc();
+  const dc=rows.filter(i=>i.withdraw_status==='เบิกแล้ว').length;
+  const pc=rows.filter(i=>i.withdraw_status==='ยังไม่เบิก').length;
+  // stat cards ใช้ PROC ทั้งหมด ไม่ใช่ filtered
+  const allSum=a=>a.reduce((s,i)=>s+Number(i.amount||0),0);
+  document.getElementById('proc-stat-count').textContent = PROC.length;
+  document.getElementById('proc-stat-count-sub').textContent = `ซื้อ ${PROC.filter(i=>i.type==='จัดซื้อ').length} / จ้าง ${PROC.filter(i=>i.type==='จัดจ้าง').length}`;
+  document.getElementById('proc-stat-total').textContent = numFull(allSum(PROC));
+  document.getElementById('proc-stat-done').textContent  = numFull(allSum(PROC.filter(i=>i.withdraw_status==='เบิกแล้ว')));
+  document.getElementById('proc-stat-pend').textContent  = numFull(allSum(PROC.filter(i=>i.withdraw_status==='ยังไม่เบิก')));
+
+  const tbody=document.getElementById('proc-tbody');
+  const tfoot=document.getElementById('proc-tfoot');
+
+  if(!rows.length){
+    document.getElementById('proc-info').textContent='ไม่พบข้อมูล';
+    document.getElementById('proc-mg').textContent=`✓ เบิกแล้ว 0`;
+    document.getElementById('proc-ma').textContent=`⏳ รอ 0`;
+    tbody.innerHTML='<tr><td colspan="11" class="no-data">ไม่พบข้อมูล</td></tr>';
+    tfoot.innerHTML='';
+    renderProcPagination(0, 0);
+    return;
+  }
+
+  // Pagination
+  const totalPages = Math.ceil(rows.length / PAGE_SIZE);
+  if(PROC_PAGE > totalPages) PROC_PAGE = totalPages;
+  if(PROC_PAGE < 1) PROC_PAGE = 1;
+  const start = (PROC_PAGE - 1) * PAGE_SIZE;
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
+
+  document.getElementById('proc-info').textContent=`แสดง ${start+1}–${start+pageRows.length} จาก ${rows.length} รายการ`;
+  document.getElementById('proc-mg').textContent=`✓ เบิกแล้ว ${dc}`;
+  document.getElementById('proc-ma').textContent=`⏳ รอ ${pc}`;
+
+  const sum=a=>a.reduce((s,i)=>s+Number(i.amount||0),0);
+  tbody.innerHTML=pageRows.map(i=>{
+    const isDone=i.withdraw_status==='เบิกแล้ว';
+    return`<tr>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">จ.${i.seq}</td>
+      <td><span class="badge ${i.type==='จัดซื้อ'?'b-buy':'b-hire'}">${i.type}</span></td>
+      <td class="ink" style="max-width:220px">${i.title}</td>
+      <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.projects?.name||'—'}</td>
+      <td>${i.person||'—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${i.budget_source||'—'}</td>
+      <td style="font-family:var(--mono);font-size:11px">${fmtDate(i.report_date)}</td>
+      <td class="r">${fmt(i.amount)}</td>
+      <td><button class="st-btn ${isDone?'st-done':'st-pend'}" onclick="toggleStatus('${i.id}','${i.withdraw_status}')"><span class="st-dot ${isDone?'sd-done':'sd-pend'}"></span>${isDone?'เบิกแล้ว':'รอเบิก'}</button></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${i.withdraw_no||'—'}</td>
+      <td><div class="act-group">
+        <button class="act-btn" onclick="editProc('${i.id}')">✏️</button>
+        <button class="act-btn del" onclick="askDel('proc','${i.id}','${escHtml(i.title)}')">🗑️</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  const ta=sum(rows), da=sum(rows.filter(i=>i.withdraw_status==='เบิกแล้ว')), pa=sum(rows.filter(i=>i.withdraw_status==='ยังไม่เบิก'));
+  tfoot.innerHTML=`<tr class="sum-row">
+    <td colspan="7"><strong>รวม ${rows.length} รายการ</strong></td>
+    <td class="r"><strong>${fmt(ta)}</strong></td>
+    <td colspan="3"><span style="color:var(--up);font-family:var(--mono);font-size:11px">✓ ${fmt(da)}</span> <span style="color:var(--muted)">·</span> <span style="color:var(--arc);font-family:var(--mono);font-size:11px">⏳ ${fmt(pa)}</span></td>
+  </tr>`;
+
+  renderProcPagination(PROC_PAGE, totalPages);
+}
+
+function renderProcPagination(page, total){
+  const el = document.getElementById('proc-pagination');
+  if(!el) return;
+  if(total <= 1){ el.innerHTML=''; return; }
+  el.innerHTML = paginationHTML(page, total, 'goProcPage');
+}
+
+function goProcPage(n){
+  PROC_PAGE = n;
+  renderProc();
+  document.querySelector('.page.active')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ---- fund category matching ----
+function matchFundCategory(src){
+  if(!src||!FUND_CATEGORIES.length) return null;
+  const s=src.toLowerCase().replace(/\s/g,'');
+  if(s.includes('พัฒนาผู้เรียน')||s.includes('กิจกรรมพัฒนา'))
+    return (FUND_CATEGORIES.find(c=>c.code==='activity')||{}).id||null;
+  if(s.includes('อาหารกลางวัน'))
+    return (FUND_CATEGORIES.find(c=>c.code==='lunch')||{}).id||null;
+  if(s.includes('ลูกเสือสำรอง'))
+    return (FUND_CATEGORIES.find(c=>c.code==='scout-project')||{}).id||null;
+  if(s.includes('ลูกเสือ'))
+    return (FUND_CATEGORIES.find(c=>c.code==='scout')||{}).id||null;
+  if(s.includes('หนังสือ'))
+    return (FUND_CATEGORIES.find(c=>c.code==='textbook')||{}).id||null;
+  if(s.includes('อุดหนุน')||s.includes('รายหัว'))
+    return (FUND_CATEGORIES.find(c=>c.code==='per-head')||{}).id||null;
+  for(const cat of FUND_CATEGORIES){
+    if(cat.name.toLowerCase().includes(src.toLowerCase())) return cat.id;
+  }
+  return null;
+}
+
+async function createWithdrawTransaction(item){
+  const body={
+    year_id:CY,
+    fund_category_id: matchFundCategory(item.budget_source),
+    project_id: item.project_id||null,
+    procurement_id: item.id,
+    transaction_date: new Date().toISOString().split('T')[0],
+    transaction_type:'จ่าย',
+    holding_type:'เงินฝากธนาคาร',
+    document_no: item.withdraw_no||null,
+    description: item.title,
+    amount: item.amount
+  };
+  await POST('finance_transactions',body);
+  FINANCE_LOADED=false;
+}
+
+async function deleteWithdrawTransaction(procId){
+  await DEL('finance_transactions',`procurement_id=eq.${procId}&transaction_type=eq.จ่าย`);
+  FINANCE_LOADED=false;
+}
+
+// status toggle
+async function toggleStatus(id, current){
+  const newStatus = current==='เบิกแล้ว'?'ยังไม่เบิก':'เบิกแล้ว';
+  try{
+    await PATCH('procurement_items',`id=eq.${id}`,{withdraw_status:newStatus});
+    const item = PROC.find(i=>i.id===id);
+    if(item){
+      item.withdraw_status = newStatus;
+      if(newStatus==='เบิกแล้ว') await createWithdrawTransaction(item);
+      else await deleteWithdrawTransaction(id);
+    }
+    renderProc(); renderDashboard(); renderProjGrid();
+  }catch(e){ alert('อัปเดตไม่ได้: '+e.message); }
+}
+
+// proc form
+function nextSeq(type){ const nums=PROC.filter(i=>i.type===type).map(i=>i.seq||0); return nums.length?Math.max(...nums)+1:1; }
+function suggestProcSeq(){ if(!document.getElementById('procEditId').value) document.getElementById('pSeq').value=nextSeq(document.getElementById('pType').value); }
+function openProcForm(){
+  document.getElementById('procEditId').value='';
+  ['pTitle','pPerson','pDate','pAmount','pWithdrawNo','pRemark'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pType').value='จัดซื้อ';
+  document.getElementById('pProject').value='';
+  document.getElementById('pBudgetSrc').value='';
+  document.getElementById('pStatus').value='ยังไม่เบิก';
+  document.getElementById('pSeq').value=nextSeq('จัดซื้อ');
+  document.getElementById('procFormTitle').textContent='เพิ่มรายการ';
+  toggleWD();
+  document.getElementById('procOverlay').classList.add('open');
+}
+function closeProcForm(){ document.getElementById('procOverlay').classList.remove('open'); }
+function toggleWD(){ document.getElementById('withdrawGroup').style.opacity=document.getElementById('pStatus').value==='เบิกแล้ว'?'1':'0.4'; }
+function editProc(id){
+  const i=PROC.find(x=>x.id===id); if(!i)return;
+  document.getElementById('procEditId').value=id;
+  document.getElementById('pSeq').value=i.seq||'';
+  document.getElementById('pType').value=i.type;
+  document.getElementById('pTitle').value=i.title;
+  document.getElementById('pProject').value=i.project_id||'';
+  document.getElementById('pPerson').value=i.person||'';
+  document.getElementById('pBudgetSrc').value=i.budget_source||'';
+  document.getElementById('pDate').value=i.report_date||'';
+  document.getElementById('pAmount').value=i.amount||'';
+  document.getElementById('pStatus').value=i.withdraw_status;
+  document.getElementById('pWithdrawNo').value=i.withdraw_no||'';
+  document.getElementById('pRemark').value=i.remark||'';
+  document.getElementById('procFormTitle').textContent='แก้ไขรายการ';
+  toggleWD();
+  document.getElementById('procOverlay').classList.add('open');
+}
+async function saveProcItem(){
+  const title=document.getElementById('pTitle').value.trim();
+  const seq=parseInt(document.getElementById('pSeq').value);
+  if(!title){alert('กรุณาระบุชื่อรายการ');return}
+  if(!seq){alert('กรุณาระบุลำดับที่');return}
+  const eid=document.getElementById('procEditId').value;
+  const projVal=document.getElementById('pProject').value;
+  const body={
+    year_id:CY, seq, type:document.getElementById('pType').value, title,
+    project_id:projVal||null,
+    person:document.getElementById('pPerson').value.trim(),
+    budget_source:document.getElementById('pBudgetSrc').value,
+    report_date:document.getElementById('pDate').value||null,
+    amount:parseFloat(document.getElementById('pAmount').value)||0,
+    withdraw_status:document.getElementById('pStatus').value,
+    withdraw_no:document.getElementById('pWithdrawNo').value.trim()||null,
+    remark:document.getElementById('pRemark').value.trim()||null
+  };
+  show('loadingOverlay','flex');
+  try{
+    if(eid) await PATCH('procurement_items',`id=eq.${eid}`,body);
+    else await POST('procurement_items',body);
+    await loadAll(); closeProcForm();
+  }catch(e){ hide('loadingOverlay'); alert('บันทึกไม่ได้: '+e.message); }
+}

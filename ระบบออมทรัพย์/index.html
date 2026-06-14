@@ -1,0 +1,2166 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบออมทรัพย์นักเรียนโรงเรียนบ้านท่าชะอม</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Mitr:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/* ===== STARBUCKS DESIGN SYSTEM ===== */
+:root{
+  --sbux:#006241;--ga:#00754A;--hg:#1E3932;--gu:#2b5148;--gl:#d4e9e2;
+  --warm:#f2f0eb;--ceramic:#edebe9;--white:#ffffff;--cool:#f9f9f9;
+  --td:rgba(0,0,0,0.87);--ts:rgba(0,0,0,0.58);
+  --tw:rgba(255,255,255,1);--tws:rgba(255,255,255,0.70);
+  --gold:#cba258;--gold-l:#dfc49d;--gold-ll:#faf6ee;
+  --red:#c82014;--ibdr:#d6dbde;
+  --cr:12px;--cs:0 0 0.5px rgba(0,0,0,0.14),0 1px 1px rgba(0,0,0,0.24);
+  --br:50px;--bs:0.95;
+}
+body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--warm);min-height:100vh;color:var(--td);letter-spacing:-0.01em;font-size:16px;line-height:1.5}
+.page{display:none;flex-direction:column;min-height:100vh}.page.on{display:flex}
+
+#pg-login{background:var(--hg);align-items:center;justify-content:center;padding:2rem 1.25rem}
+.lg-logo{font-size:56px;margin-bottom:1rem;text-align:center}
+.lg-title{font-family:'Mitr',sans-serif;font-size:22px;font-weight:600;color:var(--tw);text-align:center;line-height:1.3;margin-bottom:4px;letter-spacing:-0.01em}
+.lg-school{font-size:14px;color:var(--tws);text-align:center;margin-bottom:2rem}
+.lg-card{background:var(--gu);border-radius:var(--cr);padding:1.5rem;width:100%;max-width:340px;border:1px solid rgba(255,255,255,0.1)}
+.lg-card label{font-size:12px;color:var(--tws);display:block;margin-bottom:6px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase}
+.lg-inp{width:100%;padding:12px 16px;border-radius:var(--br);border:1.5px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.2);color:var(--tw);font-size:15px;font-family:'Sarabun',sans-serif;outline:none;margin-bottom:12px;transition:border-color 0.2s}
+.lg-inp:focus{border-color:var(--gl)}
+.lg-btn{width:100%;padding:13px;border-radius:var(--br);border:none;background:var(--ga);color:#fff;font-size:16px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;letter-spacing:-0.01em;transition:all 0.2s}
+.lg-btn:hover{opacity:.88}.lg-btn:active{transform:scale(var(--bs))}
+.lg-err{color:#fca5a5;font-size:13px;margin-top:8px;text-align:center;display:none}
+.lg-hint{font-size:11px;color:rgba(255,255,255,0.3);text-align:center;margin-top:12px}
+.lg-divider{font-size:12px;color:rgba(255,255,255,0.3);text-align:center;margin:1rem 0;display:flex;align-items:center;gap:8px;width:100%;max-width:340px}
+.lg-divider::before,.lg-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.15)}
+.lg-parent-btn{width:100%;max-width:340px;margin-top:0;padding:13px;border-radius:var(--br);border:1.5px solid rgba(255,255,255,0.3);background:transparent;color:var(--tw);font-size:15px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;letter-spacing:-0.01em;transition:all 0.2s}
+.lg-parent-btn:hover{background:rgba(255,255,255,0.08)}.lg-parent-btn:active{transform:scale(var(--bs))}
+
+.nav{background:var(--hg);padding:14px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;position:sticky;top:0;z-index:30;box-shadow:0 1px 3px rgba(0,0,0,0.1),0 2px 2px rgba(0,0,0,0.06)}
+.nav-back{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);border-radius:50%;width:36px;height:36px;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.2s;flex-shrink:0}
+.nav-back:hover{background:rgba(255,255,255,0.2)}
+.nav-info{flex:1;min-width:0}
+.nav-sub{font-size:11px;color:var(--tws);letter-spacing:0.05em;text-transform:uppercase}
+.nav-title{font-family:'Mitr',sans-serif;font-size:17px;color:var(--tw);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-0.01em}
+.nav-out{background:transparent;border:1px solid rgba(255,255,255,0.4);border-radius:var(--br);padding:6px 14px;color:var(--tw);font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif;white-space:nowrap;transition:all 0.2s}
+.nav-out:hover{background:rgba(255,255,255,0.1)}.nav-out:active{transform:scale(var(--bs))}
+
+.body{flex:1;padding:16px;max-width:680px;width:100%;margin:0 auto}
+
+.gg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gc{background:var(--white);border:1.5px solid var(--gl);border-radius:var(--cr);padding:1.5rem 1rem;cursor:pointer;text-align:center;box-shadow:var(--cs);transition:transform 0.2s,box-shadow 0.2s}
+.gc:hover{transform:translateY(-3px);box-shadow:0 4px 16px rgba(0,0,0,0.12)}.gc:active{transform:scale(var(--bs))}
+.gc-icon{font-size:36px;margin-bottom:8px}.gc-name{font-family:'Mitr',sans-serif;font-size:20px;font-weight:600;color:var(--sbux)}.gc-info{font-size:12px;color:var(--ts);margin-top:4px}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.sc{background:var(--white);border-radius:var(--cr);border:1px solid var(--gl);padding:12px 8px;text-align:center;box-shadow:var(--cs)}
+.sv{font-family:'Mitr',sans-serif;font-size:18px;font-weight:700;color:var(--sbux)}.sl{font-size:11px;color:var(--ts);margin-top:2px}
+
+.acts{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.ab{flex:1;min-width:80px;padding:10px 6px;border-radius:var(--br);border:1.5px solid;font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:4px;letter-spacing:-0.01em}
+.ab:active{transform:scale(var(--bs))}
+.ab-dep{background:var(--ga);color:#fff;border-color:var(--ga)}.ab-dep:hover{opacity:.88}
+.ab-wit{background:transparent;color:var(--red);border-color:var(--red)}.ab-wit:hover{background:var(--red);color:#fff}
+.ab-bulk{background:transparent;color:var(--ga);border-color:var(--ga)}.ab-bulk:hover{background:var(--ga);color:#fff}
+.ab-add{background:var(--hg);color:#fff;border-color:var(--hg)}.ab-add:hover{opacity:.88}
+
+.st{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;letter-spacing:-0.01em}
+
+.sl-list{display:flex;flex-direction:column;gap:6px}
+.scard{background:var(--white);border-radius:var(--cr);border:1.5px solid var(--ceramic);padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;box-shadow:var(--cs);transition:all 0.2s}
+.scard:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);border-color:var(--gl)}.scard.sel{border-color:var(--ga);box-shadow:0 0 0 2px var(--ga)}
+.savt{width:38px;height:38px;border-radius:50%;background:var(--gl);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.sname{font-weight:600;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td)}
+.smeta{font-size:13px;color:var(--ts)}
+.sbal{text-align:right;flex-shrink:0}.sbv{font-family:'Mitr',sans-serif;font-size:15px;font-weight:700;color:var(--sbux)}.sbl{font-size:12px;color:var(--ts)}
+.ebtn{background:none;border:1px solid var(--ibdr);border-radius:var(--br);padding:4px 10px;font-size:11px;color:var(--ts);cursor:pointer;flex-shrink:0;font-family:'Sarabun',sans-serif;transition:all 0.2s}
+.ebtn:hover{border-color:var(--ga);color:var(--ga)}.ebtn:active{transform:scale(var(--bs))}
+.ebtn.del{color:var(--red);border-color:rgba(200,32,20,0.3)}.ebtn.del:hover{background:var(--red);color:#fff;border-color:var(--red)}
+
+.empty{text-align:center;padding:2.5rem 1rem;background:var(--white);border-radius:var(--cr);border:1.5px dashed var(--gl);color:var(--ts);box-shadow:var(--cs)}
+
+.txl{display:flex;flex-direction:column;gap:6px}
+.txi{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--white);border-radius:var(--cr);border:1px solid var(--ceramic);box-shadow:var(--cs)}
+.txb{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.txb.d{background:var(--gl)}.txb.w{background:#fde8e7}
+.txi-info{flex:1;min-width:0}.txn{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.txd{font-size:11px;color:var(--ts)}
+.txa{font-family:'Mitr',sans-serif;font-size:14px;font-weight:700;flex-shrink:0}.txa.d{color:var(--sbux)}.txa.w{color:var(--red)}
+
+.btbl{width:100%;border-collapse:collapse;background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--gl);box-shadow:var(--cs)}
+.btbl th{background:var(--hg);color:#fff;padding:10px 12px;font-family:'Mitr',sans-serif;font-size:13px;text-align:left;letter-spacing:-0.01em}
+.btbl td{padding:8px 10px;border-bottom:1px solid var(--ceramic);font-size:14px}
+.btbl tr:last-child td{border-bottom:none}.btbl tr:nth-child(even) td{background:var(--warm)}
+.binp{width:90px;padding:6px 8px;border-radius:var(--br);border:1.5px solid var(--ibdr);font-size:14px;font-family:'Sarabun',sans-serif;outline:none;text-align:right;transition:border-color 0.2s}
+.binp:focus{border-color:var(--ga)}.binp.hv{border-color:var(--ga);background:var(--gl);font-weight:600}
+.bsum{background:var(--gl);border:1px solid var(--sbux);border-radius:var(--br);padding:12px 16px;margin-bottom:14px;font-size:14px;color:var(--sbux);font-weight:600;display:none;text-align:center}
+.bsave{width:100%;padding:13px;border-radius:var(--br);border:none;background:var(--ga);color:#fff;font-size:16px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;margin-top:14px;letter-spacing:-0.01em;transition:all 0.2s}
+.bsave:hover{opacity:.88}.bsave:active{transform:scale(var(--bs))}.bsave:disabled{opacity:.5;cursor:not-allowed}
+
+.grand{background:var(--hg);border-radius:var(--cr);padding:1.5rem;text-align:center;margin-bottom:16px;box-shadow:var(--cs)}
+.gv{font-family:'Mitr',sans-serif;font-size:36px;font-weight:700;color:var(--tw);letter-spacing:-0.01em}.gs{font-size:13px;color:var(--tws);margin-top:4px}
+.ovblk{background:var(--white);border-radius:var(--cr);border:1px solid var(--gl);margin-bottom:10px;overflow:hidden;box-shadow:var(--cs)}
+.ovhd{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s}
+.ovhd:hover{background:var(--warm)}.ovg{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux)}.ovt{font-family:'Mitr',sans-serif;font-size:15px;color:var(--ga);font-weight:700}.ovc{font-size:11px;color:var(--ts)}
+.ovbd{display:none;padding:8px 14px;border-top:1px solid var(--gl)}.ovbd.on{display:block}
+.ovr{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--ceramic);font-size:13px}.ovr:last-child{border-bottom:none}
+
+.atabs{display:grid;grid-template-columns:repeat(4,1fr);background:var(--hg);border-top:1px solid var(--gu);flex-shrink:0}
+.atab{padding:10px 2px;border:none;background:transparent;color:var(--tws);font-size:13px;font-family:'Sarabun',sans-serif;cursor:pointer;text-align:center;line-height:1.4;transition:color 0.2s;border-top:2px solid transparent}
+.atab.on{color:var(--tw);border-top-color:var(--ga)}.atab:hover{color:var(--tw)}
+
+.ic{background:var(--white);border-radius:var(--cr);border:1px solid var(--gl);padding:1rem;margin-bottom:10px;box-shadow:var(--cs)}
+.ic-t{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:4px;letter-spacing:-0.01em}
+.ic-d{font-size:13px;color:var(--ts);line-height:1.6;margin-bottom:1rem}
+.pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.pbtn{padding:10px 4px;border-radius:var(--cr);border:1.5px solid var(--gl);background:var(--warm);font-size:11px;font-family:'Mitr',sans-serif;cursor:pointer;text-align:center;line-height:1.5;color:var(--ts);transition:all 0.2s}
+.pbtn:hover{border-color:var(--ga);color:var(--ga);background:var(--gl)}.pbtn:active{transform:scale(var(--bs))}
+.abtn{width:100%;padding:12px;border-radius:var(--br);border:none;color:#fff;font-size:15px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;letter-spacing:-0.01em;transition:all 0.2s}
+.abtn:hover{opacity:.88}.abtn:active{transform:scale(var(--bs))}.abtn:disabled{opacity:.5;cursor:not-allowed}
+
+.finp{width:100%;padding:10px 14px;border-radius:var(--br);border:1.5px solid var(--ibdr);font-size:14px;font-family:'Sarabun',sans-serif;outline:none;margin-bottom:8px;background:var(--white);transition:border-color 0.2s}
+.finp:focus{border-color:var(--ga)}
+.flbl{font-size:12px;color:var(--ts);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.fok{background:var(--gl);border:1px solid var(--sbux);border-radius:var(--br);padding:9px 14px;font-size:13px;color:var(--sbux);margin-bottom:8px;display:none}
+.ferr{color:var(--red);font-size:13px;margin-bottom:8px;display:none}
+
+.grdc{background:var(--gold-ll);border-radius:var(--cr);border:1px solid var(--gold-l);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;box-shadow:var(--cs)}
+.grdn{font-weight:600;font-size:14px;color:var(--td)}.grdm{font-size:11px;color:var(--gold);margin-top:2px}.grdb{font-family:'Mitr',sans-serif;font-size:15px;font-weight:700;color:var(--sbux)}
+
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:1rem}
+.mo.on{display:flex}
+.mb{background:var(--white);border-radius:var(--cr);padding:1.5rem;width:100%;max-width:360px;box-shadow:0 8px 40px rgba(0,0,0,0.2)}
+.mb-wide{max-width:420px}
+.mt{font-family:'Mitr',sans-serif;font-size:18px;font-weight:600;color:var(--sbux);margin-bottom:.4rem;letter-spacing:-0.01em}
+.ms{font-size:13px;color:var(--ts);margin-bottom:1rem;line-height:1.5}
+.mok{background:var(--gl);border:1px solid var(--sbux);border-radius:var(--br);padding:9px 14px;font-size:13px;color:var(--sbux);margin-bottom:8px;display:none}
+.merr{color:var(--red);font-size:13px;margin-bottom:8px;display:none}
+.minp{width:100%;padding:11px 14px;border-radius:var(--br);border:1.5px solid var(--ibdr);font-size:15px;font-family:'Sarabun',sans-serif;outline:none;margin-bottom:8px;transition:border-color 0.2s}
+.minp:focus{border-color:var(--ga)}
+.mbtns{display:flex;gap:8px;margin-top:8px}
+.mbtn{flex:1;padding:11px;border-radius:var(--br);font-size:14px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;border:none;transition:all 0.2s;letter-spacing:-0.01em}
+.mbtn:active{transform:scale(var(--bs))}
+.mbtn-c{background:var(--ceramic);color:var(--ts);border:1px solid var(--ibdr)}.mbtn-c:hover{background:var(--warm)}
+.mbtn-g{background:var(--ga);color:#fff}.mbtn-g:hover{opacity:.88}
+.mbtn-r{background:var(--red);color:#fff}.mbtn-r:hover{opacity:.88}
+.mbtn-b{background:var(--hg);color:#fff}.mbtn-b:hover{opacity:.88}
+.mbtn-a{background:var(--gold);color:#fff}.mbtn-a:hover{opacity:.88}
+
+.tw{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{background:var(--hg);color:var(--tw);padding:11px 20px;border-radius:var(--br);font-size:14px;letter-spacing:-0.01em;box-shadow:0 4px 16px rgba(0,0,0,0.2);animation:su .3s ease;white-space:nowrap}
+.toast.ok{background:var(--ga)}.toast.err{background:var(--red)}
+@keyframes su{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.load{text-align:center;padding:2rem;color:var(--ts);font-size:14px}
+
+@media(max-width:400px){
+  .stats{grid-template-columns:1fr 1fr}.stats .sc:last-child{grid-column:span 2}
+  .pgrid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ===== MANUAL STYLES ===== */
+.mo-manual,
+.mo-manual *{box-sizing:border-box;margin:0;padding:0}
+.mo-manual-body{font-family:'Sarabun',sans-serif;background:var(--warm);color:#1a1a1a;line-height:1.6;letter-spacing:-0.01em}
+
+/* ====== COVER ====== */
+.mo-manual .cover{
+  background:var(--hg);
+  padding:3.5rem 2rem 4rem;
+  text-align:center;
+  position:relative;overflow:hidden;
+}
+.mo-manual .cover::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(circle at 20% 50%,rgba(0,117,74,.35) 0%,transparent 55%),
+    radial-gradient(circle at 80% 20%,rgba(0,98,65,.4) 0%,transparent 50%),
+    radial-gradient(circle at 60% 80%,rgba(43,81,72,.3) 0%,transparent 45%);
+}
+.mo-manual .cover-icon{font-size:80px;display:block;margin-bottom:1.25rem;position:relative;animation:bob 3s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-12px) rotate(2deg)}}
+.mo-manual .cover h1{font-family:'Mitr',sans-serif;font-size:32px;font-weight:700;color:#fff;position:relative;line-height:1.3;margin-bottom:.5rem}
+.mo-manual .cover h2{font-family:'Mitr',sans-serif;font-size:17px;font-weight:400;color:rgba(255,255,255,.65);position:relative;margin-bottom:1.5rem}
+.mo-manual .cover-pills{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;position:relative}
+.mo-manual .pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:50px;padding:5px 14px;font-size:12px;color:rgba(255,255,255,.85);font-weight:600}
+
+/* ====== WHO SECTION ====== */
+.mo-manual .who{max-width:720px;margin:0 auto;padding:2.5rem 1.5rem 1.5rem}
+.mo-manual .who-title{font-family:'Mitr',sans-serif;font-size:13px;font-weight:600;color:var(--sbux);text-transform:uppercase;letter-spacing:.1em;text-align:center;margin-bottom:1.25rem}
+.mo-manual .who-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mo-manual .who-card{background:var(--white);border-radius:16px;padding:1.25rem 1rem;text-align:center;border:2px solid var(--gl);box-shadow:0 2px 12px rgba(0,0,0,.05);transition:transform .2s}
+.mo-manual .who-card:hover{transform:translateY(-4px)}
+.mo-manual .who-card .wicon{font-size:44px;margin-bottom:.6rem;display:block}
+.mo-manual .who-card h3{font-family:'Mitr',sans-serif;font-size:14px;color:var(--hg);margin-bottom:.3rem}
+.mo-manual .who-card p{font-size:11.5px;color:#666;line-height:1.6}
+.mo-manual .who-card .pw{display:inline-block;margin-top:.5rem;background:var(--hg);color:#fff;border-radius:50px;padding:3px 12px;font-size:11px;font-weight:600}
+
+/* ====== CHAPTER ====== */
+.mo-manual .chapter{max-width:720px;margin:0 auto;padding:.5rem 1.5rem 2.5rem}
+.mo-manual .ch-header{display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;padding:1rem 1.25rem;background:var(--hg);border-radius:14px}
+.mo-manual .ch-num{width:36px;height:36px;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Mitr',sans-serif;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+.mo-manual .ch-header h2{font-family:'Mitr',sans-serif;font-size:17px;color:#fff;font-weight:600}
+.mo-manual .ch-header p{font-size:12px;color:rgba(255,255,255,.6);margin-top:1px}
+
+/* ====== STEPS ====== */
+.mo-manual .steps{display:flex;flex-direction:column;gap:10px;margin-bottom:1.25rem}
+.mo-manual .step{display:flex;gap:12px;background:var(--white);border-radius:14px;padding:13px 15px;border:1px solid #e8e4de;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.mo-manual .snum{width:28px;height:28px;border-radius:50%;background:var(--hg);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Mitr',sans-serif;font-size:13px;font-weight:700;flex-shrink:0;margin-top:1px}
+.mo-manual .sbody h4{font-family:'Mitr',sans-serif;font-size:13.5px;color:var(--hg);margin-bottom:3px}
+.mo-manual .sbody p{font-size:12.5px;color:#555;line-height:1.65}
+.mo-manual .note{display:inline-flex;align-items:center;gap:4px;border-radius:8px;padding:4px 10px;font-size:11.5px;margin-top:6px;font-weight:600}
+.mo-manual .note-tip{background:#fef9ee;border:1px solid #fde68a;color:#92400e}
+.mo-manual .note-ok{background:var(--gl);border:1px solid #86efac;color:var(--sbux)}
+.mo-manual .note-warn{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+
+/* ====== MOCKUP ====== */
+.mo-manual .phone{background:var(--hg);border-radius:20px;padding:14px;margin:1rem 0;overflow:hidden;position:relative;box-shadow:0 8px 32px rgba(30,57,50,.3)}
+.mo-manual .phone::after{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:rgba(255,255,255,.04);border-radius:50%}
+.mo-manual .phone-bar{display:flex;align-items:center;gap:5px;margin-bottom:10px}
+.mo-manual .pbar-dot{width:7px;height:7px;border-radius:50%}
+.mo-manual .phone-bar span{font-size:11px;color:rgba(255,255,255,.5);margin-left:4px}
+.mo-manual .phone-inner{background:rgba(0,0,0,.18);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.mo-manual .pcard{background:rgba(255,255,255,.92);border-radius:10px;padding:10px 12px}
+.mo-manual .pcard-label{font-size:10px;color:#888;margin-bottom:2px}
+.mo-manual .pcard-val{font-family:'Mitr',sans-serif;font-size:22px;font-weight:700;color:var(--ga)}
+.mo-manual .prow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.mo-manual .prow:last-child{border:none}
+.mo-manual .pname{font-size:12px;color:rgba(255,255,255,.88)}
+.mo-manual .pamt{font-size:12px;font-weight:700;color:#6ee7b7}
+.mo-manual .ptabs{display:flex;gap:3px;background:rgba(255,255,255,.08);border-radius:50px;padding:3px}
+.mo-manual .ptab{flex:1;padding:5px 4px;border-radius:50px;font-size:10px;text-align:center;color:rgba(255,255,255,.55)}
+.mo-manual .ptab.on{background:var(--ga);color:#fff;font-weight:700}
+.mo-manual .pbtn{padding:7px 14px;border-radius:50px;font-size:11.5px;font-family:'Sarabun',sans-serif;font-weight:600;display:inline-block}
+.mo-manual .pbtn-g{background:var(--ga);color:#fff}
+.mo-manual .pbtn-o{background:transparent;border:1.5px solid rgba(255,255,255,.35);color:rgba(255,255,255,.85)}
+.mo-manual .p2col{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mo-manual .pstat{background:rgba(255,255,255,.09);border-radius:9px;padding:9px 8px;text-align:center}
+.mo-manual .pstat-val{font-family:'Mitr',sans-serif;font-size:16px;font-weight:700}
+.mo-manual .pstat-lbl{font-size:9px;color:rgba(255,255,255,.5);margin-top:1px}
+
+/* ====== INFO TABLE ====== */
+.mo-manual .itable{width:100%;border-collapse:collapse;background:var(--white);border-radius:12px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.06);margin:10px 0}
+.mo-manual .itable th{background:var(--hg);color:#fff;padding:9px 13px;font-family:'Mitr',sans-serif;font-size:12.5px;text-align:left;font-weight:600}
+.mo-manual .itable td{padding:9px 13px;font-size:12.5px;border-bottom:1px solid #f0ede8}
+.mo-manual .itable tr:last-child td{border:none}
+.mo-manual .itable tr:nth-child(even) td{background:#faf9f7}
+
+/* ====== HIGHLIGHT ====== */
+.mo-manual .hl{background:var(--hg);border-radius:14px;padding:1.1rem 1.25rem;margin:1rem 0;display:flex;gap:12px;align-items:flex-start}
+.mo-manual .hl-icon{font-size:28px;flex-shrink:0;margin-top:1px}
+.mo-manual .hl h4{font-family:'Mitr',sans-serif;font-size:13.5px;color:#fff;margin-bottom:3px}
+.mo-manual .hl p{font-size:12.5px;color:rgba(255,255,255,.72);line-height:1.65}
+
+/* ====== DIVIDER ====== */
+.mo-manual .div-warm{height:10px;background:var(--warm)}
+.mo-manual .pg-break{border:none;border-top:2px dashed #d4cdc4;margin:2rem 0}
+
+/* ====== FOOTER ====== */
+.mo-manual .footer{background:var(--hg);padding:2.5rem 1.5rem;text-align:center;margin-top:1.5rem}
+.mo-manual .footer h3{font-family:'Mitr',sans-serif;font-size:20px;color:#fff;margin:.75rem 0 .25rem}
+.mo-manual .footer p{font-size:13px;color:rgba(255,255,255,.55)}
+.mo-manual .footer .url{color:rgba(255,255,255,.8);font-weight:600;font-size:14px;margin-top:.5rem}
+
+@media(max-width:500px){
+  .mo-manual .who-cards{grid-template-columns:1fr}
+  .mo-manual .cover h1{font-size:24px}
+}
+@media print{
+  .cover{min-height:auto;padding:2rem}
+  .chapter,.who{padding:1rem}
+}
+
+/* manual modal */
+.mo-manual{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:none;overflow-y:auto}
+.mo-manual.on{display:block}
+.mo-manual-close{position:fixed;top:0;right:0;z-index:300;background:var(--hg);border:none;border-bottom-left-radius:12px;padding:10px 18px;color:#fff;font-size:14px;font-family:"Sarabun",sans-serif;cursor:pointer;font-weight:600;box-shadow:-2px 2px 12px rgba(0,0,0,.25)}
+.mo-manual-close:hover{background:var(--ga)}
+</style>
+</head>
+<body>
+
+<!-- MANUAL MODAL -->
+<div class="mo-manual" id="mo-manual">
+  <button class="mo-manual-close" onclick="closeManual()">✕ ปิด</button>
+  <div class="mo-manual-body">
+<!-- ====== COVER ====== -->
+<div class="cover">
+  <span class="cover-icon">🏦</span>
+  <h1>คู่มือการใช้งาน<br>ระบบออมทรัพย์นักเรียน</h1>
+  <h2>โรงเรียนบ้านท่าชะอม</h2>
+  <div class="cover-pills">
+    <span class="pill">👩‍🏫 ครู</span>
+    <span class="pill">🛡️ ผู้ดูแล</span>
+    <span class="pill">👨‍👩‍👧 ผู้ปกครอง</span>
+  </div>
+</div>
+
+<!-- ====== ผู้ใช้งาน ====== -->
+<div class="who">
+  <div class="who-title">ผู้ใช้งานมี 3 กลุ่ม</div>
+  <div class="who-cards">
+    <div class="who-card">
+      <span class="wicon">👩‍🏫</span>
+      <h3>ครูประจำชั้น</h3>
+      <p>ฝาก · ถอน · เพิ่มนักเรียน<br>ดูสรุปรายวัน-รายเดือน</p>
+      <span class="pw">ติดต่อผู้บริหาร</span>
+    </div>
+    <div class="who-card">
+      <span class="wicon">🛡️</span>
+      <h3>ผู้ดูแลระบบ</h3>
+      <p>ภาพรวมทุกชั้น<br>เลื่อนชั้น · ดูจบแล้ว</p>
+      <span class="pw" style="background:var(--ga);visibility:hidden">-</span>
+    </div>
+    <div class="who-card">
+      <span class="wicon">👨‍👩‍👧</span>
+      <h3>ผู้ปกครอง</h3>
+      <p>ค้นชื่อบุตรหลาน<br>ดูยอดสะสม-ประวัติ</p>
+      <span class="pw" style="background:var(--ga)">ไม่ต้องรหัสผ่าน</span>
+    </div>
+  </div>
+</div>
+
+<div class="div-warm"></div>
+
+<!-- ====== บทที่ 1: เข้าสู่ระบบ ====== -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">1</div>
+    <div><h2>เข้าสู่ระบบ</h2><p>Login สำหรับครูและผู้ดูแล</p></div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="sbody">
+        <h4>เปิดเว็บ pamjyh.github.io/School-Savings</h4>
+        <p>ใช้ได้ทั้ง iPhone, Android และคอมพิวเตอร์</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="sbody">
+        <h4>ใส่รหัสผ่าน → กด "เข้าสู่ระบบ"</h4>
+        <p>ใส่รหัสผ่านที่ได้รับจากผู้ดูแลระบบ แล้วกด "เข้าสู่ระบบ"</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="sbody">
+        <h4>เลือกชั้นที่ต้องการ</h4>
+        <p>ระบบแสดงการ์ดชั้นเรียน อ.2 ถึง ป.6 พร้อมจำนวนนักเรียนและยอดรวม</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="phone">
+    <div class="phone-bar">
+      <div class="pbar-dot" style="background:#ff5f57"></div>
+      <div class="pbar-dot" style="background:#ffbd2e"></div>
+      <div class="pbar-dot" style="background:#28c840"></div>
+      <span>หน้าเข้าสู่ระบบ</span>
+    </div>
+    <div class="phone-inner">
+      <div style="text-align:center;padding:.5rem 0">
+        <div style="font-size:40px;margin-bottom:6px">🏦</div>
+        <div style="font-family:'Mitr',sans-serif;font-size:16px;color:#fff;font-weight:600">ระบบออมทรัพย์นักเรียน</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.5)">โรงเรียนบ้านท่าชะอม</div>
+      </div>
+      <div style="background:rgba(43,81,72,.7);border-radius:12px;padding:12px">
+        <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">รหัสผ่านสำหรับครู / ผู้ดูแล</div>
+        <div style="background:rgba(0,0,0,.25);border:1.5px solid rgba(255,255,255,.15);border-radius:50px;padding:8px 14px;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:8px">••••••••</div>
+        <div class="pbtn pbtn-g" style="width:100%;text-align:center;display:block;border-radius:50px;padding:9px">เข้าสู่ระบบ</div>
+      </div>
+      <div class="pbtn pbtn-o" style="text-align:center;border-radius:50px;padding:9px">👨‍👩‍👧 ผู้ปกครองเช็คยอดออมทรัพย์</div>
+    </div>
+  </div>
+</div>
+
+<div class="div-warm"></div>
+
+<!-- ====== บทที่ 2: ฝากเงิน ====== -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">2</div>
+    <div><h2>💰 บันทึกฝากเงิน</h2><p>บันทึกรายคนหรือหลายคนพร้อมกัน</p></div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="sbody">
+        <h4>กดเลือกชั้น → คลิกชื่อนักเรียน</h4>
+        <p>กรอบรอบชื่อจะเปลี่ยนเป็นสีเขียว แสดงว่าเลือกแล้ว หรือพิมพ์ค้นหาในช่อง 🔍</p>
+        <span class="note note-tip">💡 ต้องเลือกชื่อนักเรียนก่อนกดปุ่มฝาก</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="sbody">
+        <h4>กดปุ่ม 💰 ฝาก</h4>
+        <p>ใส่จำนวนเงินที่ฝาก → กด "✓ ยืนยันฝาก"</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="sbody">
+        <h4>ระบบบันทึกและอัพเดทยอดทันที</h4>
+        <p>ยอดสะสมของนักเรียนเปลี่ยนแปลงทันทีในหน้ารายชื่อ</p>
+        <span class="note note-ok">✓ บันทึกสำเร็จ ยอดใหม่แสดงอัตโนมัติ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOCKUP ฝาก -->
+  <div class="phone">
+    <div class="phone-bar">
+      <div class="pbar-dot" style="background:#ff5f57"></div>
+      <div class="pbar-dot" style="background:#ffbd2e"></div>
+      <div class="pbar-dot" style="background:#28c840"></div>
+      <span>🌱 ชั้น ป.1</span>
+    </div>
+    <div class="phone-inner">
+      <div class="p2col">
+        <div class="pcard">
+          <div class="pcard-label">ยอดรวม (฿)</div>
+          <div class="pcard-val">68,070</div>
+        </div>
+        <div class="pcard">
+          <div class="pcard-label">นักเรียน</div>
+          <div class="pcard-val" style="color:var(--hg)">34 คน</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <span class="pbtn pbtn-g">💰 ฝาก</span>
+        <span class="pbtn pbtn-o">💸 ถอน</span>
+        <span class="pbtn pbtn-o">📋 ฝากรวม</span>
+        <span class="pbtn pbtn-o">➕ เพิ่ม</span>
+      </div>
+      <div style="background:rgba(255,255,255,.1);border-radius:9px;padding:9px 11px">
+        <div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:5px">🔍 ค้นหาชื่อนักเรียน...</div>
+      </div>
+      <!-- นักเรียน 3 คน -->
+      <div class="prow" style="border:1.5px solid rgba(0,117,74,.6);border-radius:9px;padding:8px 10px;background:rgba(0,117,74,.1)">
+        <div>
+          <div class="pname" style="color:#fff;font-weight:600">🌱 เด็กชาย ภูวิศ แก้วสาริกรรณ์</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.45)">เข้าปี 2565</div>
+        </div>
+        <div style="text-align:right">
+          <div class="pamt" style="color:var(--ga);font-weight:700;font-size:14px">895 ฿</div>
+          <div style="font-size:9px;color:rgba(255,255,255,.3)">สะสม</div>
+        </div>
+      </div>
+      <div class="prow" style="border-radius:9px;padding:8px 10px;background:rgba(255,255,255,.05)">
+        <div>
+          <div class="pname">🌱 เด็กชาย ธนวัฒน์ สูงอย</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.45)">เข้าปี 2565</div>
+        </div>
+        <div style="text-align:right">
+          <div class="pamt">1,652 ฿</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="div-warm"></div>
+
+<!-- ====== บทที่ 3: ถอนเงิน ====== -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">3</div>
+    <div><h2>💸 บันทึกถอนเงิน</h2><p>มีขั้นยืนยันก่อนดำเนินการ</p></div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="sbody">
+        <h4>เลือกนักเรียน → กดปุ่ม 💸 ถอน → ใส่จำนวนเงิน</h4>
+        <p>กด "ถัดไป →" ระบบจะแสดงหน้ายืนยันก่อน</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="sbody">
+        <h4>ตรวจสอบสรุปก่อนถอน</h4>
+        <p>ระบบแสดง: ชื่อนักเรียน · ถอนออก · <b>ยอดคงเหลือหลังถอน</b></p>
+        <span class="note note-warn">⚠️ ตรวจชื่อและจำนวนให้ถูกต้องก่อนกดยืนยัน</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="sbody">
+        <h4>กด "✓ ยืนยันถอนเงิน"</h4>
+        <p>ถ้าถอนเกินยอดที่มีอยู่ ระบบจะปฏิเสธและแจ้งยอดที่มีจริง</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="div-warm"></div>
+
+<!-- ====== บทที่ 4: ฝากรวม ====== -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">4</div>
+    <div><h2>📋 ฝากรวม — กรอกทีเดียวหลายคน</h2><p>ประหยัดเวลา ไม่ต้องทำทีละคน</p></div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="sbody">
+        <h4>กดปุ่ม 📋 ฝากรวม</h4>
+        <p>ตารางรายชื่อนักเรียนทั้งชั้นจะขึ้นมา พร้อมยอดสะสมปัจจุบัน</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="sbody">
+        <h4>กรอกเฉพาะคนที่ฝากวันนี้</h4>
+        <p>แตะช่องแล้วพิมพ์จำนวนเงินได้เลย ช่องที่ว่างเปล่าจะถูกข้ามไปอัตโนมัติ</p>
+        <span class="note note-tip">💡 ด้านบนจะแสดง "กรอกแล้ว X คน · รวม XXX บาท"</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="sbody">
+        <h4>กด 💾 บันทึกทั้งหมด</h4>
+        <p>ระบบส่งทีละคน แสดงความคืบหน้า "⏳ 5/18..." จนเสร็จครบ</p>
+        <span class="note note-ok">✓ บันทึกสำเร็จ X คน · กลับหน้ารายชื่ออัตโนมัติ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOCKUP ฝากรวม -->
+  <div class="phone">
+    <div class="phone-bar">
+      <div class="pbar-dot" style="background:#ff5f57"></div>
+      <div class="pbar-dot" style="background:#ffbd2e"></div>
+      <div class="pbar-dot" style="background:#28c840"></div>
+      <span>📋 ฝากรวม ชั้น ป.1</span>
+    </div>
+    <div class="phone-inner">
+      <div style="background:rgba(212,233,226,.18);border:1px solid rgba(110,231,183,.3);border-radius:8px;padding:8px 12px;font-size:12px;color:rgba(255,255,255,.8)">
+        กรอกแล้ว 3 คน · รวม <b style="color:#6ee7b7">170 บาท</b>
+      </div>
+      <table style="width:100%;font-size:11px;color:rgba(255,255,255,.8);border-collapse:collapse">
+        <tr style="border-bottom:1px solid rgba(255,255,255,.1)">
+          <th style="text-align:left;padding:5px 4px;color:rgba(255,255,255,.4);font-weight:400">ชื่อ-สกุล</th>
+          <th style="text-align:right;padding:5px 4px;color:rgba(255,255,255,.4);font-weight:400">ยอดสะสม</th>
+          <th style="text-align:right;padding:5px 4px;color:rgba(255,255,255,.4);font-weight:400">ฝากวันนี้</th>
+        </tr>
+        <tr>
+          <td style="padding:6px 4px">เด็กชาย ภูวิศ...</td>
+          <td style="text-align:right">895 ฿</td>
+          <td style="text-align:right"><span style="background:rgba(110,231,183,.2);border-radius:6px;padding:2px 8px;color:#6ee7b7;font-weight:700">20</span></td>
+        </tr>
+        <tr style="opacity:.6">
+          <td style="padding:6px 4px">เด็กชาย ธนวัฒน์...</td>
+          <td style="text-align:right">1,652 ฿</td>
+          <td style="text-align:right"><span style="color:rgba(255,255,255,.2)">—</span></td>
+        </tr>
+        <tr>
+          <td style="padding:6px 4px">เด็กชาย ธนกฤต...</td>
+          <td style="text-align:right">150 ฿</td>
+          <td style="text-align:right"><span style="background:rgba(110,231,183,.2);border-radius:6px;padding:2px 8px;color:#6ee7b7;font-weight:700">50</span></td>
+        </tr>
+      </table>
+      <div class="pbtn pbtn-g" style="text-align:center;border-radius:50px;padding:10px;display:block">💾 บันทึกทั้งหมด</div>
+    </div>
+  </div>
+</div>
+
+<hr class="pg-break">
+
+<!-- ====== บทที่ 5: สรุปรายวัน-เดือน ====== -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">5</div>
+    <div><h2>📅 สรุปรายวัน และ 📆 รายเดือน</h2><p>ติดตามว่าใครฝากแล้ว ใครยังไม่ฝาก</p></div>
+  </div>
+
+  <p style="font-size:13px;color:#555;margin-bottom:1rem">ในหน้าชั้นเรียน มีแถบ 3 มุมมอง เลือกได้ตามต้องการ:</p>
+
+  <table class="itable">
+    <tr><th>แถบ</th><th>เห็นอะไร</th></tr>
+    <tr><td>👥 รายชื่อ</td><td>รายชื่อทุกคน ยอดสะสม ค้นหา เพิ่ม แก้ไข ลบ</td></tr>
+    <tr><td>📅 วันนี้</td><td>ใครฝากแล้ว / ยังไม่ฝาก · ยอดฝาก-ถอนรวมวันนี้</td></tr>
+    <tr><td>📆 รายเดือน</td><td>เลือกเดือน+ปี · ยอดรวม · จำนวนครั้งต่อคน</td></tr>
+  </table>
+
+  <!-- MOCKUP สรุปวันนี้ -->
+  <div class="phone">
+    <div class="phone-bar">
+      <div class="pbar-dot" style="background:#ff5f57"></div>
+      <div class="pbar-dot" style="background:#ffbd2e"></div>
+      <div class="pbar-dot" style="background:#28c840"></div>
+      <span>สรุปวันนี้ · ชั้น ป.1</span>
+    </div>
+    <div class="phone-inner">
+      <div class="ptabs">
+        <div class="ptab">👥 รายชื่อ</div>
+        <div class="ptab on">📅 วันนี้</div>
+        <div class="ptab">📆 รายเดือน</div>
+      </div>
+      <div style="background:rgba(255,255,255,.07);border-radius:10px;padding:10px">
+        <div style="font-size:9px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">3 มิถุนายน 2569 · ชั้น ป.1</div>
+        <div class="p2col">
+          <div class="pstat">
+            <div class="pstat-val" style="color:#6ee7b7">1,250 ฿</div>
+            <div class="pstat-lbl">💰 ฝากวันนี้</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.3)">12 คน</div>
+          </div>
+          <div class="pstat">
+            <div class="pstat-val" style="color:#fde68a">22 คน</div>
+            <div class="pstat-lbl">⏳ ยังไม่ฝาก</div>
+            <div style="font-size:9px;color:rgba(255,255,255,.3)">จาก 34 คน</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,.5);font-weight:600;margin:.3rem 0 .3rem">✅ ฝากแล้ว (12 คน)</div>
+      <div class="prow">
+        <div><div class="pname">เด็กชาย ภูวิศ แก้วสาริกรรณ์</div></div>
+        <div class="pamt">+20 ฿</div>
+      </div>
+      <div class="prow">
+        <div><div class="pname">เด็กหญิง ชนิดา ทรัพย์สมบัติ</div></div>
+        <div class="pamt">+200 ฿</div>
+      </div>
+      <div class="prow">
+        <div><div class="pname">เด็กชาย กิตติพงศ์ ขาวหอม</div></div>
+        <div class="pamt">+10 ฿</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="div-warm"></div>
+
+<!-- ====== บทที่ 6: เพิ่มนักเรียน ====== -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">6</div>
+    <div><h2>➕ เพิ่มนักเรียนใหม่</h2><p>เพิ่มทีละคนหรือหลายคนพร้อมกัน</p></div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="sbody">
+        <h4>เลือกชั้น → กดปุ่ม ➕ เพิ่ม</h4>
+        <p>กล่องเพิ่มนักเรียนจะปรากฏขึ้น</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="sbody">
+        <h4>วิธีที่ 1: เพิ่มหลายคน (แนะนำ)</h4>
+        <p>พิมพ์ชื่อ-สกุลทีละบรรทัดในช่องบน</p>
+        <div style="background:#f0ede8;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#444;line-height:1.8">
+          เด็กชายสมชาย ใจดี<br>
+          เด็กหญิงสมหญิง รักเรียน<br>
+          เด็กชายมานะ ขยันเรียน
+        </div>
+        <span class="note note-tip">💡 เพิ่มได้ทีละ 18-20 คนต่อครั้ง ระบบจะแสดงความคืบหน้า</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="sbody">
+        <h4>วิธีที่ 2: เพิ่มทีละคน พร้อมเลขบัญชี</h4>
+        <p>ใช้ช่องล่าง ใส่ชื่อ + เลขบัญชี ธกส. ได้เลย หรือกด ✏️ เพื่อเพิ่มบัญชีทีหลัง</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="div-warm"></div>
+
+<!-- ====== บทที่ 7: ผู้ปกครอง ====== -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">7</div>
+    <div><h2>👨‍👩‍👧 ผู้ปกครองเช็คยอด</h2><p>ไม่ต้องรหัสผ่าน เข้าได้เลย</p></div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="snum">1</div>
+      <div class="sbody">
+        <h4>เปิดเว็บ → กด "👨‍👩‍👧 ผู้ปกครองเช็คยอดออมทรัพย์"</h4>
+        <p>ไม่ต้องรหัสผ่าน กดเข้าได้เลยทันที</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">2</div>
+      <div class="sbody">
+        <h4>พิมพ์ชื่อหรือนามสกุลบุตรหลาน</h4>
+        <p>พิมพ์แค่ส่วนหนึ่งก็ได้ เช่น "สมชาย" หรือ "ใจดี"<br>ถ้าพบหลายคนชื่อคล้าย ระบบจะแสดงให้เลือก</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="snum">3</div>
+      <div class="sbody">
+        <h4>ดูยอดสะสมและประวัติ</h4>
+        <p>เห็นยอดออมสะสมทั้งหมด และประวัติการฝาก-ถอนย้อนหลัง</p>
+        <span class="note note-ok">✓ ผู้ปกครองดูได้ตลอด แม้บุตรหลานจะจบ ป.6 ไปแล้ว</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOCKUP ผู้ปกครอง -->
+  <div class="phone">
+    <div class="phone-bar">
+      <div class="pbar-dot" style="background:#ff5f57"></div>
+      <div class="pbar-dot" style="background:#ffbd2e"></div>
+      <div class="pbar-dot" style="background:#28c840"></div>
+      <span>หน้าผู้ปกครอง</span>
+    </div>
+    <div class="phone-inner">
+      <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:10px">
+        <div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:6px">🔍 ค้นหาด้วยชื่อ-สกุลบุตรหลาน</div>
+        <div style="background:rgba(0,0,0,.2);border:1.5px solid rgba(255,255,255,.2);border-radius:50px;padding:7px 14px;font-size:12px;color:rgba(255,255,255,.6)">สมชาย</div>
+      </div>
+      <div style="background:rgba(255,255,255,.06);border-radius:12px;padding:1rem;text-align:center">
+        <div style="font-size:10px;color:rgba(255,255,255,.45);margin-bottom:2px">เด็กชาย สมชาย ใจดี</div>
+        <div style="font-size:9px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">ชั้น ป.3 · ยอดออมสะสม</div>
+        <div style="font-family:'Mitr',sans-serif;font-size:44px;font-weight:700;color:#fff;line-height:1.1">3,250</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.45);margin-top:3px">บาท</div>
+      </div>
+      <div style="font-size:10px;color:rgba(255,255,255,.4);font-weight:600;margin:.3rem 0">📋 ประวัติการฝาก-ถอน</div>
+      <div class="prow">
+        <div><div class="pname">💰 ฝาก</div><div style="font-size:9px;color:rgba(255,255,255,.35)">3 มิ.ย. 2569 09:47</div></div>
+        <div class="pamt">+50 ฿</div>
+      </div>
+      <div class="prow">
+        <div><div class="pname">💰 ฝาก</div><div style="font-size:9px;color:rgba(255,255,255,.35)">28 พ.ค. 2569 12:37</div></div>
+        <div class="pamt">+100 ฿</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="div-warm"></div>
+
+<!-- ====== บทที่ 8: Admin ====== -->
+<div class="chapter">
+  <div class="ch-header">
+    <div class="ch-num">8</div>
+    <div><h2>🛡️ ผู้ดูแลระบบ (Admin)</h2><p>ดูภาพรวม เลื่อนชั้น สรุปรายงาน</p></div>
+  </div>
+
+  <table class="itable">
+    <tr><th>แถบ</th><th>ใช้ทำอะไร</th></tr>
+    <tr><td>📊 ภาพรวม</td><td>ยอดรวมทั้งโรงเรียน แยกตามชั้น กดขยายดูรายชื่อได้</td></tr>
+    <tr><td>📋 ธุรกรรม</td><td>ดูรายการฝาก-ถอน กรองได้: วันนี้ / รายเดือน / ทั้งหมด</td></tr>
+    <tr><td>🎓 เลื่อนชั้น</td><td>เลื่อนรายชั้นหรือทั้งโรงเรียนพร้อมกัน (ต้นปีการศึกษา)</td></tr>
+    <tr><td>🏅 จบแล้ว</td><td>ดูนักเรียน ป.6 ที่จบแล้ว พร้อมยอดสะสมทั้งหมด</td></tr>
+  </table>
+
+  <div class="hl">
+    <div class="hl-icon">📊</div>
+    <div>
+      <h4>สร้างฟอร์มส่งธนาคาร</h4>
+      <p>เปิด Google Sheets → เมนู "📊 ระบบออมทรัพย์"<br>
+      → "สร้างฟอร์มส่งธนาคาร (รายเดือน)" หรือ "(รายเทอม)"<br>
+      ก่อนกด: ติดต่อผู้ดูแลระบบเพื่อตั้งค่าเดือนและปีที่ต้องการ</p>
+    </div>
+  </div>
+
+  <div class="hl" style="margin-top:.5rem">
+    <div class="hl-icon">⚡</div>
+    <div>
+      <h4>เลื่อนชั้นทั้งโรงเรียน (ต้นปีการศึกษาใหม่)</h4>
+      <p>ทำปีละครั้ง · ทุกชั้นเลื่อนพร้อมกัน<br>
+      ป.6 → จบการศึกษา อัตโนมัติ<br>
+      <b style="color:var(--gl)">ยอดเงินสะสมทุกคนยังคงอยู่ครบ ไม่หายไปไหน</b></p>
+    </div>
+  </div>
+</div>
+
+<div class="div-warm"></div>
+
+
+<!-- ====== FOOTER ====== -->
+<div class="footer">
+  <div style="font-size:48px;margin-bottom:.75rem">🏦</div>
+  <h3>ระบบออมทรัพย์นักเรียน</h3>
+  <p>โรงเรียนบ้านท่าชะอม</p>
+  <div class="url">pamjyh.github.io/School-Savings</div>
+  <p style="margin-top:1rem;font-size:11px;color:rgba(255,255,255,.3)">พัฒนาโดย Claude AI · 2569</p>
+</div>
+  </div>
+</div>
+
+<div class="tw" id="tw"></div>
+
+<!-- LOGIN -->
+<div id="pg-login" class="page on">
+  <div class="lg-logo">🏦</div>
+  <div class="lg-title">ระบบออมทรัพย์นักเรียน</div>
+  <div class="lg-school">โรงเรียนบ้านท่าชะอม</div>
+  <div class="lg-card">
+    <label>รหัสผ่านสำหรับครู / ผู้ดูแล</label>
+    <input type="password" class="lg-inp" id="lpw" placeholder="ใส่รหัสผ่าน" onkeydown="if(event.key==='Enter')login()">
+    <button class="lg-btn" id="lbtn" onclick="login()">เข้าสู่ระบบ</button>
+    <div class="lg-err" id="lerr">❌ รหัสผ่านไม่ถูกต้อง</div>
+    <div class="lg-hint">กรุณาติดต่อผู้ดูแลระบบเพื่อขอรหัสผ่าน</div>
+  </div>
+  <div id="api-status" style="margin-top:12px;padding:10px 16px;border-radius:12px;font-size:12px;text-align:center;background:rgba(255,255,255,0.15);color:#fff;min-width:220px">🔄 กำลังตรวจสอบการเชื่อมต่อ...</div>
+  <div class="lg-divider">หรือ</div>
+  <button class="lg-parent-btn" style="margin-bottom:8px" onclick="openManual()">📖 คู่มือการใช้งาน</button>
+  <button class="lg-parent-btn" onclick="go('parent')">
+    👨‍👩‍👧 ผู้ปกครองเช็คยอดออมทรัพย์
+  </button>
+</div>
+
+<!-- PARENT PAGE -->
+<div id="pg-parent" class="page">
+  <div class="nav">
+    <button class="nav-back" onclick="go('login')">←</button>
+    <div class="nav-info">
+      <div class="nav-sub">โรงเรียนบ้านท่าชะอม</div>
+      <div class="nav-title">👨‍👩‍👧 เช็คยอดออมทรัพย์</div>
+    </div>
+  </div>
+  <div class="body">
+    <!-- ค้นหา -->
+    <div style="background:#fff;border-radius:14px;border:1px solid var(--ibdr);padding:1.25rem;margin-bottom:16px">
+      <div style="font-family:'Mitr',sans-serif;font-size:15px;margin-bottom:4px">🔍 ค้นหาด้วยชื่อ-สกุลบุตรหลาน</div>
+      <div style="font-size:13px;color:var(--ts);margin-bottom:14px">พิมพ์ชื่อหรือนามสกุล ไม่ต้องครบก็ได้</div>
+      <div style="display:flex;gap:8px">
+        <input class="finp" id="parent-search" placeholder="เช่น สมชาย หรือ ใจดี"
+          style="margin-bottom:0;flex:1"
+          onkeydown="if(event.key==='Enter')searchParent()">
+        <button onclick="searchParent()"
+          style="padding:10px 18px;border-radius:10px;border:none;background:var(--hg);color:#fff;font-size:14px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;white-space:nowrap">
+          ค้นหา
+        </button>
+      </div>
+      <div class="ferr" id="parent-err" style="margin-top:8px;margin-bottom:0"></div>
+    </div>
+
+    <!-- ผลลัพธ์ -->
+    <div id="parent-result" style="display:none">
+      <!-- กรณีเจอหลายคน -->
+      <div id="parent-multi" style="display:none">
+        <div style="font-family:'Mitr',sans-serif;font-size:14px;margin-bottom:10px;color:var(--ts)">พบนักเรียนหลายคน กรุณาเลือก:</div>
+        <div id="parent-multi-list" class="sl-list"></div>
+      </div>
+
+      <!-- กรณีเจอคนเดียว / เลือกแล้ว -->
+      <div id="parent-single" style="display:none">
+        <!-- card ยอดรวม -->
+        <div style="background:var(--hg);border-radius:var(--cr);padding:2rem 1.5rem;text-align:center;margin-bottom:14px;box-shadow:var(--cs)">
+          <div style="font-size:12px;color:var(--tws);margin-bottom:4px;letter-spacing:0.08em;text-transform:uppercase" id="ps-name"></div>
+          <div style="font-family:'Mitr',sans-serif;font-size:13px;color:var(--gl);margin-bottom:1.5rem;letter-spacing:0.05em" id="ps-grade"></div>
+          <div style="font-size:12px;color:var(--tws);margin-bottom:8px;letter-spacing:0.05em;text-transform:uppercase">ยอดออมสะสม</div>
+          <div style="font-family:'Mitr',sans-serif;font-size:52px;font-weight:700;color:var(--tw);letter-spacing:-0.01em;line-height:1" id="ps-balance"></div>
+          <div style="font-size:16px;color:var(--tws);margin-top:8px">บาท</div>
+        </div>
+
+        <!-- ประวัติ -->
+        <div style="font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:10px;letter-spacing:-0.01em">📋 ประวัติการฝาก-ถอน</div>
+        <div class="txl" id="parent-history"></div>
+
+        <button onclick="resetParent()"
+          style="width:100%;margin-top:16px;padding:12px;border-radius:var(--br);border:1.5px solid var(--ibdr);background:var(--white);color:var(--ts);font-size:14px;cursor:pointer;font-family:'Sarabun',sans-serif;transition:all 0.2s;letter-spacing:-0.01em">
+          🔍 ค้นหาใหม่
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="parent-loading" style="display:none" class="load">⏳ กำลังค้นหา...</div>
+  </div>
+</div>
+
+<!-- SELECT GRADE -->
+<div id="pg-grades" class="page">
+  <div class="nav">
+    <div class="nav-info">
+      <div class="nav-sub">โหมดครู · โรงเรียนบ้านท่าชะอม</div>
+      <div class="nav-title">🏦 ระบบออมทรัพย์</div>
+    </div>
+    <button class="nav-out" onclick="logout()">ออกจากระบบ</button>
+  </div>
+  <div class="body">
+    <div class="gg" id="grade-grid"></div>
+  </div>
+</div>
+
+<!-- STUDENTS -->
+<div id="pg-students" class="page">
+  <div class="nav">
+    <button class="nav-back" onclick="go('grades')">←</button>
+    <div class="nav-info">
+      <div class="nav-sub">ระบบออมทรัพย์</div>
+      <div class="nav-title" id="stu-title"></div>
+    </div>
+    <button class="nav-out" onclick="logout()">ออก</button>
+  </div>
+  <div class="body">
+    <div class="stats" id="stu-stats"></div>
+    <div class="acts">
+      <button class="ab ab-dep" onclick="openTx('dep')">💰 ฝาก</button>
+      <button class="ab ab-wit" onclick="openTx('wit')">💸 ถอน</button>
+      <button class="ab ab-bulk" onclick="goBulk()">📋 ฝากรวม</button>
+      <button class="ab ab-add" onclick="openAdd()">➕ เพิ่ม</button>
+    </div>
+    <!-- ช่องค้นหา -->
+    <div style="position:relative;margin-bottom:10px">
+      <input id="stu-search" type="text" placeholder="🔍 ค้นหาชื่อนักเรียน..."
+        oninput="filterStus(this.value)"
+        style="width:100%;padding:10px 14px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:'Sarabun',sans-serif;outline:none;background:var(--white);transition:border-color 0.2s;letter-spacing:-0.01em">
+    </div>
+
+    <!-- View Tabs: รายชื่อ / สรุปวันนี้ / รายเดือน -->
+    <div style="display:flex;background:var(--ceramic);border-radius:var(--br);padding:3px;gap:2px;margin-bottom:14px">
+      <button id="vtab-list" onclick="switchStudentTab('list')"
+        style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;background:var(--hg);color:#fff;transition:all 0.2s;letter-spacing:-0.01em">
+        👥 รายชื่อ
+      </button>
+      <button id="vtab-today" onclick="switchStudentTab('today')"
+        style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:500;background:transparent;color:var(--ts);transition:all 0.2s;letter-spacing:-0.01em">
+        📅 วันนี้
+      </button>
+      <button id="vtab-month" onclick="switchStudentTab('month')"
+        style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:12px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:500;background:transparent;color:var(--ts);transition:all 0.2s;letter-spacing:-0.01em">
+        📆 รายเดือน
+      </button>
+    </div>
+
+    <!-- Tab: รายชื่อ -->
+    <div id="view-list">
+      <div class="st">
+        <span>รายชื่อนักเรียน <span id="stu-cnt" style="font-size:12px;color:var(--ts);font-weight:400"></span></span>
+        <span style="font-size:12px;color:var(--ts)">คลิกเลือกก่อนฝาก/ถอน</span>
+      </div>
+      <div style="max-height:55vh;overflow-y:auto;border-radius:var(--cr);-webkit-overflow-scrolling:touch">
+        <div class="sl-list" id="stu-list"></div>
+      </div>
+      <div id="stu-pagination" style="display:none;align-items:center;justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap"></div>
+      <div style="margin-top:16px">
+        <div class="st">
+          <span>ประวัติทั้งหมด <span id="tx-grade-cnt" style="font-size:12px;color:var(--ts);font-weight:400"></span></span>
+        </div>
+        <div style="max-height:55vh;overflow-y:auto;border-radius:var(--cr);-webkit-overflow-scrolling:touch">
+          <div class="txl" id="tx-grade"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: สรุปวันนี้ -->
+    <div id="view-today" style="display:none">
+      <div id="today-content" class="load">⏳ กำลังโหลด...</div>
+    </div>
+
+    <!-- Tab: รายเดือน -->
+    <div id="view-month" style="display:none">
+      <div id="month-content"></div>
+    </div>
+    </div>
+  </div>
+</div>
+
+<!-- BULK -->
+<div id="pg-bulk" class="page">
+  <div class="nav">
+    <button class="nav-back" onclick="go('students')">←</button>
+    <div class="nav-info">
+      <div class="nav-sub">กรอกยอดทีเดียวหลายคน</div>
+      <div class="nav-title" id="bulk-title">📋 บันทึกฝากรวม</div>
+    </div>
+  </div>
+  <div class="body">
+    <div class="bsum" id="bsum"></div>
+    <p style="font-size:13px;color:var(--ts);margin-bottom:10px">กรอกยอดเฉพาะคนที่ฝากวันนี้ ช่องว่างจะข้ามไป</p>
+    <table class="btbl">
+      <thead><tr><th>ชื่อ-สกุล</th><th>ยอดคงเหลือ</th><th>ฝากวันนี้ (฿)</th></tr></thead>
+      <tbody id="bulk-body"></tbody>
+    </table>
+    <button class="bsave" id="bsave-btn" onclick="submitBulk()">💾 บันทึกทั้งหมด</button>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="pg-admin" class="page">
+  <div class="nav">
+    <div class="nav-info">
+      <div class="nav-sub">ผู้ดูแลระบบ · โรงเรียนบ้านท่าชะอม</div>
+      <div class="nav-title">🏦 ภาพรวมออมทรัพย์</div>
+    </div>
+    <button class="nav-out" onclick="logout()">ออกจากระบบ</button>
+  </div>
+  <div class="body" id="admin-body"></div>
+  <div class="atabs">
+    <button class="atab on" id="at-ov" onclick="adTab('ov')">📊<br>ภาพรวม</button>
+    <button class="atab" id="at-tx" onclick="adTab('tx')">📋<br>ธุรกรรม</button>
+    <button class="atab" id="at-pr" onclick="adTab('pr')">🎓<br>เลื่อนชั้น</button>
+    <button class="atab" id="at-gd" onclick="adTab('gd')">🏅<br>จบแล้ว</button>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="mo" id="mo-tx" onclick="if(event.target===this)closeMo('tx')">
+  <div class="mb">
+    <div class="mt" id="tx-title">บันทึก</div>
+    <div class="ms" id="tx-sub"></div>
+    <div class="mok" id="tx-ok"></div>
+    <div class="merr" id="tx-err"></div>
+    <input class="minp" type="number" id="tx-amt" placeholder="จำนวนเงิน (บาท)" min="1">
+    <div class="mbtns">
+      <button class="mbtn mbtn-c" onclick="closeMo('tx')">ยกเลิก</button>
+      <button class="mbtn" id="tx-confirm" onclick="confirmTx()">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="mo-add" onclick="if(event.target===this)closeMo('add')">
+  <div class="mb mb-wide">
+    <div class="mt">➕ เพิ่มนักเรียน</div>
+    <div class="ms" id="add-sub"></div>
+    <div class="mok" id="add-ok"></div>
+    <div class="merr" id="add-err"></div>
+    <textarea class="minp" id="add-names" rows="4"
+      placeholder="พิมพ์ชื่อ-สกุล ทีละบรรทัด (เพิ่มทีละหลายคน)"
+      style="resize:vertical;line-height:1.7;font-size:14px"></textarea>
+    <div style="font-size:12px;color:var(--ts);margin-bottom:10px">— หรือเพิ่มทีละคนพร้อมเลขบัญชี —</div>
+    <input class="minp" id="add-one" placeholder="ชื่อ-สกุล (ทีละคน)">
+    <input class="minp" id="add-bank" placeholder="เลขบัญชี ธกส. (ถ้ามี)">
+    <div class="mbtns">
+      <button class="mbtn mbtn-c" onclick="closeMo('add')">ยกเลิก</button>
+      <button class="mbtn mbtn-b" id="add-btn" onclick="confirmAdd()">➕ เพิ่ม</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="mo-edit" onclick="if(event.target===this)closeMo('edit')">
+  <div class="mb">
+    <div class="mt">✏️ แก้ไขข้อมูลนักเรียน</div>
+    <div class="merr" id="edit-err"></div>
+    <input class="minp" id="edit-name" placeholder="ชื่อ-สกุล">
+    <input class="minp" id="edit-bank" placeholder="เลขบัญชี ธกส. (ถ้ามี)">
+    <div class="mbtns">
+      <button class="mbtn mbtn-c" onclick="closeMo('edit')">ยกเลิก</button>
+      <button class="mbtn mbtn-b" onclick="confirmEdit()">✓ บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="mo-etx" onclick="if(event.target===this)closeMo('etx')">
+  <div class="mb">
+    <div class="mt">✏️ แก้ไขยอดเงิน</div>
+    <div class="ms" id="etx-sub"></div>
+    <div class="merr" id="etx-err"></div>
+    <input class="minp" type="number" id="etx-amt" placeholder="จำนวนเงินใหม่ (บาท)" min="1">
+    <div class="mbtns">
+      <button class="mbtn mbtn-c" onclick="closeMo('etx')">ยกเลิก</button>
+      <button class="mbtn mbtn-b" onclick="confirmEditTx()">✓ บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="mo-del" onclick="if(event.target===this)closeMo('del')">
+  <div class="mb">
+    <div class="mt" id="del-title">ยืนยันลบ</div>
+    <div class="ms" id="del-sub"></div>
+    <div class="merr" id="del-err"></div>
+    <div class="mbtns">
+      <button class="mbtn mbtn-c" onclick="closeMo('del')">ยกเลิก</button>
+      <button class="mbtn mbtn-r" id="del-btn">🗑️ ยืนยันลบ</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="mo-pr" onclick="if(event.target===this)closeMo('pr')">
+  <div class="mb">
+    <div class="mt" id="pr-title">เลื่อนชั้น</div>
+    <div class="ms" id="pr-sub"></div>
+    <div class="merr" id="pr-err"></div>
+    <div class="mbtns">
+      <button class="mbtn mbtn-c" onclick="closeMo('pr')">ยกเลิก</button>
+      <button class="mbtn mbtn-a" id="pr-btn">✓ ยืนยันเลื่อนชั้น</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== CONFIG =====
+var API = 'https://script.google.com/macros/s/AKfycbzjDEIzw8sAm3NDeJkTb6ReojWrFuqZeBDOgitaU_45BWL-iXZFpIL0haDdM3-kveWghQ/exec';
+// รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
+var _pw = null;  // session password (เก็บใน memory เท่านั้น)
+// ==================
+
+var GRADES = ['อ.2','อ.3','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6'];
+var ICONS  = {'อ.2':'🌸','อ.3':'🌼','ป.1':'🌱','ป.2':'🌿','ป.3':'📗','ป.4':'📘','ป.5':'📙','ป.6':'🎓'};
+var NEXT   = {'อ.2':'อ.3','อ.3':'ป.1','ป.1':'ป.2','ป.2':'ป.3','ป.3':'ป.4','ป.4':'ป.5','ป.5':'ป.6','ป.6':'จบการศึกษา'};
+var MONTHS_SHORT = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+var MONTHS_FULL  = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+// STATE
+var role = null, curGrade = null, selStu = null;
+var stus = [], cache = {}, txMode = 'dep';
+var editStuId = null, editTxId = null;
+var adData = null, curAdTab = 'ov', pendPr = null;
+var stuPage = 0, PAGE_SIZE = 20;
+var allStus = [], filteredStus = [];
+var curStudentTab = 'list';
+
+// ===== UTILS =====
+function fmtDate(v) {
+  if (!v) return '';
+  var s = String(v);
+  // ISO format: "2026-06-03T02:47:00.000Z"
+  if (s.length > 10 && (s.indexOf('T') > 0 || (s.charAt(4) === '-' && s.charAt(7) === '-'))) {
+    var d = new Date(v);
+    if (!isNaN(d.getTime())) {
+      var thai = new Date(d.getTime() + 7*60*60*1000);
+      var y = thai.getUTCFullYear() + 543;
+      var hh = String(thai.getUTCHours()).padStart(2,'0');
+      var mm = String(thai.getUTCMinutes()).padStart(2,'0');
+      return thai.getUTCDate() + ' ' + MONTHS_SHORT[thai.getUTCMonth()] + ' ' + y + ' ' + hh + ':' + mm;
+    }
+  }
+  // Thai string อยู่แล้ว
+  return s;
+}
+function fmt(n) { return Number(n||0).toLocaleString('th-TH'); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;'); }
+function hide(id) { var e=document.getElementById(id); if(e) e.style.display='none'; }
+function toast(msg,type) {
+  var t=document.createElement('div');
+  t.className='toast'+(type?' '+type:'');
+  t.textContent=msg;
+  document.getElementById('tw').appendChild(t);
+  setTimeout(function(){t.remove();},3500);
+}
+
+// ===== API =====
+function apiCall(params,cb) {
+  var url = API+'?'+Object.keys(params).map(function(k){
+    return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
+  }).join('&');
+  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var tid  = ctrl ? setTimeout(function(){ ctrl.abort(); }, 20000) : null;
+  fetch(url, ctrl ? {signal: ctrl.signal} : {})
+    .then(function(r){ if(tid) clearTimeout(tid); return r.text(); })
+    .then(function(txt){
+      try { cb(JSON.parse(txt)); }
+      catch(e){ cb({ok:false,error:'ข้อมูลผิดรูปแบบจากเซิร์ฟเวอร์: '+txt.substring(0,120)}); }
+    })
+    .catch(function(e){
+      if(tid) clearTimeout(tid);
+      var msg = (e.name==='AbortError') ? 'เชื่อมต่อหมดเวลา (20 วินาที) — ตรวจสอบ Apps Script URL' : 'เชื่อมต่อไม่ได้: '+e.message;
+      cb({ok:false,error:msg});
+    });
+}
+
+// ===== NAV =====
+function go(pg) {
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('on');});
+  document.getElementById('pg-'+pg).classList.add('on');
+  window.scrollTo(0,0);
+}
+
+// ===== AUTH =====
+function login() {
+  var pw  = document.getElementById('lpw').value.trim();
+  var err = document.getElementById('lerr');
+  var btn = document.getElementById('lbtn');
+  if (!pw) {
+    err.textContent = 'กรุณาใส่รหัสผ่าน';
+    err.style.display = 'block';
+    return;
+  }
+  // ปิดปุ่มระหว่างรอ server
+  err.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = '⏳ กำลังตรวจสอบ…';
+
+  apiCall({action:'checkRole', password:pw}, function(r) {
+    btn.disabled = false;
+    btn.textContent = 'เข้าสู่ระบบ';
+    if (!r.ok) {
+      err.textContent = 'รหัสผ่านไม่ถูกต้อง';
+      err.style.display = 'block';
+      document.getElementById('lpw').select();
+      return;
+    }
+    _pw  = pw;   // เก็บใน memory เท่านั้น ไม่เก็บใน source
+    role = r.role;
+    err.style.display = 'none';
+    if (role === 'admin') { go('admin'); loadAdmin(); }
+    else { renderGrades(); go('grades'); }
+  });
+}
+function logout() {
+  role=null; curGrade=null; selStu=null; stus=[]; cache={}; allStus=[]; filteredStus=[];
+  document.getElementById('lpw').value='';
+  document.getElementById('lerr').style.display='none';
+  go('login');
+}
+
+// ===== GRADE SELECT =====
+function renderGrades() {
+  var el=document.getElementById('grade-grid');
+  el.innerHTML=GRADES.map(function(g){
+    var list=cache[g]||[];
+    var total=list.reduce(function(s,x){return s+x.balance;},0);
+    return '<div class="gc" onclick="pickGrade(\''+g+'\')">' +
+      '<div class="gc-icon">'+ICONS[g]+'</div>' +
+      '<div class="gc-name">'+g+'</div>' +
+      '<div class="gc-info" id="gci-'+g.replace('.','_')+'">' +
+        (list.length ? list.length+' คน · <b style="color:var(--ga)">'+fmt(total)+' ฿</b>' : 'กำลังโหลด...') +
+      '</div></div>';
+  }).join('');
+  GRADES.forEach(function(g){
+    if (cache[g]) return;
+    apiCall({action:'getStudents',grade:g},function(r){
+      var el2=document.getElementById('gci-'+g.replace('.','_'));
+      if (!el2) return;
+      if (!r.ok) {
+        el2.innerHTML='<span style="color:#c0392b;font-size:11px">⚠️ '+(r.error||'โหลดไม่ได้')+'</span>';
+        return;
+      }
+      cache[g]=r.students||[];
+      var list2=cache[g];
+      var tot2=list2.reduce(function(s,x){return s+x.balance;},0);
+      el2.innerHTML=list2.length ? list2.length+' คน · <b style="color:var(--ga)">'+fmt(tot2)+' ฿</b>' : 'ยังไม่มีนักเรียน';
+    });
+  });
+}
+
+function pickGrade(g) {
+  curGrade=g; selStu=null; stuPage=0; curStudentTab='list';
+  stuMonthSel=null; stuYearSel=null;
+  document.getElementById('stu-title').textContent=ICONS[g]+' ชั้น'+g;
+  document.getElementById('bulk-title').textContent='📋 ฝากรวม ชั้น'+g;
+  go('students');
+  switchStudentTab('list');
+  loadStus();
+  loadGradeTx();
+}
+
+// ===== STUDENTS =====
+function loadStus() {
+  delete cache[curGrade];
+  document.getElementById('stu-list').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
+  var se=document.getElementById('stu-search'); if(se) se.value='';
+  apiCall({action:'getStudents',grade:curGrade},function(r){
+    if (!r.ok) {
+      document.getElementById('stu-list').innerHTML=
+        '<div style="padding:20px;text-align:center;color:#c0392b">'+
+        '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'+
+        '<div style="font-weight:600;margin-bottom:4px">โหลดรายชื่อไม่ได้</div>'+
+        '<div style="font-size:12px;color:#666;word-break:break-all">'+(r.error||'ไม่ทราบสาเหตุ')+'</div>'+
+        '<button onclick="loadStus()" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button>'+
+        '</div>';
+      return;
+    }
+    allStus=r.students||[];
+    filteredStus=allStus;
+    cache[curGrade]=allStus;
+    stus=allStus;
+    stuPage=0;
+    renderStus(); renderStats();
+  });
+}
+
+function filterStus(kw) {
+  var q=kw.trim().toLowerCase();
+  filteredStus=q ? allStus.filter(function(s){return s.name.toLowerCase().indexOf(q)>=0;}) : allStus;
+  stus=filteredStus;
+  stuPage=0;
+  renderStus();
+}
+
+function renderStus() {
+  var el=document.getElementById('stu-list');
+  var pgEl=document.getElementById('stu-pagination');
+  var total=Math.ceil(stus.length/PAGE_SIZE);
+  if (stuPage>=total && total>0) stuPage=total-1;
+  if (stuPage<0) stuPage=0;
+  document.getElementById('stu-cnt').textContent='('+stus.length+' คน)';
+  if (!stus.length) {
+    el.innerHTML='<div class="empty"><div style="font-size:36px;margin-bottom:8px">👥</div><p>ยังไม่มีนักเรียน<br>กด "เพิ่ม" เพื่อเริ่มต้น</p></div>';
+    pgEl.style.display='none'; return;
+  }
+  var start=stuPage*PAGE_SIZE;
+  var pageStus=stus.slice(start,start+PAGE_SIZE);
+  el.innerHTML=pageStus.map(function(s){
+    var sel=selStu&&selStu.id===s.id?' sel':'';
+    var bc=s.balance>=0?'var(--ga)':'var(--red)';
+    return '<div class="scard'+sel+'" onclick="pickStu(\''+s.id+'\')">'+
+      '<div class="savt">'+(ICONS[s.grade]||'👦')+'</div>'+
+      '<div style="flex:1;min-width:0"><div class="sname">'+esc(s.name)+'</div>'+
+      '<div class="smeta">เข้าปี '+(s.entryYear||'-')+(s.bankAccount?' · '+esc(s.bankAccount):'')+'</div></div>'+
+      '<div class="sbal"><div class="sbv" style="color:'+bc+'">'+fmt(s.balance)+' ฿</div>'+
+      '<div class="sbl">สะสม</div></div>'+
+      '<button class="ebtn" onclick="event.stopPropagation();openEdit(\''+s.id+'\',\''+esc(s.name)+'\',\''+esc(s.bankAccount||'')+'\')">✏️</button>'+
+      (role==='admin'?'<button class="ebtn del" onclick="event.stopPropagation();askDelStu(\''+s.id+'\',\''+esc(s.name)+'\','+s.balance+')">🗑️</button>':'')+
+      '</div>';
+  }).join('');
+  if (total<=1) {pgEl.style.display='none'; return;}
+  pgEl.style.display='flex';
+  pgEl.innerHTML=
+    '<button onclick="changeStuPage('+(stuPage-1)+')" '+(stuPage===0?'disabled':'')+
+    ' style="padding:7px 14px;border-radius:var(--br);border:1px solid var(--gl);background:'+(stuPage===0?'var(--warm)':'var(--white)')+';cursor:'+(stuPage===0?'default':'pointer')+';color:'+(stuPage===0?'var(--ts)':'var(--td)')+';font-size:14px">← ก่อนหน้า</button>'+
+    '<span style="font-size:13px;color:var(--ts);padding:0 4px">หน้า '+(stuPage+1)+' / '+total+' ('+stus.length+' คน)</span>'+
+    '<button onclick="changeStuPage('+(stuPage+1)+')" '+(stuPage>=total-1?'disabled':'')+
+    ' style="padding:7px 14px;border-radius:var(--br);border:1px solid var(--gl);background:'+(stuPage>=total-1?'var(--warm)':'var(--hg)')+';cursor:'+(stuPage>=total-1?'default':'pointer')+';color:'+(stuPage>=total-1?'var(--ts)':'#fff')+';font-size:14px">ถัดไป →</button>';
+}
+
+function changeStuPage(p) { stuPage=p; renderStus(); window.scrollTo(0,0); }
+
+function renderStats() {
+  var total=allStus.reduce(function(s,x){return s+x.balance;},0);
+  var avg=allStus.length?total/allStus.length:0;
+  document.getElementById('stu-stats').innerHTML=
+    '<div class="sc"><div class="sv" style="color:var(--ga)">'+fmt(total)+'</div><div class="sl">ยอดรวม (฿)</div></div>'+
+    '<div class="sc"><div class="sv">'+allStus.length+'</div><div class="sl">นักเรียน</div></div>'+
+    '<div class="sc"><div class="sv" style="color:var(--gold)">'+fmt(avg)+'</div><div class="sl">เฉลี่ย (฿)</div></div>';
+}
+
+function pickStu(id) {
+  selStu=allStus.filter(function(s){return s.id===id;})[0]||null;
+  renderStus();
+}
+
+function loadGradeTx() {
+  var el=document.getElementById('tx-grade');
+  el.innerHTML='<div class="load">⏳...</div>';
+  apiCall({action:'getHistory',grade:curGrade,limit:1000},function(r){
+    if (r.ok) {
+      var cnt=document.getElementById('tx-grade-cnt');
+      if(cnt) cnt.textContent=r.transactions.length?'('+r.transactions.length+' รายการ)':'';
+      renderTxList('tx-grade',r.transactions);
+    }
+  });
+}
+
+function renderTxList(id,txs) {
+  var el=document.getElementById(id);
+  if (!txs||!txs.length) {
+    el.innerHTML='<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีธุรกรรม</div>';
+    return;
+  }
+  el.innerHTML=txs.map(function(t){
+    var isD=t.type==='ฝาก';
+    return '<div class="txi">'+
+      '<div class="txb '+(isD?'d':'w')+'">'+(isD?'💰':'💸')+'</div>'+
+      '<div class="txi-info">'+
+      '<div class="txn">'+esc(t.name)+'</div>'+
+      '<div class="txd">'+fmtDate(t.date)+' · ชั้น'+t.grade+'</div></div>'+
+      '<div class="txa '+(isD?'d':'w')+'">'+(isD?'+':'-')+fmt(t.amount)+'฿</div>'+
+      '<div style="display:flex;flex-direction:column;gap:3px;margin-left:5px">'+
+      '<button class="ebtn" style="font-size:10px;padding:3px 5px" onclick="openEditTx(\''+t.id+'\',\''+t.type+'\','+t.amount+',\''+esc(t.name)+'\')">✏️</button>'+
+      '<button class="ebtn del" style="font-size:10px;padding:3px 5px" onclick="askDelTx(\''+t.id+'\',\''+t.type+'\','+t.amount+',\''+esc(t.name)+'\',\''+t.studentId+'\')">🗑️</button>'+
+      '</div></div>';
+  }).join('');
+}
+
+// ===== DAILY SUMMARY =====
+var stuMonthSel = null; // เดือนที่เลือกในโหมดครู
+var stuYearSel  = null;
+
+function switchStudentTab(tab) {
+  curStudentTab = tab;
+  var tabs = ['list','today','month'];
+  tabs.forEach(function(t) {
+    var btn = document.getElementById('vtab-'+t);
+    var view = document.getElementById('view-'+t);
+    var isActive = t === tab;
+    if (btn) {
+      btn.style.background  = isActive ? 'var(--hg)' : 'transparent';
+      btn.style.color       = isActive ? '#fff'       : 'var(--ts)';
+      btn.style.fontWeight  = isActive ? '600'        : '500';
+    }
+    if (view) view.style.display = isActive ? 'block' : 'none';
+  });
+  if (tab === 'today') loadTodaySummary();
+  if (tab === 'month') loadMonthSummary();
+}
+
+function loadMonthSummary() {
+  var now = new Date();
+  if (!stuMonthSel) stuMonthSel = MONTHS_SHORT[now.getMonth()];
+  if (!stuYearSel)  stuYearSel  = now.getFullYear() + 543;
+
+  var el = document.getElementById('month-content');
+
+  var monthOpts = MONTHS_SHORT.map(function(m,i){
+    return '<option value="'+m+'" '+(m===stuMonthSel?'selected':'')+'>'+MONTHS_FULL[i]+'</option>';
+  }).join('');
+  var yearOpts = '';
+  for (var y = stuYearSel; y >= stuYearSel-3; y--) {
+    yearOpts += '<option value="'+y+'" '+(y===stuYearSel?'selected':'')+'>'+y+'</option>';
+  }
+
+  el.innerHTML =
+    // filter
+    '<div style="display:flex;gap:8px;margin-bottom:12px">'+
+    '<select id="stu-month-sel" onchange="stuMonthSel=this.value;doLoadMonthData()"'+
+    ' style="flex:1;padding:9px 12px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:\'Sarabun\',sans-serif;outline:none;background:var(--white)">'+
+    monthOpts+'</select>'+
+    '<select id="stu-year-sel" onchange="stuYearSel=parseInt(this.value);doLoadMonthData()"'+
+    ' style="width:95px;padding:9px 10px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:\'Sarabun\',sans-serif;outline:none;background:var(--white)">'+
+    yearOpts+'</select>'+
+    '</div>'+
+    '<div id="month-summary-card" style="margin-bottom:14px"></div>'+
+    '<div id="month-table"><div class="load">⏳ กำลังโหลด...</div></div>';
+
+  doLoadMonthData();
+}
+
+function doLoadMonthData() {
+  var mEl = document.getElementById('month-table');
+  var sEl = document.getElementById('month-summary-card');
+  if (mEl) mEl.innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
+
+  apiCall({action:'getHistory', grade:curGrade, limit:1000}, function(r) {
+    if (!r.ok) { if(mEl) mEl.innerHTML='<div class="load">โหลดไม่ได้: '+r.error+'</div>'; return; }
+
+    // debug: ดูว่า response มีอะไร
+    console.log('getHistory total:', r.transactions ? r.transactions.length : 0);
+    if (r.transactions && r.transactions.length > 0) {
+      console.log('Sample date:', r.transactions[0].date);
+      console.log('Filtering by month:', stuMonthSel, 'year:', stuYearSel);
+    }
+
+    // กรองตามเดือน/ปีที่เลือก
+    var txs = (r.transactions||[]).filter(function(t){
+      return t.date && t.date.indexOf(stuMonthSel) >= 0 && t.date.indexOf(String(stuYearSel)) >= 0;
+    });
+    console.log('After filter:', txs.length);
+
+    var monthName = MONTHS_FULL[MONTHS_SHORT.indexOf(stuMonthSel)] || stuMonthSel;
+    var totalDep = txs.filter(function(t){return t.type==='ฝาก';}).reduce(function(s,t){return s+t.amount;},0);
+    var totalWit = txs.filter(function(t){return t.type==='ถอน';}).reduce(function(s,t){return s+t.amount;},0);
+    var depCnt   = txs.filter(function(t){return t.type==='ฝาก';}).length;
+
+    // summary card
+    if (sEl) {
+      sEl.innerHTML = txs.length > 0 ?
+        '<div style="background:var(--hg);border-radius:var(--cr);padding:1rem;box-shadow:var(--cs)">'+
+        '<div style="font-size:11px;color:var(--tws);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em">'+monthName+' '+stuYearSel+' · ชั้น'+curGrade+'</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+        '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+        '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💰 ฝากรวม</div>'+
+        '<div style="font-family:\'Mitr\',sans-serif;font-size:18px;font-weight:700;color:var(--gl)">'+fmt(totalDep)+' ฿</div>'+
+        '<div style="font-size:11px;color:var(--tws)">'+depCnt+' รายการ</div></div>'+
+        '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+        '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💸 ถอนรวม</div>'+
+        '<div style="font-family:\'Mitr\',sans-serif;font-size:18px;font-weight:700;color:#fca5a5">'+fmt(totalWit)+' ฿</div>'+
+        '<div style="font-size:11px;color:var(--tws)">'+(txs.length-depCnt)+' รายการ</div></div>'+
+        '</div></div>'
+        : '';
+    }
+
+    if (!txs.length) {
+      if(mEl) mEl.innerHTML=
+        '<div style="text-align:center;background:var(--white);border-radius:var(--cr);border:1.5px dashed var(--gl);padding:2rem;box-shadow:var(--cs)">'+
+        '<div style="font-size:32px;margin-bottom:8px">📭</div>'+
+        '<div style="color:var(--ts)">ไม่พบข้อมูล'+monthName+' '+stuYearSel+'</div></div>';
+      return;
+    }
+
+    // รวมยอดต่อคน
+    var perPerson = {};
+    txs.forEach(function(t){
+      if(!perPerson[t.studentId]) perPerson[t.studentId]={name:t.name,dep:0,wit:0,count:0};
+      if(t.type==='ฝาก'){perPerson[t.studentId].dep+=t.amount; perPerson[t.studentId].count++;}
+      else perPerson[t.studentId].wit+=t.amount;
+    });
+
+    // เรียงตามชื่อ
+    var rows = Object.values(perPerson).sort(function(a,b){return a.name.localeCompare(b.name,'th');});
+
+    var html =
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px">'+
+      'รายชื่อที่มีธุรกรรม ('+rows.length+' คน)</div>'+
+      '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--gl);box-shadow:var(--cs)">'+
+      '<table style="width:100%;border-collapse:collapse">'+
+      '<thead><tr style="background:var(--hg)">'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:left">ชื่อ-สกุล</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:center">ครั้ง</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ฝากรวม</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ถอนรวม</th>'+
+      '</tr></thead><tbody>';
+
+    rows.forEach(function(p,i){
+      html += '<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
+        '<td style="padding:9px 12px;font-size:13px;color:var(--td)">'+esc(p.name)+'</td>'+
+        '<td style="padding:9px 12px;font-size:13px;color:var(--ts);text-align:center">'+p.count+'</td>'+
+        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;font-weight:700;color:var(--ga);text-align:right">'+(p.dep>0?'+'+fmt(p.dep)+' ฿':'-')+'</td>'+
+        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--red);text-align:right">'+(p.wit>0?'-'+fmt(p.wit)+' ฿':'-')+'</td>'+
+        '</tr>';
+    });
+    html += '</tbody></table></div>';
+
+    // แสดงคนที่ไม่มีธุรกรรมเดือนนี้
+    var hadTx = {};
+    txs.forEach(function(t){ hadTx[t.studentId]=true; });
+    var noTx = allStus.filter(function(s){ return !hadTx[s.id]; });
+    if (noTx.length > 0) {
+      html += '<div style="font-family:\'Mitr\',sans-serif;font-size:13px;font-weight:600;color:var(--ts);margin:12px 0 8px">⏳ ยังไม่มีธุรกรรมเดือนนี้ ('+noTx.length+' คน)</div>'+
+        '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--ceramic);box-shadow:var(--cs)">'+
+        '<table style="width:100%;border-collapse:collapse"><tbody>';
+      noTx.forEach(function(s,i){
+        html += '<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
+          '<td style="padding:8px 12px;font-size:13px;color:var(--ts)">'+esc(s.name)+'</td>'+
+          '<td style="padding:8px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
+          '</tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    if(mEl) mEl.innerHTML = html;
+  });
+}
+
+function loadTodaySummary() {
+  var el=document.getElementById('today-content');
+  el.innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
+  var now=new Date();
+  // สร้าง Thai date string วันนี้ เช่น "3 มิ.ย. 2569"
+  var todayStr = now.getDate()+' '+MONTHS_SHORT[now.getMonth()]+' '+(now.getFullYear()+543);
+  var dateLabel = now.getDate()+' '+MONTHS_FULL[now.getMonth()]+' '+(now.getFullYear()+543);
+
+  // ส่ง date ไปให้ server กรองให้เลย ไม่ต้องกรองใน browser
+  apiCall({action:'getHistory', grade:curGrade, date:todayStr, limit:500}, function(r){
+    if (!r.ok) {el.innerHTML='<div class="load">โหลดไม่ได้: '+r.error+'</div>'; return;}
+    var todayTxs = r.transactions || [];
+
+    // สร้าง map รายคน
+    var stuMap={};
+    allStus.forEach(function(s){ stuMap[s.id]={name:s.name,balance:s.balance,dep:0,wit:0}; });
+    todayTxs.forEach(function(t){
+      if (!stuMap[t.studentId]) stuMap[t.studentId]={name:t.name,balance:0,dep:0,wit:0};
+      if (t.type==='ฝาก') stuMap[t.studentId].dep+=t.amount;
+      else stuMap[t.studentId].wit+=t.amount;
+    });
+
+    var depositedIds={};
+    todayTxs.filter(function(t){return t.type==='ฝาก';}).forEach(function(t){depositedIds[t.studentId]=true;});
+    var deposited=allStus.filter(function(s){return depositedIds[s.id];});
+    var notDeposited=allStus.filter(function(s){return !depositedIds[s.id];});
+    var totalDep=todayTxs.filter(function(t){return t.type==='ฝาก';}).reduce(function(s,t){return s+t.amount;},0);
+    var totalWit=todayTxs.filter(function(t){return t.type==='ถอน';}).reduce(function(s,t){return s+t.amount;},0);
+
+    if (!todayTxs.length) {
+      el.innerHTML=
+        '<div style="background:var(--white);border-radius:var(--cr);border:1.5px dashed var(--gl);padding:2.5rem 1rem;text-align:center;box-shadow:var(--cs)">'+
+        '<div style="font-size:36px;margin-bottom:8px">📭</div>'+
+        '<div style="font-size:15px;color:var(--ts)">วันนี้ยังไม่มีการฝาก-ถอน</div>'+
+        '<div style="font-size:13px;color:var(--ts);margin-top:4px">'+dateLabel+' · ชั้น'+curGrade+'</div>'+
+        '</div>'; return;
+    }
+
+    var html=
+      '<div style="background:var(--hg);border-radius:var(--cr);padding:1.25rem;margin-bottom:14px;box-shadow:var(--cs)">'+
+      '<div style="font-size:11px;color:var(--tws);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px">สรุปวันนี้ · ชั้น'+curGrade+'</div>'+
+      '<div style="font-size:14px;color:var(--tw);font-weight:600;margin-bottom:12px">'+dateLabel+'</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+      '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+      '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💰 ฝากวันนี้</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:20px;font-weight:700;color:var(--gl)">'+fmt(totalDep)+' ฿</div>'+
+      '<div style="font-size:11px;color:var(--tws);margin-top:2px">'+deposited.length+' คน</div>'+
+      '</div>'+
+      '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+      '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">⏳ ยังไม่ฝาก</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:20px;font-weight:700;color:#fde68a">'+notDeposited.length+' คน</div>'+
+      '<div style="font-size:11px;color:var(--tws);margin-top:2px">จาก '+allStus.length+' คน</div>'+
+      '</div></div></div>'+
+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px">✅ ฝากแล้ว ('+deposited.length+' คน)</div>'+
+      '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--gl);box-shadow:var(--cs);margin-bottom:16px">'+
+      '<table style="width:100%;border-collapse:collapse">'+
+      '<thead><tr style="background:var(--hg)">'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:left">ชื่อ-สกุล</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ฝากวันนี้</th>'+
+      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ยอดสะสม</th>'+
+      '</tr></thead><tbody>';
+
+    deposited.forEach(function(s,i){
+      var d=stuMap[s.id]||{dep:0};
+      html+='<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
+        '<td style="padding:9px 12px;font-size:14px;color:var(--td)">'+esc(s.name)+'</td>'+
+        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:700;color:var(--ga);text-align:right">+'+fmt(d.dep)+' ฿</td>'+
+        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
+        '</tr>';
+    });
+    html+='</tbody></table></div>';
+
+    if (notDeposited.length>0) {
+      html+='<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--ts);margin-bottom:8px">⏳ ยังไม่ได้ฝากวันนี้ ('+notDeposited.length+' คน)</div>'+
+        '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--ceramic);box-shadow:var(--cs)">'+
+        '<table style="width:100%;border-collapse:collapse"><tbody>';
+      notDeposited.forEach(function(s,i){
+        html+='<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
+          '<td style="padding:9px 12px;font-size:14px;color:var(--ts)">'+esc(s.name)+'</td>'+
+          '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
+          '</tr>';
+      });
+      html+='</tbody></table></div>';
+    }
+    el.innerHTML=html;
+  });
+}
+
+// ===== BULK =====
+function goBulk() {
+  if (!allStus.length) {toast('ยังไม่มีนักเรียน','err'); return;}
+  renderBulk(); go('bulk');
+}
+function renderBulk() {
+  document.getElementById('bsum').style.display='none';
+  var btn=document.getElementById('bsave-btn');
+  btn.disabled=false; btn.textContent='💾 บันทึกทั้งหมด';
+  document.getElementById('bulk-body').innerHTML=allStus.map(function(s){
+    return '<tr><td>'+esc(s.name)+'</td>'+
+      '<td style="color:var(--ga);font-weight:600">'+fmt(s.balance)+' ฿</td>'+
+      '<td><input class="binp" type="number" min="1" id="bi-'+s.id+'" placeholder="0"'+
+      ' oninput="this.classList.toggle(\'hv\',this.value>0);updBulk()" onfocus="this.select()"></td></tr>';
+  }).join('');
+}
+function updBulk() {
+  var cnt=0,tot=0;
+  allStus.forEach(function(s){
+    var v=parseFloat(document.getElementById('bi-'+s.id).value)||0;
+    if(v>0){cnt++;tot+=v;}
+  });
+  var el=document.getElementById('bsum');
+  if(cnt>0){el.textContent='กรอกแล้ว '+cnt+' คน · รวม '+fmt(tot)+' บาท';el.style.display='block';}
+  else el.style.display='none';
+}
+function submitBulk() {
+  var items=allStus.map(function(s){
+    var e=document.getElementById('bi-'+s.id);
+    return {s:s,amt:e?parseFloat(e.value)||0:0};
+  }).filter(function(x){return x.amt>0;});
+  if (!items.length) {toast('ยังไม่ได้กรอกยอดใดเลย','err'); return;}
+  var btn=document.getElementById('bsave-btn');
+  btn.disabled=true;
+  var ok=0,fail=[];
+  function sendNext(i) {
+    if (i>=items.length) {
+      btn.disabled=false; btn.textContent='💾 บันทึกทั้งหมด';
+      if (!fail.length) {
+        toast('✓ บันทึกสำเร็จ '+ok+' คน','ok');
+        loadStus(); setTimeout(function(){go('students');},600);
+      } else {
+        toast('สำเร็จ '+ok+' · ล้มเหลว '+fail.length+' คน','err'); loadStus();
+      }
+      return;
+    }
+    btn.textContent='⏳ '+(i+1)+'/'+items.length+'...';
+    apiCall({action:'deposit',studentId:items[i].s.id,amount:items[i].amt,password:_pw},function(r){
+      if(r.ok) ok++; else fail.push(items[i].s.name);
+      setTimeout(function(){sendNext(i+1);},200);
+    });
+  }
+  sendNext(0);
+}
+
+// ===== TX MODAL =====
+function openTx(mode) {
+  if (!selStu) {toast('กรุณาคลิกเลือกนักเรียนก่อน','err'); return;}
+  txMode=mode;
+  var isD=mode==='dep';
+  document.getElementById('tx-title').textContent=isD?'💰 บันทึกฝากเงิน':'💸 บันทึกถอนเงิน';
+  document.getElementById('tx-sub').textContent=selStu.name+' · ยอดสะสม '+fmt(selStu.balance)+' บาท';
+  var amt=document.getElementById('tx-amt');
+  amt.value=''; amt.disabled=false;
+  amt.placeholder=isD?'จำนวนเงินที่ฝาก (บาท)':'จำนวนเงินที่ถอน (สูงสุด '+fmt(selStu.balance)+' บาท)';
+  hide('tx-ok'); hide('tx-err');
+  var zone=document.getElementById('tx-confirm-zone');
+  if(zone) zone.style.display='none';
+  var btn=document.getElementById('tx-confirm');
+  btn.className='mbtn '+(isD?'mbtn-g':'mbtn-r');
+  btn.textContent=isD?'✓ ยืนยันฝาก':'ถัดไป →';
+  btn.onclick=isD?confirmTx:previewWithdraw;
+  openMo('tx');
+  setTimeout(function(){amt.focus();},100);
+}
+function previewWithdraw() {
+  var amt=parseFloat(document.getElementById('tx-amt').value);
+  if (!amt||amt<=0) {showErr('tx','กรุณาใส่จำนวนเงิน'); return;}
+  if (amt>selStu.balance) {showErr('tx','⚠️ ยอดไม่พอ · มีแค่ '+fmt(selStu.balance)+' บาท'); return;}
+  hide('tx-err');
+  var zone=document.getElementById('tx-confirm-zone');
+  if(!zone){
+    zone=document.createElement('div'); zone.id='tx-confirm-zone';
+    var amtEl=document.getElementById('tx-amt');
+    amtEl.parentNode.insertBefore(zone,amtEl.nextSibling);
+  }
+  zone.style.display='block';
+  zone.innerHTML=
+    '<div style="background:var(--warm);border-radius:var(--cr);padding:12px 14px;margin-bottom:10px;border:1px solid var(--gl)">'+
+    '<div style="font-size:11px;color:var(--ts);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600">ยืนยันการถอนเงิน</div>'+
+    '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;color:var(--ts)">นักเรียน</span><span style="font-size:14px;font-weight:600">'+esc(selStu.name)+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;color:var(--ts)">ถอนออก</span><span style="font-size:14px;font-weight:700;color:var(--red)">- '+fmt(amt)+' บาท</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid var(--ibdr)"><span style="font-size:13px;color:var(--ts)">ยอดคงเหลือหลังถอน</span>'+
+    '<span style="font-family:\'Mitr\',sans-serif;font-size:16px;font-weight:700;color:var(--sbux)">'+fmt(selStu.balance-amt)+' บาท</span></div></div>';
+  document.getElementById('tx-amt').disabled=true;
+  var btn=document.getElementById('tx-confirm');
+  btn.textContent='✓ ยืนยันถอนเงิน'; btn.onclick=confirmTx;
+}
+function confirmTx() {
+  var amt=parseFloat(document.getElementById('tx-amt').value);
+  if (!amt||amt<=0) {showErr('tx','กรุณาใส่จำนวนเงิน'); return;}
+  var btn=document.getElementById('tx-confirm');
+  var origText=btn.textContent;
+  btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
+  hide('tx-ok'); hide('tx-err');
+  var action=txMode==='dep'?'deposit':'withdraw';
+  apiCall({action:action,studentId:selStu.id,amount:amt,password:_pw},function(r){
+    btn.disabled=false; btn.textContent=origText;
+    if (!r.ok) {
+      document.getElementById('tx-amt').disabled=false;
+      var zone=document.getElementById('tx-confirm-zone'); if(zone) zone.style.display='none';
+      showErr('tx',r.error||'เกิดข้อผิดพลาด'); return;
+    }
+    var dbg = r.debug ? ' [debug: rows '+r.debug.rowsBefore+'→'+r.debug.rowsAfter+' wrote='+r.debug.wrote+']' : '';
+    showOk('tx','✓ '+(txMode==='dep'?'ฝาก':'ถอน')+' '+fmt(amt)+' บาท · ยอดใหม่ '+fmt(r.newBalance)+' บาท'+dbg);
+    var s=allStus.filter(function(x){return x.id===selStu.id;})[0];
+    if(s){s.balance=r.newBalance; selStu.balance=r.newBalance;}
+    renderStus(); renderStats(); loadGradeTx();
+    setTimeout(function(){
+      closeMo('tx');
+      document.getElementById('tx-amt').disabled=false;
+      var zone=document.getElementById('tx-confirm-zone'); if(zone) zone.style.display='none';
+    },1800);
+  });
+}
+
+// ===== ADD STUDENTS =====
+function openAdd() {
+  if (!curGrade) {toast('กรุณาเลือกชั้นก่อน','err'); return;}
+  document.getElementById('add-sub').textContent='เพิ่มนักเรียนชั้น '+curGrade;
+  document.getElementById('add-names').value='';
+  document.getElementById('add-one').value='';
+  document.getElementById('add-bank').value='';
+  hide('add-ok'); hide('add-err');
+  openMo('add');
+  setTimeout(function(){document.getElementById('add-names').focus();},100);
+}
+function confirmAdd() {
+  var oneName=document.getElementById('add-one').value.trim();
+  var bank=document.getElementById('add-bank').value.trim();
+  var bulk=document.getElementById('add-names').value.split('\n').map(function(n){return n.trim();}).filter(function(n){return n.length>0;});
+  var items=oneName?[{name:oneName,bank:bank}]:bulk.map(function(n){return{name:n,bank:''};});
+  if (!items.length) {showErr('add','กรุณาใส่ชื่ออย่างน้อย 1 คน'); return;}
+  var btn=document.getElementById('add-btn');
+  btn.disabled=true;
+  var ok=0,fail=[];
+  function sendNext(i) {
+    if (i>=items.length) {
+      btn.textContent='➕ เพิ่ม'; btn.disabled=false;
+      if (!fail.length) {
+        showOk('add','✓ เพิ่มสำเร็จ '+ok+' คน ตามลำดับที่พิมพ์');
+        document.getElementById('add-names').value='';
+        document.getElementById('add-one').value='';
+        document.getElementById('add-bank').value='';
+        loadStus(); setTimeout(function(){closeMo('add');},1500);
+      } else {
+        showErr('add','สำเร็จ '+ok+' · ล้มเหลว: '+fail.join(', ')); loadStus();
+      }
+      return;
+    }
+    btn.textContent='⏳ '+(i+1)+'/'+items.length+'...';
+    apiCall({action:'addStudent',name:items[i].name,bankAccount:items[i].bank,grade:curGrade,password:_pw},function(r){
+      if(r.ok) ok++; else fail.push(items[i].name);
+      setTimeout(function(){sendNext(i+1);},300);
+    });
+  }
+  sendNext(0);
+}
+
+// ===== EDIT STUDENT =====
+function openEdit(id,name,bank) {
+  editStuId=id;
+  document.getElementById('edit-name').value=name;
+  document.getElementById('edit-bank').value=bank||'';
+  hide('edit-err'); openMo('edit');
+  setTimeout(function(){var e=document.getElementById('edit-name');e.focus();e.select();},100);
+}
+function confirmEdit() {
+  var name=document.getElementById('edit-name').value.trim();
+  var bank=document.getElementById('edit-bank').value.trim();
+  if (!name) {showErr('edit','กรุณาใส่ชื่อ'); return;}
+  apiCall({action:'editStudent',studentId:editStuId,name:name,bankAccount:bank,password:_pw},function(r){
+    if (!r.ok) {showErr('edit',r.error); return;}
+    toast('✓ แก้ไขสำเร็จ','ok'); closeMo('edit'); loadStus();
+  });
+}
+
+// ===== DELETE STUDENT =====
+function askDelStu(id,name,bal) {
+  document.getElementById('del-title').textContent='🗑️ ลบนักเรียน';
+  document.getElementById('del-sub').textContent='ลบ "'+name+'" ออกจากระบบ?'+(bal>0?'\n⚠️ ยังมียอดออม '+fmt(bal)+' บาท':'');
+  hide('del-err');
+  document.getElementById('del-btn').onclick=function(){
+    apiCall({action:'deleteStudent',studentId:id,password:_pw},function(r){
+      if (!r.ok) {document.getElementById('del-err').textContent=r.error;document.getElementById('del-err').style.display='block'; return;}
+      toast('✓ ลบ '+name+' สำเร็จ','ok'); closeMo('del');
+      if(selStu&&selStu.id===id) selStu=null;
+      loadStus();
+    });
+  };
+  openMo('del');
+}
+
+// ===== EDIT TX =====
+function openEditTx(txId,type,amount,name) {
+  editTxId=txId;
+  document.getElementById('etx-sub').textContent=name+' · '+type+' '+fmt(amount)+' บาท';
+  document.getElementById('etx-amt').value=amount;
+  hide('etx-err'); openMo('etx');
+  setTimeout(function(){var e=document.getElementById('etx-amt');e.focus();e.select();},100);
+}
+function confirmEditTx() {
+  var amt=parseFloat(document.getElementById('etx-amt').value);
+  if (!amt||amt<=0) {showErr('etx','กรุณาใส่จำนวนเงิน'); return;}
+  apiCall({action:'editTransaction',txId:editTxId,amount:amt,password:_pw},function(r){
+    if (!r.ok) {showErr('etx',r.error); return;}
+    toast('✓ แก้ไขยอดสำเร็จ','ok'); closeMo('etx'); loadStus(); loadGradeTx();
+  });
+}
+
+// ===== DELETE TX =====
+function askDelTx(txId,type,amount,name,stuId) {
+  document.getElementById('del-title').textContent='🗑️ ลบรายการธุรกรรม';
+  document.getElementById('del-sub').textContent='ลบรายการ "'+type+' '+fmt(amount)+' บาท" ของ '+name+'?\nยอดเงินจะถูกปรับอัตโนมัติ';
+  hide('del-err');
+  document.getElementById('del-btn').onclick=function(){
+    apiCall({action:'deleteTransaction',txId:txId,password:_pw},function(r){
+      if (!r.ok) {document.getElementById('del-err').textContent=r.error;document.getElementById('del-err').style.display='block'; return;}
+      toast('✓ ลบรายการสำเร็จ','ok'); closeMo('del'); loadStus(); loadGradeTx();
+    });
+  };
+  openMo('del');
+}
+
+// ===== ADMIN =====
+function loadAdmin() {
+  document.getElementById('admin-body').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
+  apiCall({action:'getAllSummary',password:_pw},function(r){
+    if (!r.ok) {toast(r.error,'err'); return;}
+    adData=r; renderAdTab('ov');
+  });
+}
+function adTab(tab) {
+  curAdTab=tab;
+  ['ov','tx','pr','gd'].forEach(function(t){
+    document.getElementById('at-'+t).classList.toggle('on',t===tab);
+  });
+  renderAdTab(tab);
+}
+function renderAdTab(tab) {
+  var c=document.getElementById('admin-body');
+  if(tab==='ov') renderOv(c);
+  else if(tab==='tx') renderAdTx(c);
+  else if(tab==='pr') renderPr(c);
+  else if(tab==='gd') renderGd(c);
+}
+function renderOv(c) {
+  if (!adData) {c.innerHTML='<div class="load">⏳...</div>'; return;}
+  var html='<div class="grand"><div style="font-size:12px;color:var(--tws);margin-bottom:4px;font-family:\'Mitr\',sans-serif">ยอดออมรวมทั้งโรงเรียน</div>'+
+    '<div class="gv">'+fmt(adData.grandTotal)+' บาท</div>'+
+    '<div class="gs">นักเรียน '+adData.totalStudents+' คน · '+GRADES.length+' ชั้นเรียน</div></div>';
+  GRADES.forEach(function(g){
+    var d=adData.grades[g]||{students:[],totalBalance:0};
+    html+='<div class="ovblk"><div class="ovhd" onclick="toggleOv(\''+g.replace('.','_')+'\')">'+
+      '<div class="ovg">'+ICONS[g]+' ชั้น'+g+'</div>'+
+      '<div style="text-align:right"><div class="ovt">'+fmt(d.totalBalance)+' ฿</div>'+
+      '<div class="ovc">'+d.students.length+' คน</div></div></div>'+
+      '<div class="ovbd" id="ov-'+g.replace('.','_')+'">'+
+      (d.students.length ? d.students.map(function(s){
+        return '<div class="ovr"><span>'+esc(s.name)+'</span>'+
+          '<span style="font-weight:600;color:'+(s.balance>=0?'var(--ga)':'var(--red)')+'">'+fmt(s.balance)+' ฿</span></div>';
+      }).join('') : '<div style="color:var(--ts);font-size:13px;padding:4px 0">ยังไม่มีนักเรียน</div>')+
+      '</div></div>';
+  });
+  c.innerHTML=html;
+}
+function toggleOv(id) {var e=document.getElementById('ov-'+id); if(e) e.classList.toggle('on');}
+var adTxMode = 'today'; // 'today' | 'month' | 'all'
+var adTxMonth = null;  // เดือนที่เลือก เช่น "มิ.ย."
+var adTxYear  = null;  // ปีที่เลือก เช่น 2569
+
+function renderAdTx(c) {
+  var now = new Date();
+  if (!adTxMonth) adTxMonth = MONTHS_SHORT[now.getMonth()];
+  if (!adTxYear)  adTxYear  = now.getFullYear() + 543;
+
+  var monthOpts = MONTHS_SHORT.map(function(m,i){
+    return '<option value="'+m+'" '+(m===adTxMonth?'selected':'')+'>'+MONTHS_FULL[i]+'</option>';
+  }).join('');
+
+  var yearOpts = '';
+  for (var y = adTxYear; y >= adTxYear - 4; y--) {
+    yearOpts += '<option value="'+y+'" '+(y===adTxYear?'selected':'')+'>'+y+'</option>';
+  }
+
+  c.innerHTML =
+    // tabs เลือก mode
+    '<div style="display:flex;background:var(--ceramic);border-radius:var(--br);padding:3px;gap:2px;margin-bottom:14px">'+
+    '<button id="adtx-btn-today" onclick="setAdTxMode(\'today\')"'+
+    ' style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:\'Sarabun\',sans-serif;cursor:pointer;font-weight:600;letter-spacing:-0.01em;transition:all 0.2s;background:'+(adTxMode==='today'?'var(--hg)':'transparent')+';color:'+(adTxMode==='today'?'#fff':'var(--ts)')+'">📅 วันนี้</button>'+
+    '<button id="adtx-btn-month" onclick="setAdTxMode(\'month\')"'+
+    ' style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:\'Sarabun\',sans-serif;cursor:pointer;font-weight:600;letter-spacing:-0.01em;transition:all 0.2s;background:'+(adTxMode==='month'?'var(--hg)':'transparent')+';color:'+(adTxMode==='month'?'#fff':'var(--ts)')+'">📆 รายเดือน</button>'+
+    '<button id="adtx-btn-all" onclick="setAdTxMode(\'all\')"'+
+    ' style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:\'Sarabun\',sans-serif;cursor:pointer;font-weight:600;letter-spacing:-0.01em;transition:all 0.2s;background:'+(adTxMode==='all'?'var(--hg)':'transparent')+';color:'+(adTxMode==='all'?'#fff':'var(--ts)')+'">📋 ทั้งหมด</button>'+
+    '</div>'+
+
+    // filter เดือน/ปี (แสดงเฉพาะ mode month)
+    '<div id="adtx-filter" style="'+(adTxMode==='month'?'':'display:none;')+'margin-bottom:12px;display:'+(adTxMode==='month'?'flex':'none')+';gap:8px;align-items:center">'+
+    '<select id="adtx-month" onchange="adTxMonth=this.value;loadAdTxData()"'+
+    ' style="flex:1;padding:9px 12px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:\'Sarabun\',sans-serif;outline:none;background:var(--white)">'+
+    monthOpts+'</select>'+
+    '<select id="adtx-year" onchange="adTxYear=parseInt(this.value);loadAdTxData()"'+
+    ' style="width:100px;padding:9px 12px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:\'Sarabun\',sans-serif;outline:none;background:var(--white)">'+
+    yearOpts+'</select>'+
+    '</div>'+
+
+    // summary cards
+    '<div id="adtx-summary" style="margin-bottom:14px"></div>'+
+
+    // list
+    '<div class="txl" id="adtxl"><div class="load">⏳ กำลังโหลด...</div></div>';
+
+  loadAdTxData();
+}
+
+function setAdTxMode(mode) {
+  adTxMode = mode;
+  renderAdTx(document.getElementById('admin-body'));
+}
+
+function loadAdTxData() {
+  var now = new Date();
+  var params = { limit: 500 };
+
+  if (adTxMode === 'today') {
+    params.date = now.getDate()+' '+MONTHS_SHORT[now.getMonth()]+' '+(now.getFullYear()+543);
+  } else if (adTxMode === 'month') {
+    params.month = adTxMonth;
+    params.year  = String(adTxYear);
+  } else {
+    params.limit = 100;
+  }
+
+  document.getElementById('adtxl').innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
+
+  apiCall({action:'getHistory', limit:params.limit, date:params.date||'', month:params.month||'', year:params.year||''}, function(r) {
+    if (!r.ok) { document.getElementById('adtxl').innerHTML='<div class="load">โหลดไม่ได้</div>'; return; }
+    var txs = r.transactions || [];
+
+    // กรองฝั่ง client ตาม mode
+    var now2 = new Date();
+    if (adTxMode === 'today') {
+      var todayStr = now2.getDate()+' '+MONTHS_SHORT[now2.getMonth()]+' '+(now2.getFullYear()+543);
+      txs = txs.filter(function(t){ return t.date && t.date.indexOf(todayStr) === 0; });
+    } else if (adTxMode === 'month') {
+      txs = txs.filter(function(t){ return t.date && t.date.indexOf(adTxMonth) >= 0 && t.date.indexOf(String(adTxYear)) >= 0; });
+    }
+
+    // คำนวณ summary
+    var totalDep = txs.filter(function(t){return t.type==='ฝาก';}).reduce(function(s,t){return s+t.amount;},0);
+    var totalWit = txs.filter(function(t){return t.type==='ถอน';}).reduce(function(s,t){return s+t.amount;},0);
+    var depCnt   = txs.filter(function(t){return t.type==='ฝาก';}).length;
+    var witCnt   = txs.filter(function(t){return t.type==='ถอน';}).length;
+
+    var title = adTxMode==='today' ? now2.getDate()+' '+MONTHS_FULL[now2.getMonth()]+' '+(now2.getFullYear()+543)
+              : adTxMode==='month' ? MONTHS_FULL[MONTHS_SHORT.indexOf(adTxMonth)]+' '+adTxYear
+              : 'ธุรกรรมล่าสุด';
+
+    // summary cards
+    var sumEl = document.getElementById('adtx-summary');
+    if (sumEl && txs.length > 0) {
+      sumEl.innerHTML =
+        '<div style="background:var(--hg);border-radius:var(--cr);padding:1rem;box-shadow:var(--cs)">'+
+        '<div style="font-size:12px;color:var(--tws);margin-bottom:8px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase">'+title+'</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+        '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+        '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💰 ฝากรวม</div>'+
+        '<div style="font-family:\'Mitr\',sans-serif;font-size:18px;font-weight:700;color:var(--gl)">'+fmt(totalDep)+' ฿</div>'+
+        '<div style="font-size:11px;color:var(--tws);margin-top:2px">'+depCnt+' รายการ</div></div>'+
+        '<div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:10px;text-align:center">'+
+        '<div style="font-size:11px;color:var(--tws);margin-bottom:4px">💸 ถอนรวม</div>'+
+        '<div style="font-family:\'Mitr\',sans-serif;font-size:18px;font-weight:700;color:#fca5a5">'+fmt(totalWit)+' ฿</div>'+
+        '<div style="font-size:11px;color:var(--tws);margin-top:2px">'+witCnt+' รายการ</div></div>'+
+        '</div></div>';
+    } else if (sumEl) {
+      sumEl.innerHTML = '';
+    }
+
+    if (!txs.length) {
+      document.getElementById('adtxl').innerHTML =
+        '<div style="text-align:center;padding:2rem;color:var(--ts)">'+
+        '<div style="font-size:36px;margin-bottom:8px">📭</div>'+
+        '<div>ไม่พบข้อมูลธุรกรรม</div></div>';
+      return;
+    }
+
+    renderTxList('adtxl', txs);
+  });
+}
+function renderPr(c) {
+  var pgrid=GRADES.map(function(g){
+    return '<button class="pbtn" onclick="askPr(\''+g+'\')">'+ICONS[g]+'<br><b>'+g+'</b><br>→ '+NEXT[g]+'</button>';
+  }).join('');
+  c.innerHTML=
+    '<div class="ic"><div class="ic-t">🎓 เลื่อนชั้นรายชั้น</div>'+
+    '<div class="ic-d">กดปุ่มชั้นที่ต้องการ นักเรียนจะเลื่อนขึ้น ยอดเงินติดตามไปด้วย</div>'+
+    '<div class="pgrid">'+pgrid+'</div></div>'+
+    '<div class="ic"><div class="ic-t">⚡ เลื่อนชั้นทั้งโรงเรียน</div>'+
+    '<div class="ic-d">ใช้ตอนต้นปีการศึกษาใหม่ ทุกชั้นเลื่อนพร้อมกัน<br>นักเรียน ป.6 จะย้ายเป็น "จบการศึกษา" อัตโนมัติ</div>'+
+    '<button class="abtn" style="background:var(--sbux)" onclick="askPrAll()">⚡ เลื่อนชั้นทั้งโรงเรียน (ต้นปีการศึกษาใหม่)</button></div>';
+}
+function renderGd(c) {
+  c.innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
+  apiCall({action:'getGraduated',password:_pw},function(r){
+    if (!r.ok) {c.innerHTML='<div class="load">โหลดไม่ได้</div>'; return;}
+    if (!r.students.length) {
+      c.innerHTML='<div class="empty"><div style="font-size:36px;margin-bottom:8px">🎓</div><p>ยังไม่มีนักเรียนจบการศึกษา</p></div>'; return;
+    }
+    var tot=r.students.reduce(function(s,x){return s+x.balance;},0);
+    c.innerHTML='<div style="background:var(--gold-ll);border-radius:var(--cr);padding:1rem;text-align:center;margin-bottom:14px;border:1px solid var(--gold-l)">'+
+      '<div style="font-size:12px;color:var(--gold);margin-bottom:4px">ยอดออมรวม (นักเรียนที่จบแล้ว)</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:24px;font-weight:700;color:var(--sbux)">'+fmt(tot)+' บาท</div>'+
+      '<div style="font-size:12px;color:var(--ts)">'+r.students.length+' คน</div></div>'+
+      r.students.map(function(s){
+        return '<div class="grdc"><div><div class="grdn">'+esc(s.name)+'</div>'+
+          '<div class="grdm">เข้าปี '+(s.entryYear||'-')+(s.bankAccount?' · '+esc(s.bankAccount):'')+'</div></div>'+
+          '<div class="grdb">'+fmt(s.balance)+' ฿</div></div>';
+      }).join('');
+  });
+}
+
+// ===== PROMOTE =====
+function askPr(g) {
+  pendPr={type:'single',grade:g};
+  document.getElementById('pr-title').textContent='เลื่อนชั้น '+ICONS[g]+' '+g;
+  document.getElementById('pr-sub').textContent='นักเรียนทุกคนในชั้น '+g+' จะย้ายไป '+NEXT[g]+'\nยอดเงินสะสมติดตามไปด้วย';
+  hide('pr-err'); document.getElementById('pr-btn').onclick=doPr; openMo('pr');
+}
+function askPrAll() {
+  pendPr={type:'all'};
+  document.getElementById('pr-title').textContent='⚡ เลื่อนชั้นทั้งโรงเรียน';
+  document.getElementById('pr-sub').textContent='นักเรียนทุกชั้นเลื่อนขึ้นพร้อมกัน\nนักเรียน ป.6 → จบการศึกษา\n\nทำได้ปีละครั้ง ยืนยันใช่ไหม?';
+  hide('pr-err'); document.getElementById('pr-btn').onclick=doPr; openMo('pr');
+}
+function doPr() {
+  var params=pendPr.type==='all'?{action:'promoteAll',password:_pw}:{action:'promoteGrade',password:_pw,grade:pendPr.grade};
+  apiCall(params,function(r){
+    if (!r.ok) {document.getElementById('pr-err').textContent=r.error;document.getElementById('pr-err').style.display='block'; return;}
+    closeMo('pr');
+    toast(pendPr.type==='all'?'✓ เลื่อนชั้นทั้งโรงเรียนสำเร็จ!':'✓ เลื่อนชั้น '+pendPr.grade+' สำเร็จ ('+r.promoted+' คน)','ok');
+    pendPr=null; cache={}; loadAdmin();
+  });
+}
+
+// ===== PARENT =====
+function searchParent() {
+  var name=document.getElementById('parent-search').value.trim();
+  if (!name) {showParentErr('กรุณาใส่ชื่อก่อน'); return;}
+  document.getElementById('parent-err').style.display='none';
+  document.getElementById('parent-result').style.display='none';
+  document.getElementById('parent-loading').style.display='block';
+  apiCall({action:'getStudentByName',name:name},function(r){
+    document.getElementById('parent-loading').style.display='none';
+    if (!r.ok) {showParentErr(r.error); return;}
+    document.getElementById('parent-result').style.display='block';
+    if (r.students.length>1) {
+      document.getElementById('parent-multi').style.display='block';
+      document.getElementById('parent-single').style.display='none';
+      document.getElementById('parent-multi-list').innerHTML=r.students.map(function(s){
+        return '<div class="scard" onclick="selectParentStudent(\''+s.id+'\',\''+esc(s.name)+'\',\''+s.grade+'\','+s.balance+',[])">' +
+          '<div class="savt">'+(ICONS[s.grade]||'👦')+'</div>'+
+          '<div style="flex:1"><div class="sname">'+esc(s.name)+'</div>'+
+          '<div class="smeta">ชั้น '+s.grade+'</div></div>'+
+          '<div class="sbal"><div class="sbv" style="color:var(--ga)">'+fmt(s.balance)+' ฿</div></div></div>';
+      }).join('');
+    } else {
+      document.getElementById('parent-multi').style.display='none';
+      showParentSingle(r.students[0],r.history||[]);
+    }
+  });
+}
+function selectParentStudent(id,name,grade,balance) {
+  document.getElementById('parent-multi').style.display='none';
+  apiCall({action:'getStudentByName',name:name},function(r){
+    if(r.ok&&r.students.length>0){
+      var stu=r.students.filter(function(s){return s.id===id;})[0]||r.students[0];
+      showParentSingle(stu,r.history||[]);
+    }
+  });
+}
+function showParentSingle(stu,history) {
+  document.getElementById('parent-single').style.display='block';
+  document.getElementById('ps-name').textContent=stu.name;
+  document.getElementById('ps-grade').textContent='ชั้น '+stu.grade;
+  document.getElementById('ps-balance').textContent=fmt(stu.balance);
+  var histEl=document.getElementById('parent-history');
+  if (!history||!history.length) {
+    histEl.innerHTML='<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีประวัติธุรกรรม</div>'; return;
+  }
+  histEl.innerHTML=history.map(function(t){
+    var isD=t.type==='ฝาก';
+    return '<div class="txi">'+
+      '<div class="txb '+(isD?'d':'w')+'">'+(isD?'💰':'💸')+'</div>'+
+      '<div class="txi-info"><div class="txn">'+t.type+'</div>'+
+      '<div class="txd">'+fmtDate(t.date)+'</div></div>'+
+      '<div class="txa '+(isD?'d':'w')+'">'+(isD?'+':'-')+fmt(t.amount)+' ฿</div></div>';
+  }).join('');
+}
+function resetParent() {
+  document.getElementById('parent-search').value='';
+  document.getElementById('parent-result').style.display='none';
+  document.getElementById('parent-err').style.display='none';
+  document.getElementById('parent-single').style.display='none';
+  document.getElementById('parent-multi').style.display='none';
+  document.getElementById('parent-search').focus();
+}
+function showParentErr(msg) {
+  var el=document.getElementById('parent-err'); el.textContent='❌ '+msg; el.style.display='block';
+}
+
+// ===== MODAL HELPERS =====
+function openManual() {
+  document.getElementById('mo-manual').classList.add('on');
+  document.getElementById('mo-manual').scrollTop = 0;
+}
+function closeManual() {
+  document.getElementById('mo-manual').classList.remove('on');
+}
+function openMo(id) {document.getElementById('mo-'+id).classList.add('on');}
+function closeMo(id) {document.getElementById('mo-'+id).classList.remove('on');}
+function showOk(id,msg) {var e=document.getElementById(id+'-ok');e.textContent=msg;e.style.display='block';hide(id+'-err');}
+function showErr(id,msg) {var e=document.getElementById(id+'-err');e.textContent=msg;e.style.display='block';hide(id+'-ok');}
+
+// ===== API DIAGNOSTIC (รันตอนเปิดหน้า) =====
+(function checkApiOnLoad(){
+  var el=document.getElementById('api-status');
+  if(!el) return;
+  apiCall({action:'getStudents',grade:'ป.1'},function(r){
+    if(r.ok){
+      el.style.background='rgba(0,117,74,0.8)';
+      el.textContent='✅ เชื่อมต่อสำเร็จ · พบนักเรียน ป.1 จำนวน '+(r.students||[]).length+' คน';
+    } else {
+      el.style.background='rgba(192,57,43,0.9)';
+      el.style.color='#fff';
+      el.innerHTML='❌ เชื่อมต่อไม่ได้<br><span style="font-size:11px;opacity:.9">'+(r.error||'ไม่ทราบสาเหตุ')+'</span>';
+    }
+  });
+})();
+
+</script>
+</body>
+</html>

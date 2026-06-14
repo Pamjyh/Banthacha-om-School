@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบงาน — โรงเรียนบ้านท่าชะอม</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+/* ─────────────────────────────────────────────
+   DESIGN TOKENS
+───────────────────────────────────────────── */
+:root {
+  --canvas-soft:   #f6f5f4;
+  --canvas:        #ffffff;
+  --ink:           #1a1a1a;
+  --ink-secondary: #31302e;
+  --ink-muted:     #615d59;
+  --ink-faint:     #a39e98;
+  --hairline:      #e6e6e6;
+  --primary:       #0075de;
+  --primary-dark:  #005bab;
+
+  --teal:          #2a9d99;
+  --teal-bg:       #ddf3f2;
+  --teal-hover:    #ccecea;
+  --green:         #1aae39;
+  --green-bg:      #e2f7e7;
+  --green-hover:   #cceedb;
+  --orange:        #dd5b00;
+  --orange-bg:     #fdeede;
+  --orange-hover:  #fce0ca;
+  --purple:        #7c3aed;
+  --purple-bg:     #ece8fc;
+  --purple-hover:  #ddd5f8;
+
+  --radius-sm:     8px;
+  --radius-md:     12px;
+  --radius-lg:     16px;
+  --radius-full:   9999px;
+
+  --shadow-card:   0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05);
+  --shadow-hover:  0 10px 28px rgba(0,0,0,.09);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 17px; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: 'Sarabun', sans-serif;
+  background: var(--canvas-soft);
+  color: var(--ink);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+a { color: inherit; text-decoration: none; }
+
+/* ─────────────────────────────────────────────
+   LOADING OVERLAY
+───────────────────────────────────────────── */
+#loading-overlay {
+  position: fixed; inset: 0;
+  background: var(--canvas-soft);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 14px;
+  z-index: 999; transition: opacity 0.3s ease;
+}
+#loading-overlay.hidden { opacity: 0; pointer-events: none; }
+.loading-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--hairline);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.loading-text { font-size: 15px; color: var(--ink-muted); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─────────────────────────────────────────────
+   SYSTEM IFRAME OVERLAY
+───────────────────────────────────────────── */
+#system-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  flex-direction: column;
+  z-index: 100;
+  background: #fff;
+}
+#system-overlay.active { display: flex; }
+
+#system-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--canvas);
+  border-bottom: 1px solid var(--hairline);
+  padding: 10px 16px;
+  flex-shrink: 0;
+  min-height: 54px;
+}
+#back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--canvas-soft);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-full);
+  padding: 8px 18px;
+  font-size: 15px;
+  font-family: 'Sarabun', sans-serif;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+#back-btn:hover { background: var(--hairline); border-color: #d0ccc8; }
+#system-bar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#system-frame {
+  flex: 1;
+  border: none;
+  width: 100%;
+}
+
+/* ─────────────────────────────────────────────
+   PAGE WRAPPER
+───────────────────────────────────────────── */
+#page-wrapper {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 20px 48px;
+}
+
+/* ─────────────────────────────────────────────
+   HEADER
+───────────────────────────────────────────── */
+#site-header {
+  background: var(--canvas);
+  border-bottom: 1px solid var(--hairline);
+  margin: 0 -20px;
+  padding: 20px 32px;
+}
+.header-inner {
+  max-width: 820px; margin: 0 auto;
+  display: flex; align-items: center; gap: 16px;
+}
+.school-logo {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--hairline);
+  object-fit: cover; flex-shrink: 0;
+}
+.school-logo-placeholder {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  border: 2px solid var(--hairline);
+  background: var(--teal-bg);
+  display: none; align-items: center; justify-content: center;
+  font-size: 32px; flex-shrink: 0;
+}
+.header-text { flex: 1; }
+.school-name { font-size: 20px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+.school-tagline { font-size: 14px; color: var(--ink-muted); margin-top: 2px; }
+.header-clock { text-align: right; flex-shrink: 0; }
+#greeting-badge {
+  display: inline-block;
+  font-size: 13px; font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  margin-bottom: 4px;
+}
+#clock-time {
+  display: block;
+  font-size: 26px; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink); line-height: 1.2;
+}
+#clock-date {
+  display: block;
+  font-size: 13px; color: var(--ink-muted); margin-top: 2px;
+}
+
+/* ─────────────────────────────────────────────
+   GREETING
+───────────────────────────────────────────── */
+#greeting-section { padding: 28px 0 4px; }
+.greeting-main { font-size: 22px; font-weight: 700; color: var(--ink); }
+.greeting-sub { font-size: 15px; color: var(--ink-muted); margin-top: 4px; }
+
+/* ─────────────────────────────────────────────
+   SECTION LABEL
+───────────────────────────────────────────── */
+.section-label {
+  font-size: 13px; font-weight: 600;
+  color: var(--ink-faint);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: 24px 0 14px;
+}
+
+/* ─────────────────────────────────────────────
+   CARD GRID
+───────────────────────────────────────────── */
+#card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+/* ─────────────────────────────────────────────
+   SYSTEM CARD
+───────────────────────────────────────────── */
+.sys-card {
+  background: var(--canvas);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  min-height: 160px;
+  opacity: 0;
+  animation: cardSlideUp 0.28s ease-out forwards;
+  animation-play-state: paused;
+}
+.sys-card.animate { animation-play-state: running; }
+.sys-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+  border-color: #d0ccc8;
+}
+.sys-card--inactive {
+  cursor: default;
+  animation: cardFadeIn 0.28s ease-out forwards;
+  animation-play-state: paused;
+}
+.sys-card--inactive.animate { animation-play-state: running; }   /* let the animation play to 0.5 */
+.sys-card--inactive:hover {
+  transform: none;
+  box-shadow: var(--shadow-card);
+  border-color: var(--hairline);
+}
+
+@keyframes cardSlideUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes cardFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 0.5; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sys-card { animation: none; opacity: 1; }
+  .sys-card--inactive { animation: none; opacity: 0.5; }
+  .badge-active::before { animation: none; }
+}
+
+.card-icon-band {
+  height: 78px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px;
+  transition: background 0.18s ease;
+}
+.band-teal   { background: var(--teal-bg); }
+.band-green  { background: var(--green-bg); }
+.band-orange { background: var(--orange-bg); }
+.band-purple { background: var(--purple-bg); }
+.sys-card:not(.sys-card--inactive):hover .band-teal   { background: var(--teal-hover); }
+.sys-card:not(.sys-card--inactive):hover .band-green  { background: var(--green-hover); }
+.sys-card:not(.sys-card--inactive):hover .band-orange { background: var(--orange-hover); }
+.sys-card:not(.sys-card--inactive):hover .band-purple { background: var(--purple-hover); }
+
+.card-body {
+  padding: 14px 16px 16px;
+  display: flex; flex-direction: column; flex: 1; gap: 4px;
+}
+.card-title { font-size: 17px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+.card-desc  { font-size: 13px; color: var(--ink-muted); line-height: 1.5; }
+.card-foot  {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  margin-top: 10px; gap: 8px;
+}
+
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 600;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.badge-active { background: var(--green-bg); color: #0e6124; }
+.badge-active::before {
+  content: '';
+  display: inline-block; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0   rgba(26,174,57,.4); }
+  50%  { box-shadow: 0 0 0 4px rgba(26,174,57,.08); }
+  100% { box-shadow: 0 0 0 0   rgba(26,174,57,.0); }
+}
+.badge-soon { background: var(--purple-bg); color: #5b2fc3; }
+
+.card-btn         { font-size: 13px; font-weight: 600; color: var(--primary); white-space: nowrap; }
+.card-btn-inactive{ font-size: 13px; font-weight: 600; color: var(--ink-faint); white-space: nowrap; }
+
+/* ─────────────────────────────────────────────
+   HELP NOTE
+───────────────────────────────────────────── */
+#help-note {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 14px 16px; margin-top: 20px;
+}
+.help-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.help-text { font-size: 14px; color: var(--ink-muted); line-height: 1.6; }
+.help-text strong { color: var(--ink); }
+
+/* ─────────────────────────────────────────────
+   FOOTER
+───────────────────────────────────────────── */
+#site-footer {
+  background: var(--canvas);
+  border-top: 1px solid var(--hairline);
+  margin: 40px -20px 0;
+  padding: 18px 32px;
+  text-align: center;
+}
+.footer-school { font-size: 14px; font-weight: 600; color: var(--ink-muted); }
+.footer-address, .footer-year { font-size: 13px; color: var(--ink-faint); margin-top: 2px; }
+.footer-credit {
+  font-size: 12px; color: var(--ink-faint);
+  margin-top: 8px;
+  border-top: 1px solid var(--hairline);
+  padding-top: 10px;
+}
+.footer-credit span { color: var(--ink-muted); font-weight: 600; }
+
+/* ─────────────────────────────────────────────
+   ERROR MODAL
+───────────────────────────────────────────── */
+#error-modal {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.35); z-index: 999;
+  align-items: center; justify-content: center; padding: 20px;
+}
+#error-modal.show { display: flex; }
+.error-modal-box {
+  background: var(--canvas); border-radius: var(--radius-lg);
+  padding: 28px 24px; max-width: 360px; width: 100%;
+  text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+.error-modal-icon  { font-size: 40px; margin-bottom: 12px; }
+.error-modal-title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+.error-modal-body  { font-size: 15px; color: var(--ink-muted); line-height: 1.7; margin-bottom: 22px; }
+.error-modal-btn {
+  background: var(--primary); color: #fff; border: none;
+  border-radius: var(--radius-full);
+  padding: 14px 32px; font-size: 16px;
+  font-family: 'Sarabun', sans-serif; font-weight: 600;
+  cursor: pointer; width: 100%; transition: background 0.15s;
+}
+.error-modal-btn:hover { background: var(--primary-dark); }
+
+/* page wrapper hidden state (toggled by JS) */
+#page-wrapper.hidden { display: none; }
+
+/* ─────────────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────────────── */
+@media (max-width: 767px) {
+  #site-header { padding: 16px 20px; }
+  .header-clock { display: none; }
+  #greeting-section { padding: 20px 0 0; }
+  .greeting-main { font-size: 20px; }
+}
+@media (max-width: 539px) {
+  #card-grid { grid-template-columns: 1fr; gap: 12px; }
+  .school-logo, .school-logo-placeholder { width: 56px; height: 56px; font-size: 24px; }
+  .school-name { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading-overlay" aria-hidden="true">
+  <div class="loading-spinner"></div>
+  <p class="loading-text">กำลังโหลด…</p>
+</div>
+
+<!-- System iframe overlay -->
+<div id="system-overlay" role="region" aria-label="ระบบที่เลือก" aria-hidden="true">
+  <div id="system-bar">
+    <button id="back-btn" aria-label="กลับหน้าหลัก">
+      ← กลับหน้าหลัก
+    </button>
+    <span id="system-bar-title"></span>
+  </div>
+  <iframe id="system-frame" src="" title="ระบบงาน" allowfullscreen
+          allow="camera; microphone; geolocation"></iframe>
+</div>
+
+<!-- Error modal -->
+<div id="error-modal" role="dialog" aria-modal="true" aria-labelledby="error-modal-title" aria-describedby="error-modal-body">
+  <div class="error-modal-box">
+    <div class="error-modal-icon">⚠️</div>
+    <h2 class="error-modal-title" id="error-modal-title">ไม่สามารถเปิดระบบได้</h2>
+    <p class="error-modal-body" id="error-modal-body">
+      กรุณาตรวจสอบ:<br>
+      1. อินเทอร์เน็ตเชื่อมต่ออยู่หรือเปล่า?<br>
+      2. URL ของระบบถูกต้องไหม?<br><br>
+      หรือติดต่อผู้ดูแลระบบ
+    </p>
+    <button class="error-modal-btn" id="error-modal-ok">ตกลง</button>
+  </div>
+</div>
+
+<!-- Portal page -->
+<div id="page-wrapper">
+
+  <header id="site-header" role="banner">
+    <div class="header-inner">
+      <img src="assets/school-logo.jpg"
+           alt="โลโก้โรงเรียนบ้านท่าชะอม"
+           class="school-logo"
+           onerror="handleLogoError()">
+      <div id="logo-placeholder" class="school-logo-placeholder" aria-hidden="true">🏫</div>
+      <div class="header-text">
+        <h1 class="school-name">โรงเรียนบ้านท่าชะอม</h1>
+        <p class="school-tagline">ระบบงานออนไลน์สำหรับบุคลากร</p>
+      </div>
+      <div class="header-clock" aria-hidden="true">
+        <span id="greeting-badge">☀️ ตอนเช้า</span>
+        <span id="clock-time">00:00:00</span>
+        <span id="clock-date">วันที่ —</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content" role="main">
+
+    <section id="greeting-section" aria-label="คำทักทาย">
+      <p class="greeting-main" id="greeting-text">สวัสดี</p>
+      <p class="greeting-sub" id="greeting-date">—</p>
+    </section>
+
+    <p class="section-label">เลือกระบบที่ต้องการใช้งาน</p>
+
+    <div id="card-grid" role="group" aria-label="ระบบงานที่ใช้งานได้">
+
+      <!-- Card 1: บริหารงาน -->
+      <div class="sys-card"
+           role="button" tabindex="0"
+           data-url="ระบบบริหารงาน/"
+           data-title="ระบบบริหารงานโรงเรียน"
+           aria-label="ระบบบริหารงานโรงเรียน">
+        <div class="card-icon-band band-teal" aria-hidden="true">🏫</div>
+        <div class="card-body">
+          <h2 class="card-title">บริหารงานโรงเรียน</h2>
+          <p class="card-desc">โครงการ พัสดุ การเงิน งบประมาณ</p>
+          <div class="card-foot">
+            <span class="badge badge-active">ใช้งานได้</span>
+            <span class="card-btn" aria-hidden="true">เปิดระบบ →</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: ออมทรัพย์ -->
+      <div class="sys-card"
+           role="button" tabindex="0"
+           data-url="ระบบออมทรัพย์/"
+           data-title="ระบบออมทรัพย์นักเรียน"
+           aria-label="ระบบออมทรัพย์นักเรียน">
+        <div class="card-icon-band band-green" aria-hidden="true">🐖</div>
+        <div class="card-body">
+          <h2 class="card-title">ออมทรัพย์นักเรียน</h2>
+          <p class="card-desc">บันทึกฝาก–ถอน ยอดคงเหลือ</p>
+          <div class="card-foot">
+            <span class="badge badge-active">ใช้งานได้</span>
+            <span class="card-btn" aria-hidden="true">เปิดระบบ →</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: ลงเวลา -->
+      <div class="sys-card"
+           role="button" tabindex="0"
+           data-url="ระบบลงเวลา/"
+           data-title="ระบบลงเวลาปฏิบัติงาน"
+           aria-label="ระบบลงเวลาปฏิบัติงาน">
+        <div class="card-icon-band band-orange" aria-hidden="true">🕐</div>
+        <div class="card-body">
+          <h2 class="card-title">ลงเวลาปฏิบัติงาน</h2>
+          <p class="card-desc">เช็คอิน เช็คเอาท์ ยื่นใบลา</p>
+          <div class="card-foot">
+            <span class="badge badge-active">ใช้งานได้</span>
+            <span class="card-btn" aria-hidden="true">เปิดระบบ →</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: สารบัญ -->
+      <div class="sys-card"
+           role="button" tabindex="0"
+           data-url="ระบบสารบัญ/index.html"
+           data-title="ระบบสารบัญ"
+           aria-label="ระบบสารบัญ — อัปโหลดไฟล์ ส่ง LINE มอบหมายงาน">
+        <div class="card-icon-band band-purple" aria-hidden="true">📁</div>
+        <div class="card-body">
+          <h2 class="card-title">ระบบสารบัญ</h2>
+          <p class="card-desc">อัปโหลดไฟล์ ส่ง LINE มอบหมายงาน</p>
+          <div class="card-foot">
+            <span class="badge badge-active">ใช้งานได้</span>
+            <span class="card-btn" aria-hidden="true">เปิดระบบ →</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <aside id="help-note" role="note">
+      <span class="help-icon" aria-hidden="true">💡</span>
+      <p class="help-text">
+        กดที่การ์ดเพื่อเปิดระบบ &nbsp;|&nbsp; กด <strong>← กลับหน้าหลัก</strong> เพื่อกลับมาที่นี่<br>
+        <strong>เข้าไม่ได้?</strong> ติดต่อผู้ดูแลระบบ หรือตรวจสอบการเชื่อมต่ออินเทอร์เน็ต
+      </p>
+    </aside>
+
+  </main>
+
+  <footer id="site-footer" role="contentinfo">
+    <p class="footer-school">โรงเรียนบ้านท่าชะอม</p>
+    <p class="footer-address">ต.เขากวางทอง อ.หนองฉาง จ.อุทัยธานี</p>
+    <p class="footer-year">© พ.ศ. <span id="footer-year"></span></p>
+    <p class="footer-credit">
+      พัฒนาโดย <span>Pamjyh_</span> &amp; <span>Claude by Anthropic</span>
+    </p>
+  </footer>
+
+</div><!-- /#page-wrapper -->
+
+<script>
+/* ─────────────────────────────────────────────
+   TIME & DATE
+───────────────────────────────────────────── */
+const THAI_DAYS   = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+const THAI_MONTHS = [
+  'มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+  'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'
+];
+const GREETINGS = [
+  { from:5,  to:12, text:'สวัสดีตอนเช้า ☀️',  badge:'☀️ ตอนเช้า',  bg:'#fff9e6', color:'#a16700' },
+  { from:12, to:17, text:'สวัสดีตอนบ่าย 🌤',  badge:'🌤 ตอนบ่าย',  bg:'#e8f4fd', color:'#0059a8' },
+  { from:17, to:21, text:'สวัสดีตอนเย็น 🌆',  badge:'🌆 ตอนเย็น',  bg:'#fdeede', color:'#a84100' },
+  { from:21, to:29, text:'สวัสดีตอนดึก 🌙',   badge:'🌙 ตอนดึก',   bg:'#ede8fb', color:'#5b2fc3' },
+];
+function getGreetingData(h) {
+  if (h >= 5  && h < 12) return GREETINGS[0];  // เช้า
+  if (h >= 12 && h < 17) return GREETINGS[1];  // บ่าย
+  if (h >= 17 && h < 21) return GREETINGS[2];  // เย็น
+  return GREETINGS[3];                          // ดึก (21–04)
+}
+function pad2(n) { return String(n).padStart(2, '0'); }
+function updateGreeting() {
+  const now = new Date();
+  const g   = getGreetingData(now.getHours());
+
+  // Build Thai date string once, use in both places
+  const day     = THAI_DAYS[now.getDay()];
+  const d       = now.getDate();
+  const month   = THAI_MONTHS[now.getMonth()];
+  const year    = now.getFullYear() + 543;
+  const dateStr = `วัน${day}ที่ ${d} ${month} พ.ศ. ${year}`;
+
+  const gEl  = document.getElementById('greeting-text');
+  const dEl  = document.getElementById('greeting-date');
+  const cdEl = document.getElementById('clock-date');   // header clock date
+  const bEl  = document.getElementById('greeting-badge');
+
+  if (gEl)  gEl.textContent  = g.text;
+  if (dEl)  dEl.textContent  = dateStr;
+  if (cdEl) cdEl.textContent = dateStr;   // ← fix: was never set
+  if (bEl)  { bEl.textContent = g.badge; bEl.style.background = g.bg; bEl.style.color = g.color; }
+}
+function updateClock() {
+  const now = new Date();
+  const el  = document.getElementById('clock-time');
+  if (el) el.textContent = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())} น.`;
+}
+
+/* ─────────────────────────────────────────────
+   CARD ANIMATIONS
+───────────────────────────────────────────── */
+function animateCards() {
+  document.querySelectorAll('.sys-card').forEach((card, i) => {
+    setTimeout(() => card.classList.add('animate'), 60 + i * 80);
+  });
+}
+
+/* ─────────────────────────────────────────────
+   LOGO FALLBACK
+───────────────────────────────────────────── */
+function handleLogoError() {
+  const logo = document.querySelector('.school-logo');
+  const ph   = document.getElementById('logo-placeholder');
+  if (logo) logo.style.display = 'none';
+  if (ph)   ph.style.display   = 'flex';
+}
+
+/* ─────────────────────────────────────────────
+   SYSTEM OPEN / CLOSE
+───────────────────────────────────────────── */
+let _lastFocused = null;
+
+function openSystem(url, title) {
+  if (document.getElementById('system-overlay').classList.contains('active')) return;
+
+  const frame   = document.getElementById('system-frame');
+  const overlay = document.getElementById('system-overlay');
+  const wrapper = document.getElementById('page-wrapper');
+  const barTitle= document.getElementById('system-bar-title');
+
+  _lastFocused = document.activeElement;  // remember where focus was
+
+  barTitle.textContent = title;
+  frame.src = url;
+  overlay.setAttribute('aria-hidden', 'false');
+  overlay.classList.add('active');
+  wrapper.classList.add('hidden');
+  window.scrollTo(0, 0);
+
+  // Move focus to back button for keyboard users
+  document.getElementById('back-btn').focus();
+}
+
+function closeSystem() {
+  const frame   = document.getElementById('system-frame');
+  const overlay = document.getElementById('system-overlay');
+  const wrapper = document.getElementById('page-wrapper');
+
+  frame.src = 'about:blank';
+  overlay.setAttribute('aria-hidden', 'true');
+  overlay.classList.remove('active');
+  wrapper.classList.remove('hidden');
+
+  // Restore focus to the card that was clicked
+  if (_lastFocused) { _lastFocused.focus(); _lastFocused = null; }
+}
+
+/* Card click & keyboard handlers */
+document.querySelectorAll('.sys-card:not(.sys-card--inactive)').forEach(card => {
+  const handler = () => {
+    const url   = card.dataset.url;
+    const title = card.dataset.title;
+    if (url) openSystem(url, title);
+  };
+  card.addEventListener('click', handler);
+  card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } });
+});
+
+/* ─────────────────────────────────────────────
+   ERROR MODAL
+───────────────────────────────────────────── */
+function showErrorModal() {
+  const modal = document.getElementById('error-modal');
+  modal.classList.add('show');
+  document.getElementById('error-modal-ok').focus();
+}
+function closeErrorModal() {
+  document.getElementById('error-modal').classList.remove('show');
+}
+document.getElementById('error-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeErrorModal();
+});
+document.getElementById('error-modal-ok').addEventListener('click', closeErrorModal);
+
+/* Escape key closes overlay or modal */
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (document.getElementById('error-modal').classList.contains('show')) closeErrorModal();
+  else if (document.getElementById('system-overlay').classList.contains('active')) closeSystem();
+});
+
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  // Hide loading overlay
+  setTimeout(() => {
+    const ol = document.getElementById('loading-overlay');
+    ol.classList.add('hidden');
+  }, 250);
+
+  // Wire up back button (no inline onclick)
+  document.getElementById('back-btn').addEventListener('click', closeSystem);
+
+  updateGreeting();
+  updateClock();
+  animateCards();
+
+  const fyEl = document.getElementById('footer-year');
+  if (fyEl) fyEl.textContent = new Date().getFullYear() + 543;
+
+  setInterval(updateClock, 1000);
+  setInterval(updateGreeting, 60_000);
+});
+</script>
+</body>
+</html>

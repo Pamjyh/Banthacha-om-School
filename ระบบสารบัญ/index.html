@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบสารบัญ — โรงเรียนบ้านท่าชะอม</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- DOCX text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+  <!-- PDF text extraction -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* ── DESIGN-notion.md tokens ── */
+      --canvas:        #f6f5f4;   /* canvas-soft */
+      --white:         #ffffff;   /* canvas / surface */
+      --ink:           #000000;   /* ink */
+      --ink-secondary: #31302e;   /* ink-secondary */
+      --ink-muted:     #615d59;   /* ink-muted */
+      --ink-faint:     #a39e98;   /* ink-faint */
+      --hairline:      #e6e6e6;   /* hairline */
+      --primary:       #0075de;   /* primary */
+      --primary-h:     #005bab;   /* primary-active */
+      --teal:          #2a9d99;   /* accent-teal */
+      --green:         #1aae39;   /* accent-green */
+
+      /* ── Semantic (ไม่มีใน spec → ใช้ sticker palette ตาม spec) ── */
+      --success:       #1aae39;   /* accent-green */
+      --success-bg:    #e8fded;
+      --success-bd:    #a7f3c8;
+      --warn:          #dd5b00;   /* accent-orange */
+      --error:         #dd5b00;
+      --error-bg:      #fff3ec;
+      --error-bd:      #fbbf9a;
+      --primary-bg:    #e8f3fd;   /* tint ของ primary */
+
+      /* ── Radius (rounded.* tokens) ── */
+      --r-xs:   4px;              /* inputs, tags */
+      --r-sm:   5px;
+      --r-md:   8px;              /* utility buttons */
+      --r-lg:   12px;             /* feature cards */
+      --r-xl:   16px;             /* modals, result */
+      --r-full: 9999px;           /* pill CTAs */
+
+      /* ── Spacing (spacing.* tokens) ── */
+      --sp-xs:  8px;
+      --sp-sm:  12px;
+      --sp-md:  16px;
+      --sp-lg:  24px;
+      --sp-xl:  28px;
+
+      /* ── Elevation Level-1 (layered micro-shadow) ── */
+      --shadow-1:
+        rgba(0,0,0,0.01)  0  0.175px  1.041px,
+        rgba(0,0,0,0.02)  0  0.8px    2.925px,
+        rgba(0,0,0,0.027) 0  2.025px  7.847px,
+        rgba(0,0,0,0.04)  0  4px      18px;
+
+      --font: 'Sarabun', Inter, -apple-system, system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--canvas);
+      color: var(--ink);
+      min-height: 100vh;
+      font-size: 15px; /* body-sm */
+      line-height: 1.33;
+    }
+
+    /* ─── Header ─── */
+    header {
+      background: var(--white);
+      border-bottom: 1px solid var(--hairline);
+      padding: var(--sp-md) var(--sp-lg); /* 16px 24px */
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .hdr-icon  { font-size: 28px; line-height: 1; }
+    .hdr-title { font-size: 17px; font-weight: 600; color: var(--ink); letter-spacing: -0.125px; }
+    .hdr-sub   { font-size: 12px; color: var(--ink-muted); margin-top: 1px; }
+
+    /* ─── Main layout ─── */
+    main { max-width: 660px; margin: 28px auto; padding: 0 16px 48px; }
+
+    /* ─── Step label (eyebrow token) ─── */
+    .step-label {
+      font-size: 12px;          /* eyebrow */
+      font-weight: 600;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.125px;  /* eyebrow letter-spacing */
+      margin-bottom: var(--sp-xs);
+    }
+
+    /* ─── Card (feature-card token) ─── */
+    .card {
+      background: var(--white);
+      border: 1px solid var(--hairline);
+      border-radius: var(--r-lg);   /* 12px */
+      padding: var(--sp-lg);        /* 24px */
+      margin-bottom: 14px;
+      box-shadow: var(--shadow-1);  /* layered micro-shadow */
+    }
+
+    /* ─── Drop Zone ─── */
+    #dropZone {
+      border: 2px dashed var(--hairline);
+      border-radius: var(--r-lg);   /* 12px */
+      padding: 44px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.18s, background 0.18s;
+      user-select: none;
+    }
+    #dropZone:hover  { border-color: var(--primary); background: var(--primary-bg); }
+    #dropZone.over   { border-color: var(--primary); background: var(--primary-bg); }
+    #dropZone.filled {
+      border-style: solid;
+      border-color: var(--success);
+      background: var(--success-bg);
+      padding: 18px 20px;
+    }
+    .dz-icon  { font-size: 44px; margin-bottom: 10px; }
+    .dz-text  { font-size: 15px; color: var(--ink-muted); }
+    .dz-hint  { font-size: 12px; color: var(--ink-faint); margin-top: 4px; }
+
+    .file-row  { display: flex; align-items: center; gap: 14px; text-align: left; }
+    .file-ico  { font-size: 36px; flex-shrink: 0; }
+    .file-name { font-size: 14px; font-weight: 600; color: var(--ink); word-break: break-all; }
+    .file-meta { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
+    .file-change {
+      font-size: 12px; color: var(--primary);
+      cursor: pointer; text-decoration: underline; margin-top: 4px;
+      display: inline-block;
+    }
+
+    /* ─── Form ─── */
+    .field { margin-bottom: 18px; }
+    .field:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      font-size: 12px;          /* eyebrow */
+      font-weight: 600;
+      color: var(--ink-secondary);
+      letter-spacing: 0.125px;  /* eyebrow */
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .lbl-hint {
+      font-size: 12px; font-weight: 400;
+      color: var(--ink-faint);
+      margin-left: 4px;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    /* text-input token: rounded.xs = 4px, padding 6px, body-sm */
+    input[type="text"], select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--hairline);
+      border-radius: var(--r-xs);   /* 4px */
+      font-family: var(--font);
+      font-size: 15px;              /* body-sm */
+      font-weight: 400;
+      color: var(--ink);
+      background: var(--white);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="text"]::placeholder,
+    textarea::placeholder { color: var(--ink-faint); }
+    input[type="text"]:focus,
+    select:focus,
+    textarea:focus {
+      border-color: var(--primary);
+      box-shadow: var(--shadow-1); /* Level-1 on focus per spec */
+    }
+    textarea { resize: vertical; min-height: 76px; }
+
+    .extract-note {
+      font-size: 12px;
+      margin-top: 5px;
+      color: var(--ink-faint);
+      min-height: 16px;
+    }
+    .extract-note.ok   { color: var(--success); }
+    .extract-note.warn { color: var(--warn); }
+
+    /* ─── Submit button (button-primary token: pill, weight 500) ─── */
+    #submitBtn {
+      width: 100%;
+      padding: 13px var(--sp-lg);
+      min-height: 48px;             /* comfortable touch target */
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--r-full); /* 9999px — pill */
+      font-family: var(--font);
+      font-size: 16px;              /* button token */
+      font-weight: 500;             /* button token */
+      line-height: 1.5;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    #submitBtn:hover:not(:disabled)  { background: var(--primary-h); }
+    #submitBtn:active:not(:disabled) { transform: scale(0.98); }
+    #submitBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* ─── Result (ex-modal-card: rounded.xl = 16px, spacing.lg = 24px) ─── */
+    #resultArea { margin-bottom: var(--sp-md); }
+    .result {
+      border-radius: var(--r-xl);   /* 16px */
+      padding: var(--sp-lg);        /* 24px */
+      text-align: center;
+    }
+    .result.success { background: var(--success-bg); border: 1px solid var(--success-bd); }
+    .result.error   { background: var(--error-bg);   border: 1px solid var(--error-bd);   }
+    .r-icon  { font-size: 38px; margin-bottom: 8px; }
+    .r-title { font-size: 16px; font-weight: 600; color: var(--ink); margin-bottom: 10px; }
+    .r-link  {
+      display: inline-block; margin-bottom: 4px;
+      font-size: 14px; color: var(--primary);
+      word-break: break-all; text-decoration: none;
+    }
+    .r-link:hover { text-decoration: underline; }
+    .r-err { font-size: 13px; color: var(--warn); }
+    .btn-reset {
+      margin-top: 12px; font-size: 13px;
+      color: var(--primary); cursor: pointer;
+      text-decoration: underline; background: none;
+      border: none; font-family: var(--font);
+    }
+
+    /* ─── Spinner ─── */
+    .spin-ring {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── API warning ─── */
+    .api-warn {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: var(--r-md);   /* 8px utility */
+      padding: 10px 14px;
+      font-size: 12px;
+      color: #92400e;
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    .hidden { display: none !important; }
+
+    /* ─── Year selector ─── */
+    .year-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .radio-group { display: flex; gap: 18px; }
+    .radio-opt {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 15px;
+      font-weight: 400;
+      color: var(--ink);
+      text-transform: none;
+      letter-spacing: 0;
+      cursor: pointer;
+    }
+    .radio-opt input[type="radio"] {
+      width: 16px; height: 16px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+    #yearSel { width: auto; min-width: 110px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-icon">📁</div>
+  <div>
+    <div class="hdr-title">ระบบสารบัญ</div>
+    <div class="hdr-sub">โรงเรียนบ้านท่าชะอม · อัปโหลดและมอบหมายเอกสาร</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- API warning (hidden until API is unconfigured) -->
+  <div class="api-warn" id="apiWarn">
+    ⚠️ ยังไม่ได้ตั้งค่า API — แก้ตัวแปร <code>API</code> ใน index.html ก่อนใช้งาน
+  </div>
+
+  <!-- Step 1: File drop -->
+  <div class="step-label">ขั้นตอนที่ 1</div>
+  <div class="card">
+    <div id="dropZone">
+      <!-- Empty state -->
+      <div id="dzEmpty">
+        <div class="dz-icon">📄</div>
+        <div class="dz-text">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือก</div>
+        <div class="dz-hint">รองรับ PDF · Word (.docx) · รูปภาพ · ขนาดไม่เกิน 20 MB</div>
+      </div>
+      <!-- Filled state -->
+      <div id="dzFilled" class="hidden">
+        <div class="file-row">
+          <span class="file-ico" id="fileIco">📄</span>
+          <div>
+            <div class="file-name" id="fileName">—</div>
+            <div class="file-meta" id="fileMeta">—</div>
+            <span class="file-change" id="changeBtn">เปลี่ยนไฟล์</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg" class="hidden">
+  </div>
+
+  <!-- Step 2: Form -->
+  <div class="step-label">ขั้นตอนที่ 2</div>
+  <div class="card">
+
+    <div class="field">
+      <label>ปีที่จัดเก็บ</label>
+      <div class="year-row">
+        <div class="radio-group">
+          <label class="radio-opt">
+            <input type="radio" name="yearType" value="ปีการศึกษา" checked>
+            ปีการศึกษา
+          </label>
+          <label class="radio-opt">
+            <input type="radio" name="yearType" value="ปีปฏิทิน">
+            ปีปฏิทิน
+          </label>
+        </div>
+        <select id="yearSel"></select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="docTitle">
+        ชื่อเรื่อง
+        <span class="lbl-hint">(ดึงอัตโนมัติจากไฟล์ — แก้ไขได้)</span>
+      </label>
+      <input type="text" id="docTitle" placeholder="รอดึงหัวเรื่องจากไฟล์...">
+      <div class="extract-note" id="extractNote"></div>
+    </div>
+
+    <div class="field">
+      <label for="teacherSel">มอบหมายถึง</label>
+      <select id="teacherSel">
+        <option value="">— เลือกครู —</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="noteField">
+        หมายเหตุ
+        <span class="lbl-hint">(ถ้ามี)</span>
+      </label>
+      <textarea id="noteField" placeholder="ข้อความเพิ่มเติมถึงครูคนนั้น..."></textarea>
+    </div>
+
+    <div id="resultArea"></div>
+
+    <button id="submitBtn" disabled>
+      ส่งเอกสาร &amp; แจ้ง LINE
+    </button>
+
+  </div>
+
+</main>
+
+<script>
+// ============================================================
+//  CONFIG — แก้ตรงนี้หลัง deploy Apps Script
+// ============================================================
+var API = 'https://script.google.com/macros/s/AKfycbyuTD_y39C5AVGTNPEugbBPt89aI8jjgeet_By10pOuFnCRWxayOGOwGKqQFXzs0nrd/exec';
+// ตัวอย่าง: 'https://script.google.com/macros/s/AKfy.../exec'
+
+// ============================================================
+//  STATE
+// ============================================================
+var _file     = null;
+var _teachers = [];
+
+// ============================================================
+//  INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', function() {
+  // Setup PDF.js worker
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+
+  setupDrop();
+  populateYears();
+  loadTeachers();
+
+  document.getElementById('fileInput').addEventListener('change', function() {
+    if (this.files[0]) handleFile(this.files[0]);
+  });
+  document.getElementById('changeBtn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    clearFile();
+  });
+  document.getElementById('docTitle').addEventListener('input', refreshSubmit);
+  document.getElementById('teacherSel').addEventListener('change', refreshSubmit);
+  document.getElementById('submitBtn').addEventListener('click', submitDoc);
+});
+
+// ============================================================
+//  YEAR SELECTOR
+// ============================================================
+function populateYears() {
+  var sel = document.getElementById('yearSel');
+  var thaiYear = new Date().getFullYear() + 543; // พ.ศ.
+  for (var y = thaiYear + 1; y >= thaiYear - 3; y--) {
+    var opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    if (y === thaiYear) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function getYearType() {
+  var radios = document.querySelectorAll('input[name="yearType"]');
+  for (var i = 0; i < radios.length; i++) {
+    if (radios[i].checked) return radios[i].value;
+  }
+  return 'ปีการศึกษา';
+}
+
+function getYear() {
+  return document.getElementById('yearSel').value;
+}
+
+// ============================================================
+//  LOAD TEACHERS
+// ============================================================
+function loadTeachers() {
+  if (API === 'YOUR_APPS_SCRIPT_URL') {
+    document.getElementById('apiWarn').style.display = 'block';
+    // Fallback sample teachers
+    populateTeachers(['ครูตัวอย่าง ก', 'ครูตัวอย่าง ข', 'ครูตัวอย่าง ค']);
+    return;
+  }
+  fetch(API)
+    .then(function(r) { return r.json(); })
+    .then(function(d) { populateTeachers(d.teachers || []); })
+    .catch(function() {
+      document.getElementById('apiWarn').style.display = 'block';
+      populateTeachers(['ครูตัวอย่าง ก', 'ครูตัวอย่าง ข']);
+    });
+}
+
+function populateTeachers(list) {
+  _teachers = list;
+  var sel = document.getElementById('teacherSel');
+  list.forEach(function(name) {
+    var opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
+}
+
+// ============================================================
+//  DRAG & DROP
+// ============================================================
+function setupDrop() {
+  var zone = document.getElementById('dropZone');
+
+  zone.addEventListener('click', function() {
+    if (!_file) document.getElementById('fileInput').click();
+  });
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.classList.add('over');
+  });
+  zone.addEventListener('dragleave', function(e) {
+    // ป้องกัน false-positive เมื่อ mouse เข้า child element
+    if (!zone.contains(e.relatedTarget)) {
+      zone.classList.remove('over');
+    }
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.classList.remove('over');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+}
+
+// ============================================================
+//  FILE HANDLING
+// ============================================================
+var FILE_ICONS = {
+  pdf: '📕', docx: '📘', doc: '📘',
+  png: '🖼️', jpg: '🖼️', jpeg: '🖼️',
+};
+var MAX_SIZE = 20 * 1024 * 1024; // 20 MB
+
+function handleFile(f) {
+  if (f.size > MAX_SIZE) {
+    alert('ไฟล์ใหญ่เกินไป (ขนาดสูงสุด 20 MB)\nไฟล์นี้มีขนาด ' + fmtSize(f.size));
+    return;
+  }
+  _file = f;
+  var ext = getExt(f.name);
+
+  document.getElementById('fileIco').textContent  = FILE_ICONS[ext] || '📄';
+  document.getElementById('fileName').textContent = f.name;
+  document.getElementById('fileMeta').textContent = fmtSize(f.size) + ' · ' + (f.type || ext.toUpperCase());
+  document.getElementById('dzEmpty').classList.add('hidden');
+  document.getElementById('dzFilled').classList.remove('hidden');
+  document.getElementById('dropZone').classList.add('filled');
+
+  // Reset title
+  document.getElementById('docTitle').value = '';
+  clearResult();
+  refreshSubmit();
+
+  // รูปภาพข้าม extraction — ใช้ชื่อไฟล์ทันที
+  var imgTypes = ['png','jpg','jpeg','gif','webp'];
+  if (imgTypes.indexOf(ext) !== -1) {
+    document.getElementById('docTitle').value = f.name.replace(/\.[^.]+$/, '');
+    setNote('warn', '⚠️ ไฟล์รูปภาพ — ไม่สามารถดึงหัวเรื่องได้ กรุณาพิมพ์เอง');
+    refreshSubmit();
+  } else {
+    setNote('spin', '⏳ กำลังดึงหัวเรื่องจากไฟล์...');
+    extractTitle(f, ext);
+  }
+}
+
+function clearFile() {
+  _file = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('dropZone').classList.remove('filled');
+  document.getElementById('dzEmpty').classList.remove('hidden');
+  document.getElementById('dzFilled').classList.add('hidden');
+  document.getElementById('docTitle').value = '';
+  setNote('', '');
+  clearResult();
+  refreshSubmit();
+}
+
+function getExt(name) {
+  return (name.split('.').pop() || '').toLowerCase();
+}
+
+function fmtSize(b) {
+  if (b < 1024)      return b + ' B';
+  if (b < 1048576)   return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
+// ============================================================
+//  TITLE EXTRACTION
+// ============================================================
+async function extractTitle(f, ext) {
+  try {
+    var text = '';
+    if (ext === 'pdf') {
+      text = await readPdf(f);
+    } else if (ext === 'docx' || ext === 'doc') {
+      text = await readDocx(f);
+    }
+
+    var title = findThaiTitle(text);
+    if (title) {
+      document.getElementById('docTitle').value = title;
+      setNote('ok', '✅ ดึงหัวเรื่องสำเร็จ — แก้ไขได้');
+    } else {
+      // Fallback: filename without extension
+      var fallback = f.name.replace(/\.[^.]+$/, '');
+      document.getElementById('docTitle').value = fallback;
+      setNote('warn', '⚠️ ไม่พบ "เรื่อง" ในไฟล์ — ใช้ชื่อไฟล์แทน แก้ไขได้');
+    }
+  } catch (err) {
+    var fallback = f.name.replace(/\.[^.]+$/, '');
+    document.getElementById('docTitle').value = fallback;
+    setNote('warn', '⚠️ ดึงข้อความไม่สำเร็จ — ใช้ชื่อไฟล์แทน แก้ไขได้');
+  }
+  refreshSubmit();
+}
+
+async function readPdf(f) {
+  if (typeof pdfjsLib === 'undefined') return '';
+  var ab = await f.arrayBuffer();
+  var pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+  var out = '';
+  var pages = Math.min(pdf.numPages, 3); // อ่านแค่ 3 หน้าแรก
+  for (var i = 1; i <= pages; i++) {
+    var page = await pdf.getPage(i);
+    var ct   = await page.getTextContent();
+    out += ct.items.map(function(it) { return it.str; }).join(' ') + '\n';
+  }
+  return out;
+}
+
+async function readDocx(f) {
+  if (typeof mammoth === 'undefined') return '';
+  var ab = await f.arrayBuffer();
+  var res = await mammoth.extractRawText({ arrayBuffer: ab });
+  return res.value || '';
+}
+
+function findThaiTitle(text) {
+  // รูปแบบหนังสือราชการไทย: "เรื่อง ..." หรือ "เรื่อง: ..."
+  var patterns = [
+    /เรื่อง\s*[:：]\s*([^\n\r]{3,120})/,
+    /เรื่อง\s{1,4}([^\n\r]{3,120})/,
+  ];
+  for (var i = 0; i < patterns.length; i++) {
+    var m = text.match(patterns[i]);
+    if (m && m[1]) {
+      var t = m[1].trim();
+      if (t.length >= 3) return t;
+    }
+  }
+  return '';
+}
+
+function setNote(cls, msg) {
+  var el = document.getElementById('extractNote');
+  el.textContent = msg;
+  el.className = 'extract-note' + (cls ? ' ' + cls : '');
+}
+
+// ============================================================
+//  SUBMIT
+// ============================================================
+function refreshSubmit() {
+  var ok = _file &&
+    document.getElementById('docTitle').value.trim().length > 0 &&
+    document.getElementById('teacherSel').value.length > 0;
+  document.getElementById('submitBtn').disabled = !ok;
+}
+
+function clearResult() {
+  document.getElementById('resultArea').innerHTML = '';
+}
+
+async function submitDoc() {
+  var title   = document.getElementById('docTitle').value.trim();
+  var teacher = document.getElementById('teacherSel').value;
+  var note    = document.getElementById('noteField').value.trim();
+  if (!_file || !title || !teacher) return;
+
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin-ring"></span>กำลังอัปโหลด...';
+  clearResult();
+
+  try {
+    // Convert to base64
+    var b64 = await toBase64(_file);
+
+    // Build filename = title + original extension
+    var ext      = getExt(_file.name);
+    var safeName = title.replace(/[/\\?%*:|"<>\r\n]/g, '_') + (ext ? '.' + ext : '');
+
+    var body = JSON.stringify({
+      action:     'uploadDoc',
+      fileBase64: b64,
+      fileName:   safeName,
+      mimeType:   _file.type || 'application/octet-stream',
+      docTitle:   title,
+      teacherName: teacher,
+      note:       note,
+      yearType:   getYearType(),
+      year:       getYear(),
+    });
+
+    var resp = await fetch(API, { method: 'POST', body: body });
+    var data = await resp.json();
+
+    if (data.ok) {
+      showSuccess(teacher, data.url);
+    } else {
+      showError(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
+    }
+  } catch (err) {
+    showError('ไม่สามารถเชื่อมต่อได้: ' + err.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'ส่งเอกสาร &amp; แจ้ง LINE';
+  refreshSubmit();
+}
+
+function toBase64(f) {
+  return new Promise(function(resolve, reject) {
+    var rd = new FileReader();
+    rd.onload = function() {
+      // ใช้ indexOf แทน split เพื่อรองรับ data URL ที่มี ',' ในส่วน header
+      var comma = rd.result.indexOf(',');
+      resolve(rd.result.slice(comma + 1));
+    };
+    rd.onerror = reject;
+    rd.readAsDataURL(f);
+  });
+}
+
+function showSuccess(teacher, url) {
+  document.getElementById('resultArea').innerHTML =
+    '<div class="result success">' +
+      '<div class="r-icon">✅</div>' +
+      '<div class="r-title">อัปโหลดสำเร็จ — แจ้ง ' + esc(teacher) + ' ทาง LINE แล้ว</div>' +
+      '<a class="r-link" href="' + esc(url) + '" target="_blank">🔗 เปิดไฟล์บน Google Drive</a>' +
+      '<br><button class="btn-reset" id="btnReset">ส่งเอกสารอีกชิ้น</button>' +
+    '</div>';
+  document.getElementById('btnReset').addEventListener('click', function() {
+    clearFile();
+    document.getElementById('noteField').value = '';
+  });
+}
+
+function showError(msg) {
+  document.getElementById('resultArea').innerHTML =
+    '<div class="result error">' +
+      '<div class="r-icon">❌</div>' +
+      '<div class="r-title">เกิดข้อผิดพลาด</div>' +
+      '<div class="r-err">' + esc(msg) + '</div>' +
+    '</div>';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
