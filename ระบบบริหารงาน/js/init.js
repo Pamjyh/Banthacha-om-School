@@ -13,6 +13,7 @@ async function init(){
     hide('loadingOverlay');
     show('mainApp');
     document.querySelector('.app').classList.add('show');
+    checkAdminSession();
     await loadAll();
   }catch(e){
     hide('loadingOverlay');
@@ -34,6 +35,7 @@ async function connectSupabase(){
     hide('loadingOverlay');
     show('mainApp');
     document.querySelector('.app').classList.add('show');
+    checkAdminSession();
     await loadAll();
   }catch(e){
     hide('loadingOverlay');
@@ -58,12 +60,13 @@ async function loadYears(){
 async function loadAll(){
   show('loadingOverlay','flex');
   try{
-    [PROJECTS, PROC, FUND_CATEGORIES] = await Promise.all([
+    var [proj, proc, fund, finBal] = await Promise.all([
       GET('projects',`select=*,procurement_items(id,amount,withdraw_status)&year_id=eq.${CY}&order=sort_order`),
       GET('procurement_items',`select=*,projects(name)&year_id=eq.${CY}&order=type,seq`),
-      FUND_CATEGORIES.length ? Promise.resolve(FUND_CATEGORIES) : GET('fund_categories','select=*&order=sort_order')
+      FUND_CATEGORIES.length ? Promise.resolve(FUND_CATEGORIES) : GET('fund_categories','select=*&order=sort_order'),
+      GET('finance_fund_balances',`select=*&year_id=eq.${CY}&order=fund_name`).catch(()=>[])
     ]);
-    PROJECTS = PROJECTS||[]; PROC = PROC||[]; FUND_CATEGORIES = FUND_CATEGORIES||[];
+    PROJECTS = proj||[]; PROC = proc||[]; FUND_CATEGORIES = fund||[]; FINANCE_BALANCES = finBal||[];
     hide('loadingOverlay');
     renderDashboard();
     renderProjGrid();

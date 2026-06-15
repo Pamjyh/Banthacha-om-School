@@ -9,6 +9,13 @@ document.querySelectorAll('[data-ptab2]').forEach(t=>t.addEventListener('click',
 document.querySelectorAll('[data-ptab]').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('[data-ptab]').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
+  const tab = t.dataset.ptab;
+  if(tab==='items'){
+    const items = PROC.filter(i=>i.project_id===ACTIVE_PROJ_ID);
+    renderProjDetailItems(items);
+  } else if(tab==='finance'){
+    renderProjDetailFinance();
+  }
 }));
 // Finance tabs
 document.querySelectorAll('[data-ftab]').forEach(t=>t.addEventListener('click',()=>switchFinTab(t.dataset.ftab)));
@@ -45,7 +52,7 @@ if(procYearEl) procYearEl.addEventListener('change', ()=>{
   PROC_YEAR_VAL = parseInt(procYearEl.value)||0;
   PROC_PAGE=1; renderProc();
 });
-['procOverlay','projOverlay','yearOverlay','confirmOverlay','finOverlay','importOverlay','importExcelOverlay','extOverlay','extCatOverlay'].forEach(id=>{
+['procOverlay','projOverlay','yearOverlay','confirmOverlay','finOverlay','importOverlay','importExcelOverlay','extOverlay','extCatOverlay','loginOverlay','setpwOverlay'].forEach(id=>{
   document.getElementById(id)?.addEventListener('click',function(e){
     if(e.target!==this)return;
     if(id==='confirmOverlay')          closeConfirm();
@@ -56,11 +63,15 @@ if(procYearEl) procYearEl.addEventListener('change', ()=>{
     else if(id==='importExcelOverlay') closeImportExcelModal();
     else if(id==='extOverlay')         closeExtForm();
     else if(id==='extCatOverlay')      closeExtCatModal();
+    else if(id==='loginOverlay')       closeLoginModal();
+    else if(id==='setpwOverlay')       closeSetPasswordModal();
     else closeProcForm();
   });
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeProcForm();closeProjForm();closeYearModal();closeConfirm();closeFinanceForm();closeImportModal();closeImportExcelModal();closeExtForm();closeExtCatModal();}
+  if(e.key==='Escape'){closeProcForm();closeProjForm();closeYearModal();closeConfirm();closeFinanceForm();closeImportModal();closeImportExcelModal();closeExtForm();closeExtCatModal();closeLoginModal();closeSetPasswordModal();}
+  if(e.key==='Enter'&&document.getElementById('loginOverlay')?.classList.contains('open')) loginAdmin();
+  if(e.key==='Enter'&&document.getElementById('setpwOverlay')?.classList.contains('open')) saveAdminPassword();
 });
 
 // External tab buttons

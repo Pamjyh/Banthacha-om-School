@@ -197,8 +197,8 @@ function renderExtTable(list){
       '<td style="color:var(--slate);font-size:13px">'+(t.note||'—')+'</td>'+
       '<td class="r" style="color:'+tc+';font-family:var(--mono)">'+fmt(t.amount)+'</td>'+
       '<td><div class="act-group">'+
-        '<button class="act-btn" onclick="openExtForm(\''+t.id+'\')" title="แก้ไข">✏️</button>'+
-        '<button class="act-btn del" onclick="deleteExtTransaction(\''+t.id+'\')" title="ลบ">🗑️</button>'+
+        '<button class="act-btn admin-only" onclick="openExtForm(\''+t.id+'\')" title="แก้ไข">✏️</button>'+
+        '<button class="act-btn del admin-only" onclick="deleteExtTransaction(\''+t.id+'\')" title="ลบ">🗑️</button>'+
       '</div></td></tr>';
   }).join('');
 
@@ -516,6 +516,7 @@ function setExtType(val){
 
 // ---------- SAVE ----------
 async function saveExtTransaction(){
+  if(!adminGuard()) return;
   var editId = document.getElementById('extEditId').value;
   var date   = document.getElementById('extDate').value;
   var type   = document.getElementById('extTypeHidden').value;
@@ -603,12 +604,13 @@ function renderExtCatList(){
         '<span style="font-size:14px;color:var(--ink)">'+c.name+'</span>'+
         '<span style="font-size:11px;color:'+tc+';margin-left:8px;font-weight:600">'+c.type+'</span>'+
       '</div>'+
-      '<button class="act-btn del" onclick="deleteExtCategory(\''+c.id+'\')">🗑️</button>'+
+      '<button class="act-btn del admin-only" onclick="deleteExtCategory(\''+c.id+'\')">🗑️</button>'+
     '</li>';
   }).join('');
 }
 
 async function saveExtCategory(){
+  if(!adminGuard()) return;
   var name = document.getElementById('extCatName').value.trim();
   var type = document.getElementById('extCatType').value;
   if(!name) return alert('กรุณาใส่ชื่อหมวด');

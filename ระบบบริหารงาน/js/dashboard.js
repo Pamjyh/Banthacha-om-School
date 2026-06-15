@@ -4,7 +4,6 @@
 function renderDashboard(){
   document.getElementById('dbYear').textContent = CYbe||'—';
   const totalBudget = PROJECTS.reduce((s,p)=>s+Number(p.budget_amount||0),0);
-  const totalSpent = PROJECTS.reduce((s,p)=>s+Number(p.procurement_items?.reduce((a,i)=>a+Number(i.amount||0),0)||0),0);
   const totalDone = PROC.filter(i=>i.withdraw_status==='เบิกแล้ว');
   const totalPend = PROC.filter(i=>i.withdraw_status==='ยังไม่เบิก');
   document.getElementById('db-projects').textContent = PROJECTS.length;
@@ -17,9 +16,32 @@ function renderDashboard(){
   document.getElementById('db-pend').textContent = totalPend.length;
   document.getElementById('db-pend-sub').textContent = numFull(totalPend.reduce((s,i)=>s+Number(i.amount||0),0))+' บาท';
 
-  // project summary table
+  // Finance summary stats
+  if(FINANCE_BALANCES.length){
+    const finIn  = FINANCE_BALANCES.reduce((s,i)=>s+Number(i.total_in ||0),0);
+    const finOut = FINANCE_BALANCES.reduce((s,i)=>s+Number(i.total_out||0),0);
+    const finBal = FINANCE_BALANCES.reduce((s,i)=>s+Number(i.balance  ||0),0);
+    var finInEl  = document.getElementById('db-fin-in');
+    var finOutEl = document.getElementById('db-fin-out');
+    var finBalEl = document.getElementById('db-fin-balance');
+    if(finInEl)  finInEl.textContent  = numFull(finIn);
+    if(finOutEl) finOutEl.textContent = numFull(finOut);
+    if(finBalEl){ finBalEl.textContent = numFull(finBal); finBalEl.style.color = finBal<0?'var(--signal)':'var(--up)'; }
+    var finSep = document.getElementById('db-finance-sep');
+    var finRow = document.getElementById('db-finance-row');
+    if(finSep) finSep.style.display='';
+    if(finRow) finRow.style.display='';
+  } else {
+    var finSep = document.getElementById('db-finance-sep');
+    var finRow = document.getElementById('db-finance-row');
+    if(finSep) finSep.style.display='none';
+    if(finRow) finRow.style.display='none';
+  }
+
+  // project summary table — ใช้ PROC โดยตรง (sync กับ state)
   const rows = PROJECTS.map(p=>{
-    const spent = p.procurement_items?.reduce((a,i)=>a+Number(i.amount||0),0)||0;
+    const projProc = PROC.filter(i=>i.project_id===p.id);
+    const spent = projProc.reduce((a,i)=>a+Number(i.amount||0),0);
     const remain = Number(p.budget_amount||0)-spent;
     const pct = p.budget_amount>0?Math.min(spent/p.budget_amount*100,100):0;
     const over = remain<0;

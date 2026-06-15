@@ -120,8 +120,8 @@ function renderTransactions(){
       '<td>'+(i.holding_type||'—')+'</td>'+
       '<td class="r" style="color:'+typeColor+'">'+fmt(i.amount)+'</td>'+
       '<td><div class="act-group">'+
-        '<button class="act-btn" onclick="openFinanceForm(\''+i.id+'\')" title="แก้ไข">✏️</button>'+
-        '<button class="act-btn del" onclick="deleteFinanceTransaction(\''+i.id+'\')" title="ลบ">🗑️</button>'+
+        '<button class="act-btn admin-only" onclick="openFinanceForm(\''+i.id+'\')" title="แก้ไข">✏️</button>'+
+        '<button class="act-btn del admin-only" onclick="deleteFinanceTransaction(\''+i.id+'\')" title="ลบ">🗑️</button>'+
       '</div></td></tr>';
   }).join('');
 
@@ -335,6 +335,7 @@ function closeFinanceForm(){
 
 // ---------- SAVE ----------
 async function saveFinanceTransaction(keepOpen){
+  if(!adminGuard()) return;
   var editId  = document.getElementById('finEditId').value;
   var date    = document.getElementById('finDate').value;
   var type    = document.getElementById('finType').value;
@@ -359,7 +360,7 @@ async function saveFinanceTransaction(keepOpen){
     holding_type:     holding,
     amount:           amount,
     document_no:      docNo   || null,
-    description:      desc    || null,
+    description:      desc    || '',
     project_id:       projId  || null,
     procurement_id:   procId,
     remark:           remark  || null

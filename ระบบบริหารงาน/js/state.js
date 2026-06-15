@@ -28,3 +28,6 @@ let EXT_PAGE  = 1;
 // Procurement year-type filter
 let PROC_YEAR_TYPE = '';   // '' | 'การศึกษา' | 'งบประมาณ' | 'ปฏิทิน'
 let PROC_YEAR_VAL  = 0;    // BE year number
+
+// Auth
+let IS_ADMIN = false;

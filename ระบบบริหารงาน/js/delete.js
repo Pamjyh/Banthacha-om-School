@@ -5,6 +5,7 @@ function askDel(type,id,name){ PENDING_DEL={type,id}; document.getElementById('c
 function closeConfirm(){ PENDING_DEL=null; document.getElementById('confirmOverlay').classList.remove('open'); }
 async function confirmDel(){
   if(!PENDING_DEL)return;
+  if(!adminGuard()){ closeConfirm(); return; }
   var type=PENDING_DEL.type, id=PENDING_DEL.id;
   show('loadingOverlay','flex');
   try{
@@ -13,7 +14,7 @@ async function confirmDel(){
       await DEL('procurement_items',`id=eq.${id}`);
       FINANCE_LOADED=false;
     }
-    else if(type==='project')        await DEL('projects',`id=eq.${id}`);
+    else if(type==='project'){       await DEL('projects',`id=eq.${id}`); FINANCE_LOADED=false; }
     else if(type==='finance_transaction'){ await DEL('finance_transactions',`id=eq.${id}`); FINANCE_LOADED=false; }
     else if(type==='external_transaction'){ await DEL('external_transactions',`id=eq.${id}`); EXT_LOADED=false; }
     if(type==='finance_transaction'){

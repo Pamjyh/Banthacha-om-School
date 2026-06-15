@@ -121,11 +121,11 @@ function renderProc(){
       <td style="font-size:12px;color:var(--muted)">${i.budget_source||'—'}</td>
       <td style="font-family:var(--mono);font-size:11px">${fmtDate(i.report_date)}</td>
       <td class="r">${fmt(i.amount)}</td>
-      <td><button class="st-btn ${isDone?'st-done':'st-pend'}" onclick="toggleStatus('${i.id}','${i.withdraw_status}')"><span class="st-dot ${isDone?'sd-done':'sd-pend'}"></span>${isDone?'เบิกแล้ว':'รอเบิก'}</button></td>
+      <td><button class="st-btn ${isDone?'st-done':'st-pend'} admin-only" onclick="toggleStatus('${i.id}','${i.withdraw_status}')"><span class="st-dot ${isDone?'sd-done':'sd-pend'}"></span>${isDone?'เบิกแล้ว':'รอเบิก'}</button></td>
       <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${i.withdraw_no||'—'}</td>
       <td><div class="act-group">
-        <button class="act-btn" onclick="editProc('${i.id}')">✏️</button>
-        <button class="act-btn del" onclick="askDel('proc','${i.id}','${escHtml(i.title)}')">🗑️</button>
+        <button class="act-btn admin-only" onclick="editProc('${i.id}')">✏️</button>
+        <button class="act-btn del admin-only" onclick="askDel('proc','${i.id}','${escHtml(i.title)}')">🗑️</button>
       </div></td>
     </tr>`;
   }).join('');
@@ -199,6 +199,7 @@ async function deleteWithdrawTransaction(procId){
 
 // status toggle
 async function toggleStatus(id, current){
+  if(!adminGuard()) return;
   const newStatus = current==='เบิกแล้ว'?'ยังไม่เบิก':'เบิกแล้ว';
   try{
     await PATCH('procurement_items',`id=eq.${id}`,{withdraw_status:newStatus});
@@ -253,6 +254,7 @@ function editProc(id){
   document.getElementById('procOverlay').classList.add('open');
 }
 async function saveProcItem(){
+  if(!adminGuard()) return;
   const title=document.getElementById('pTitle').value.trim();
   const seq=parseInt(document.getElementById('pSeq').value);
   if(!title){alert('กรุณาระบุชื่อรายการ');return}

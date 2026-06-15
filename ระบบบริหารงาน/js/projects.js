@@ -22,8 +22,8 @@ function renderProjGrid(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div class="proj-name">${p.name}</div>
         <div style="display:flex;gap:4px;flex-shrink:0">
-          <button class="act-btn" onclick="event.stopPropagation();editProj('${p.id}')" title="แก้ไข">✏️</button>
-          <button class="act-btn del" onclick="event.stopPropagation();askDel('project','${p.id}','${escHtml(p.name)}')" title="ลบ">🗑️</button>
+          <button class="act-btn admin-only" onclick="event.stopPropagation();editProj('${p.id}')" title="แก้ไข">✏️</button>
+          <button class="act-btn del admin-only" onclick="event.stopPropagation();askDel('project','${p.id}','${escHtml(p.name)}')" title="ลบ">🗑️</button>
         </div>
       </div>
       <div class="proj-teacher">${p.teacher_name||'—'}</div>
@@ -69,11 +69,50 @@ function renderProjDetailItems(items){
   </table>`;
 }
 
+// ---------- PROJECT DETAIL: FINANCE TAB ----------
+async function renderProjDetailFinance(){
+  const el = document.getElementById('proj-detail-content');
+  if(!ACTIVE_PROJ_ID){ el.innerHTML='<div class="no-data">ไม่พบโครงการ</div>'; return; }
+  el.innerHTML='<div class="no-data">กำลังโหลด...</div>';
+  try{
+    const txs = await GET('finance_transactions',
+      `select=*,fund_categories(name)&project_id=eq.${ACTIVE_PROJ_ID}&order=transaction_date.desc`
+    ) || [];
+    if(!txs.length){
+      el.innerHTML='<div class="no-data">ยังไม่มีรายการการเงินที่เชื่อมกับโครงการนี้</div>';
+      return;
+    }
+    const totalOut = txs.filter(t=>t.transaction_type==='จ่าย').reduce((s,t)=>s+Number(t.amount||0),0);
+    el.innerHTML=`<table>
+      <thead><tr><th>วันที่</th><th>ประเภท</th><th>หมวดเงิน</th><th>รายละเอียด</th><th>เลขที่</th><th class="r">จำนวนเงิน</th></tr></thead>
+      <tbody>${txs.map(t=>{
+        const typeColor=t.transaction_type==='รับ'?'var(--up)':t.transaction_type==='จ่าย'?'var(--signal)':'var(--slate)';
+        const fundName=(t.fund_categories&&t.fund_categories.name)?t.fund_categories.name:'—';
+        return `<tr>
+          <td style="white-space:nowrap">${fmtDate(t.transaction_date)}</td>
+          <td><span style="font-size:11px;font-weight:700;color:${typeColor}">${t.transaction_type||'—'}</span></td>
+          <td class="ink">${fundName}</td>
+          <td>${t.description||'—'}</td>
+          <td><span style="font-family:var(--mono);font-size:12px">${t.document_no||'—'}</span></td>
+          <td class="r" style="color:${typeColor}">${fmt(t.amount)}</td>
+        </tr>`;
+      }).join('')}</tbody>
+      <tfoot><tr class="sum-row">
+        <td colspan="5"><strong>รวม ${txs.length} รายการ</strong></td>
+        <td class="r"><strong style="color:var(--signal)">${fmt(totalOut)}</strong></td>
+      </tr></tfoot>
+    </table>`;
+  }catch(e){
+    el.innerHTML='<div class="no-data">โหลดรายการการเงินไม่ได้: '+e.message+'</div>';
+  }
+}
+
 // Project form
 function openProjectForm(){ document.getElementById('projEditId').value=''; document.getElementById('projName').value=''; document.getElementById('projTeacher').value=''; document.getElementById('projBudget').value=''; document.getElementById('projFormTitle').textContent='เพิ่มโครงการ'; document.getElementById('projOverlay').classList.add('open'); }
 function closeProjForm(){ document.getElementById('projOverlay').classList.remove('open'); }
 function editProj(id){ const p=PROJECTS.find(x=>x.id===id); if(!p)return; document.getElementById('projEditId').value=id; document.getElementById('projName').value=p.name; document.getElementById('projTeacher').value=p.teacher_name||''; document.getElementById('projBudget').value=p.budget_amount||''; document.getElementById('projFormTitle').textContent='แก้ไขโครงการ'; document.getElementById('projOverlay').classList.add('open'); }
 async function saveProjItem(){
+  if(!adminGuard()) return;
   const name=document.getElementById('projName').value.trim();
   if(!name){alert('กรุณาระบุชื่อโครงการ');return}
   const eid=document.getElementById('projEditId').value;
