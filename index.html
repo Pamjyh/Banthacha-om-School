@@ -35,6 +35,9 @@
   --purple:        #7c3aed;
   --purple-bg:     #ece8fc;
   --purple-hover:  #ddd5f8;
+  --blue:          #0075de;
+  --blue-bg:       #e3f0fc;
+  --blue-hover:    #d2e6fa;
 
   --radius-sm:     8px;
   --radius-md:     12px;
@@ -274,10 +277,12 @@ a { color: inherit; text-decoration: none; }
 .band-green  { background: var(--green-bg); }
 .band-orange { background: var(--orange-bg); }
 .band-purple { background: var(--purple-bg); }
+.band-blue   { background: var(--blue-bg); }
 .sys-card:not(.sys-card--inactive):hover .band-teal   { background: var(--teal-hover); }
 .sys-card:not(.sys-card--inactive):hover .band-green  { background: var(--green-hover); }
 .sys-card:not(.sys-card--inactive):hover .band-orange { background: var(--orange-hover); }
 .sys-card:not(.sys-card--inactive):hover .band-purple { background: var(--purple-hover); }
+.sys-card:not(.sys-card--inactive):hover .band-blue   { background: var(--blue-hover); }
 
 .card-body {
   padding: 14px 16px 16px;
@@ -523,6 +528,23 @@ a { color: inherit; text-decoration: none; }
         <div class="card-body">
           <h2 class="card-title">ระบบสารบัญ</h2>
           <p class="card-desc">อัปโหลดไฟล์ ส่ง LINE มอบหมายงาน</p>
+          <div class="card-foot">
+            <span class="badge badge-active">ใช้งานได้</span>
+            <span class="card-btn" aria-hidden="true">เปิดระบบ →</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 5: เก็บค่ารถ -->
+      <div class="sys-card"
+           role="button" tabindex="0"
+           data-url="ระบบค่ารถ/index.html"
+           data-title="ระบบเก็บค่ารถ"
+           aria-label="ระบบเก็บค่ารถนักเรียน">
+        <div class="card-icon-band band-blue" aria-hidden="true">🚌</div>
+        <div class="card-body">
+          <h2 class="card-title">เก็บค่ารถ</h2>
+          <p class="card-desc">ค่ารถรายเดือน/เทอม ติ๊กจ่าย แดชบอร์ดรายชั้น</p>
           <div class="card-foot">
             <span class="badge badge-active">ใช้งานได้</span>
             <span class="card-btn" aria-hidden="true">เปิดระบบ →</span>

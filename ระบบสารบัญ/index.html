@@ -297,6 +297,59 @@
       cursor: pointer;
     }
     #yearSel { width: auto; min-width: 110px; }
+
+    /* ─── Teacher multi-select ─── */
+    .quick-sel {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .quick-btn {
+      padding: 5px 14px;
+      border: 1.5px solid var(--hairline);
+      border-radius: var(--r-full);
+      background: var(--white);
+      color: var(--ink-muted);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .quick-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    .teacher-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .t-chip {
+      padding: 7px 18px;
+      border: 1.5px solid var(--hairline);
+      border-radius: var(--r-full);
+      background: var(--white);
+      color: var(--ink);
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      user-select: none;
+    }
+    .t-chip:hover { border-color: var(--primary); color: var(--primary); }
+    .t-chip.selected {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+      font-weight: 500;
+    }
+    .sel-hint {
+      font-size: 12px;
+      color: var(--ink-faint);
+      margin-top: 8px;
+      min-height: 18px;
+    }
   </style>
 </head>
 <body>
@@ -372,10 +425,13 @@
     </div>
 
     <div class="field">
-      <label for="teacherSel">มอบหมายถึง</label>
-      <select id="teacherSel">
-        <option value="">— เลือกครู —</option>
-      </select>
+      <label>มอบหมายถึง</label>
+      <div class="quick-sel">
+        <button type="button" class="quick-btn" onclick="quickSelect(-1)">เลือกทุกคน</button>
+        <button type="button" class="quick-btn" onclick="quickSelect(0)">ล้างทั้งหมด</button>
+      </div>
+      <div class="teacher-chips" id="teacherChips"></div>
+      <div class="sel-hint" id="selHint"></div>
     </div>
 
     <div class="field">
@@ -400,14 +456,15 @@
 // ============================================================
 //  CONFIG — แก้ตรงนี้หลัง deploy Apps Script
 // ============================================================
-var API = 'https://script.google.com/macros/s/AKfycbyuTD_y39C5AVGTNPEugbBPt89aI8jjgeet_By10pOuFnCRWxayOGOwGKqQFXzs0nrd/exec';
+var API = 'https://script.google.com/macros/s/AKfycbywaks-xZI6uGxA3iVvz7O9-epfpk-Gkacl-9ODIxBa0rVilUN2ITd8Cv4aoghLFJbrsw/exec';
 // ตัวอย่าง: 'https://script.google.com/macros/s/AKfy.../exec'
 
 // ============================================================
 //  STATE
 // ============================================================
-var _file     = null;
-var _teachers = [];
+var _file             = null;
+var _teachers         = [];
+var _selectedTeachers = [];
 
 // ============================================================
 //  INIT
@@ -431,7 +488,6 @@ window.addEventListener('DOMContentLoaded', function() {
     clearFile();
   });
   document.getElementById('docTitle').addEventListener('input', refreshSubmit);
-  document.getElementById('teacherSel').addEventListener('change', refreshSubmit);
   document.getElementById('submitBtn').addEventListener('click', submitDoc);
 });
 
@@ -469,28 +525,93 @@ function loadTeachers() {
   if (API === 'YOUR_APPS_SCRIPT_URL') {
     document.getElementById('apiWarn').style.display = 'block';
     // Fallback sample teachers
-    populateTeachers(['ครูตัวอย่าง ก', 'ครูตัวอย่าง ข', 'ครูตัวอย่าง ค']);
+    populateTeachers([
+      { name: 'ครูตัวอย่าง ก', lineDisplayName: 'TutorA', hasUserId: false },
+      { name: 'ครูตัวอย่าง ข', lineDisplayName: '',       hasUserId: false },
+      { name: 'ครูตัวอย่าง ค', lineDisplayName: '',       hasUserId: false },
+    ]);
     return;
   }
   fetch(API)
     .then(function(r) { return r.json(); })
-    .then(function(d) { populateTeachers(d.teachers || []); })
+    .then(function(d) {
+      // รองรับทั้ง array of strings (เก่า) และ array of objects (ใหม่)
+      var list = (d.teachers || []).map(function(t) {
+        return typeof t === 'string' ? { name: t, lineDisplayName: '', hasUserId: false } : t;
+      });
+      populateTeachers(list);
+    })
     .catch(function() {
       document.getElementById('apiWarn').style.display = 'block';
-      populateTeachers(['ครูตัวอย่าง ก', 'ครูตัวอย่าง ข']);
+      populateTeachers([
+        { name: 'ครูตัวอย่าง ก', lineDisplayName: 'TutorA', hasUserId: false },
+        { name: 'ครูตัวอย่าง ข', lineDisplayName: '',       hasUserId: false },
+      ]);
     });
 }
 
 function populateTeachers(list) {
+  // _teachers เก็บ objects { name, lineDisplayName, hasUserId }
   _teachers = list;
-  var sel = document.getElementById('teacherSel');
-  list.forEach(function(name) {
-    var opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = name;
-    sel.appendChild(opt);
+  var container = document.getElementById('teacherChips');
+  container.innerHTML = '';
+  list.forEach(function(t, idx) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 't-chip';
+    btn.dataset.idx = idx;
+
+    // แสดงชื่อ LINE จริงถ้ามี, ไม่อย่างนั้นแสดงชื่อในระบบ
+    var displayLabel = t.lineDisplayName || t.name;
+    btn.textContent = displayLabel;
+
+    // Tooltip แสดงชื่อเต็มในระบบ + สถานะ LINE
+    if (t.lineDisplayName) {
+      btn.title = t.name + '\nLINE: @' + t.lineDisplayName + (t.hasUserId ? ' ✓' : '');
+    } else if (t.hasUserId) {
+      btn.title = t.name + '\n(มี userId แต่ยังไม่ได้ตั้ง lineDisplayName)';
+    } else {
+      btn.title = t.name + '\n(ยังไม่มี userId — mention จะไม่เป็นสีฟ้า)';
+    }
+
+    btn.addEventListener('click', function() { toggleTeacher(t.name, btn); });
+    container.appendChild(btn);
   });
 }
+
+function toggleTeacher(name, btn) {
+  var i = _selectedTeachers.indexOf(name);
+  if (i >= 0) {
+    _selectedTeachers.splice(i, 1);
+    btn.classList.remove('selected');
+  } else {
+    _selectedTeachers.push(name);
+    btn.classList.add('selected');
+  }
+  updateSelHint();
+  refreshSubmit();
+}
+
+function quickSelect(n) {
+  _selectedTeachers = [];
+  document.querySelectorAll('.t-chip').forEach(function(c) { c.classList.remove('selected'); });
+  var chips = document.querySelectorAll('.t-chip');
+  var count = n < 0 ? chips.length : Math.min(n, chips.length);
+  for (var i = 0; i < count; i++) {
+    _selectedTeachers.push(_teachers[i].name);   // ส่ง system name ให้ backend
+    chips[i].classList.add('selected');
+  }
+  updateSelHint();
+  refreshSubmit();
+}
+
+function updateSelHint() {
+  var el = document.getElementById('selHint');
+  var n = _selectedTeachers.length;
+  el.textContent = n === 0 ? 'ยังไม่ได้เลือก' :
+    'เลือกแล้ว ' + n + ' คน: ' + _selectedTeachers.join(', ');
+}
+
 
 // ============================================================
 //  DRAG & DROP
@@ -660,7 +781,7 @@ function setNote(cls, msg) {
 function refreshSubmit() {
   var ok = _file &&
     document.getElementById('docTitle').value.trim().length > 0 &&
-    document.getElementById('teacherSel').value.length > 0;
+    _selectedTeachers.length > 0;
   document.getElementById('submitBtn').disabled = !ok;
 }
 
@@ -670,9 +791,9 @@ function clearResult() {
 
 async function submitDoc() {
   var title   = document.getElementById('docTitle').value.trim();
-  var teacher = document.getElementById('teacherSel').value;
   var note    = document.getElementById('noteField').value.trim();
-  if (!_file || !title || !teacher) return;
+  var teachers = _selectedTeachers.slice(); // copy
+  if (!_file || !title || teachers.length === 0) return;
 
   var btn = document.getElementById('submitBtn');
   btn.disabled = true;
@@ -680,33 +801,29 @@ async function submitDoc() {
   clearResult();
 
   try {
-    // Convert to base64
-    var b64 = await toBase64(_file);
-
-    // Build filename = title + original extension
+    var b64      = await toBase64(_file);
     var ext      = getExt(_file.name);
     var safeName = title.replace(/[/\\?%*:|"<>\r\n]/g, '_') + (ext ? '.' + ext : '');
 
-    var body = JSON.stringify({
-      action:     'uploadDoc',
-      fileBase64: b64,
-      fileName:   safeName,
-      mimeType:   _file.type || 'application/octet-stream',
-      docTitle:   title,
-      teacherName: teacher,
-      note:       note,
-      yearType:   getYearType(),
-      year:       getYear(),
-    });
+    // ส่งครั้งเดียว — backend จัดการ mention ทุกคนในข้อความเดียว
+    var data = await fetch(API, {
+      method: 'POST',
+      body: JSON.stringify({
+        action:       'uploadDoc',
+        fileBase64:   b64,
+        fileName:     safeName,
+        mimeType:     _file.type || 'application/octet-stream',
+        docTitle:     title,
+        teacherNames: teachers,
+        note:         note,
+        yearType:     getYearType(),
+        year:         getYear(),
+      })
+    }).then(function(r) { return r.json(); });
 
-    var resp = await fetch(API, { method: 'POST', body: body });
-    var data = await resp.json();
+    if (!data.ok) { showError(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่'); return; }
 
-    if (data.ok) {
-      showSuccess(teacher, data.url);
-    } else {
-      showError(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
-    }
+    showSuccess(teachers, data.url);
   } catch (err) {
     showError('ไม่สามารถเชื่อมต่อได้: ' + err.message);
   }
@@ -729,17 +846,24 @@ function toBase64(f) {
   });
 }
 
-function showSuccess(teacher, url) {
+function showSuccess(teachers, url) {
+  var nameStr = teachers.length === 1
+    ? teachers[0]
+    : teachers.slice(0, -1).join(', ') + ' และ ' + teachers[teachers.length - 1];
   document.getElementById('resultArea').innerHTML =
     '<div class="result success">' +
       '<div class="r-icon">✅</div>' +
-      '<div class="r-title">อัปโหลดสำเร็จ — แจ้ง ' + esc(teacher) + ' ทาง LINE แล้ว</div>' +
+      '<div class="r-title">อัปโหลดสำเร็จ — แจ้ง ' + esc(nameStr) + ' ทาง LINE แล้ว</div>' +
       '<a class="r-link" href="' + esc(url) + '" target="_blank">🔗 เปิดไฟล์บน Google Drive</a>' +
       '<br><button class="btn-reset" id="btnReset">ส่งเอกสารอีกชิ้น</button>' +
     '</div>';
   document.getElementById('btnReset').addEventListener('click', function() {
     clearFile();
     document.getElementById('noteField').value = '';
+    _selectedTeachers = [];
+    document.querySelectorAll('.t-chip').forEach(function(c) { c.classList.remove('selected'); });
+    document.getElementById('selHint').textContent = '';
+    refreshSubmit();
   });
 }
 
