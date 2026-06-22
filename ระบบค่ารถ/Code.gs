@@ -14,7 +14,6 @@ const GRADES = ['อ.2','อ.3','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6']
 const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
 // ----- ตั้งค่าค่ารถ -----
-// เดือนที่เก็บค่ารถในแต่ละเทอม (แก้ได้ตามจริง) — รวมเทอมละ FARE_PER_MONTH * จำนวนเดือน
 const FARE_PER_MONTH = 100;
 const TERM_MONTHS = {
   '1': ['มิ.ย.','ก.ค.','ส.ค.','ก.ย.'],   // เทอม 1 = 4 เดือน = 400
@@ -23,7 +22,7 @@ const TERM_MONTHS = {
 
 // ชื่อชีต
 const SH_STUDENTS = 'นักเรียน';     // แชร์กับระบบออมทรัพย์ (อ่านอย่างเดียว)
-const SH_RIDERS   = 'คนนั่งรถ';      // รายชื่อคนที่นั่งรถ (อยู่ถาวร)
+const SH_RIDERS   = 'คนนั่งรถ';      // รายชื่อคนที่นั่งรถ + สายรถ (อยู่ถาวร)
 const SH_FARE     = 'ค่ารถ';         // บันทึกการจ่ายรายเดือน (1 แถว = 1 เดือนที่จ่าย)
 const SH_EXTERNAL = 'บันทึกเงินนอก'; // ledger ถาวร — รีเซตเทอมแล้วไม่หาย
 
@@ -39,19 +38,21 @@ function handleRequest(e) {
   let result;
   try {
     switch(action) {
-      case 'checkRole':      result = checkRole(params); break;
-      case 'getConfig':      result = getConfig(); break;
-      case 'getRiders':      result = getRiders(params); break;
-      case 'setRider':       result = setRider(params); break;
-      case 'getFareGrid':    result = getFareGrid(params); break;
-      case 'payMonth':       result = payMonth(params); break;
-      case 'unpayMonth':     result = unpayMonth(params); break;
-      case 'payTerm':        result = payTerm(params); break;
-      case 'getDashboard':   result = getDashboard(params); break;
-      case 'recordExternal': result = recordExternal(params); break;
-      case 'getExternalLog': result = getExternalLog(params); break;
-      case 'deleteExternal': result = deleteExternal(params); break;
-      case 'initSheets':     result = initSheets(); break;
+      case 'checkRole':       result = checkRole(params); break;
+      case 'getConfig':       result = getConfig(); break;
+      case 'getGradeSummary': result = getGradeSummary(params); break;
+      case 'getRiders':       result = getRiders(params); break;
+      case 'setRider':        result = setRider(params); break;
+      case 'setRoute':        result = setRoute(params); break;
+      case 'getFareGrid':     result = getFareGrid(params); break;
+      case 'payMonth':        result = payMonth(params); break;
+      case 'unpayMonth':      result = unpayMonth(params); break;
+      case 'payTerm':         result = payTerm(params); break;
+      case 'getDashboard':    result = getDashboard(params); break;
+      case 'recordExternal':  result = recordExternal(params); break;
+      case 'getExternalLog':  result = getExternalLog(params); break;
+      case 'deleteExternal':  result = deleteExternal(params); break;
+      case 'initSheets':      result = initSheets(); break;
       default: result = { ok: false, error: 'Unknown action: ' + action };
     }
   } catch(err) {
@@ -92,11 +93,21 @@ function checkAuth(p) {
 function initSheets() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
 
-  if (!ss.getSheetByName(SH_RIDERS)) {
-    const s = ss.insertSheet(SH_RIDERS);
-    s.getRange(1,1,1,4).setValues([['นักเรียน_id','ชื่อ','ชั้น','วันที่เพิ่ม']]);
-    styleHeader(s, 4); s.setFrozenRows(1); s.setColumnWidth(2, 180);
+  let r = ss.getSheetByName(SH_RIDERS);
+  if (!r) {
+    r = ss.insertSheet(SH_RIDERS);
+    r.getRange(1,1,1,5).setValues([['นักเรียน_id','ชื่อ','ชั้น','สายรถ','วันที่เพิ่ม']]);
+    styleHeader(r, 5); r.setFrozenRows(1); r.setColumnWidth(2, 180);
+  } else {
+    // migrate: ถ้ายังไม่มีคอลัมน์ "สายรถ" ให้แทรกที่ตำแหน่ง 4
+    const hd = r.getRange(1,1,1,r.getLastColumn()).getValues()[0].map(x => String(x).trim());
+    if (hd.indexOf('สายรถ') < 0) {
+      r.insertColumnBefore(4);
+      r.getRange(1,4).setValue('สายรถ');
+      styleHeader(r, Math.max(5, r.getLastColumn()));
+    }
   }
+
   if (!ss.getSheetByName(SH_FARE)) {
     const s = ss.insertSheet(SH_FARE);
     s.getRange(1,1,1,7).setValues([['id','นักเรียน_id','ปีการศึกษา','เทอม','เดือน','จำนวนเงิน','วันที่']]);
@@ -148,16 +159,33 @@ function gradeOrderVal(g) {
 }
 
 // ============================================================
-// RIDERS — เลือกคนที่นั่งรถ
+// RIDERS — เลือกคนที่นั่งรถ + สายรถ
+// อ่านคืน {sid: {route:'...'}}
 // ============================================================
+function readRiders(ss) {
+  const sheet = ss.getSheetByName(SH_RIDERS);
+  const map = {};
+  if (!sheet) return map;
+  const all = sheet.getDataRange().getValues();
+  if (all.length < 2) return map;
+  const hd = all[0].map(h => String(h).trim());
+  const iId    = hd.indexOf('นักเรียน_id') >= 0 ? hd.indexOf('นักเรียน_id') : 0;
+  const iRoute = hd.indexOf('สายรถ');
+  all.slice(1).forEach(r => {
+    if (r[iId]) map[String(r[iId])] = { route: iRoute >= 0 ? String(r[iRoute] || '') : '' };
+  });
+  return map;
+}
+
 function getRiders(p) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const roster = readRoster(ss);
-  const riderIds = readRiderIds(ss);
+  const riders = readRiders(ss);
 
   let list = roster.map(s => ({
     id: s.id, name: s.name, grade: s.grade,
-    rides: riderIds[s.id] === true
+    rides: !!riders[s.id],
+    route: riders[s.id] ? riders[s.id].route : ''
   }));
   if (p.grade) list = list.filter(s => s.grade === p.grade);
   if (p.onlyRiders === '1') list = list.filter(s => s.rides);
@@ -168,20 +196,11 @@ function getRiders(p) {
   return { ok: true, students: list };
 }
 
-function readRiderIds(ss) {
-  const sheet = ss.getSheetByName(SH_RIDERS);
-  const map = {};
-  if (!sheet) return map;
-  sheet.getDataRange().getValues().slice(1).forEach(r => {
-    if (r[0]) map[String(r[0])] = true;
-  });
-  return map;
-}
-
 function setRider(p) {
   if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   if (!p.studentId) return { ok: false, error: 'ไม่ระบุนักเรียน' };
   const rides = String(p.rides) === '1' || String(p.rides) === 'true';
+  const route = String(p.route || '');
 
   const ss = SpreadsheetApp.openById(SHEET_ID);
   let sheet = ss.getSheetByName(SH_RIDERS);
@@ -196,19 +215,79 @@ function setRider(p) {
 
   if (rides) {
     if (rowIdx < 0) {
-      // หาชื่อ/ชั้นจาก roster
       const roster = readRoster(ss);
       const info = roster.filter(s => s.id === sid)[0] || { name: '', grade: '' };
-      sheet.appendRow([sid, info.name, info.grade, thaiDate(new Date())]);
+      // คอลัมน์: นักเรียน_id | ชื่อ | ชั้น | สายรถ | วันที่เพิ่ม
+      sheet.appendRow([sid, info.name, info.grade, route, thaiDate(new Date())]);
+    } else if (route) {
+      sheet.getRange(rowIdx, 4).setValue(route);
     }
   } else {
     if (rowIdx > 0) sheet.deleteRow(rowIdx);
   }
-  return { ok: true, studentId: sid, rides: rides };
+  SpreadsheetApp.flush();
+  return { ok: true, studentId: sid, rides: rides, route: route };
+}
+
+function setRoute(p) {
+  if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
+  if (!p.studentId) return { ok: false, error: 'ไม่ระบุนักเรียน' };
+  const route = String(p.route || '');
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  let sheet = ss.getSheetByName(SH_RIDERS);
+  if (!sheet) { initSheets(); sheet = ss.getSheetByName(SH_RIDERS); }
+  const sid = String(p.studentId);
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === sid) {
+      sheet.getRange(i + 1, 4).setValue(route);
+      SpreadsheetApp.flush();
+      return { ok: true, studentId: sid, route: route };
+    }
+  }
+  // ยังไม่เป็นคนนั่งรถ → เพิ่มให้เลย พร้อมสายรถ
+  const roster = readRoster(ss);
+  const info = roster.filter(s => s.id === sid)[0] || { name: '', grade: '' };
+  sheet.appendRow([sid, info.name, info.grade, route, thaiDate(new Date())]);
+  SpreadsheetApp.flush();
+  return { ok: true, studentId: sid, route: route, added: true };
 }
 
 // ============================================================
-// FARE GRID — ตารางติ๊กรายเดือน (ต่อชั้น/เทอม)
+// GRADE SUMMARY — สำหรับหน้าเลือกชั้น
+// ============================================================
+function getGradeSummary(p) {
+  const year = String(p.year || thaiYear());
+  const term = String(p.term || '1');
+  const months = TERM_MONTHS[term] || [];
+  const termTotal = months.length * FARE_PER_MONTH;
+
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const roster = readRoster(ss);
+  const riders = readRiders(ss);
+  const paid = readFarePaid(ss, year, term);
+
+  const g = {};
+  GRADES.forEach(x => g[x] = { grade: x, totalStudents: 0, riders: 0, fullyPaid: 0, collected: 0, expected: 0 });
+  roster.forEach(s => { if (g[s.grade]) g[s.grade].totalStudents++; });
+
+  Object.keys(riders).forEach(sid => {
+    const s = roster.filter(x => x.id === sid)[0];
+    if (!s || !g[s.grade]) return;
+    let cnt = 0;
+    months.forEach(m => { if (paid[sid] && paid[sid][m]) cnt++; });
+    g[s.grade].riders++;
+    g[s.grade].collected += cnt * FARE_PER_MONTH;
+    g[s.grade].expected  += termTotal;
+    if (months.length > 0 && cnt === months.length) g[s.grade].fullyPaid++;
+  });
+
+  return { ok: true, year, term, termTotal,
+    grades: GRADES.map(x => g[x]).filter(x => x.totalStudents > 0) };
+}
+
+// ============================================================
+// FARE GRID — ตารางรายชั้น (รวมคนนั่ง/ไม่นั่ง + สายรถ + ติ๊กเดือน)
 // ============================================================
 function getFareGrid(p) {
   const year = String(p.year || thaiYear());
@@ -217,39 +296,35 @@ function getFareGrid(p) {
 
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const roster = readRoster(ss);
-  const rosterMap = {};
-  roster.forEach(s => rosterMap[s.id] = s);
-  const riderIds = readRiderIds(ss);
-
-  // อ่านการจ่าย -> paid[sid][month] = true
+  const riders = readRiders(ss);
   const paid = readFarePaid(ss, year, term);
 
-  let riders = Object.keys(riderIds)
-    .filter(sid => rosterMap[sid])              // ยังอยู่ใน roster (ไม่จบ)
-    .map(sid => {
-      const s = rosterMap[sid];
-      const pm = {};
-      let cnt = 0;
-      months.forEach(m => {
-        const ok = !!(paid[sid] && paid[sid][m]);
-        pm[m] = ok; if (ok) cnt++;
-      });
-      return {
-        id: sid, name: s.name, grade: s.grade,
-        months: pm,
-        paidCount: cnt,
-        paidAmount: cnt * FARE_PER_MONTH,
-        complete: cnt === months.length
-      };
+  let list = roster.map(s => {
+    const isRider = !!riders[s.id];
+    const pm = {};
+    let cnt = 0;
+    months.forEach(m => {
+      const ok = !!(paid[s.id] && paid[s.id][m]);
+      pm[m] = ok; if (ok) cnt++;
     });
+    return {
+      id: s.id, name: s.name, grade: s.grade,
+      rides: isRider,
+      route: isRider ? riders[s.id].route : '',
+      months: pm,
+      paidCount: cnt,
+      paidAmount: cnt * FARE_PER_MONTH,
+      complete: isRider && months.length > 0 && cnt === months.length
+    };
+  });
 
-  if (p.grade) riders = riders.filter(s => s.grade === p.grade);
-  riders.sort((a, b) => {
+  if (p.grade) list = list.filter(s => s.grade === p.grade);
+  list.sort((a, b) => {
     var g = gradeOrderVal(a.grade) - gradeOrderVal(b.grade);
     return g !== 0 ? g : a.name.localeCompare(b.name, 'th');
   });
 
-  return { ok: true, year, term, monthList: months, farePerMonth: FARE_PER_MONTH, students: riders };
+  return { ok: true, year, term, monthList: months, farePerMonth: FARE_PER_MONTH, students: list };
 }
 
 function readFarePaid(ss, year, term) {
@@ -257,7 +332,6 @@ function readFarePaid(ss, year, term) {
   const paid = {};
   if (!sheet) return paid;
   const all = sheet.getDataRange().getValues();
-  // cols: id | นักเรียน_id | ปีการศึกษา | เทอม | เดือน | จำนวนเงิน | วันที่
   all.slice(1).forEach(r => {
     if (!r[0]) return;
     if (String(r[2]) !== String(year)) return;
@@ -282,7 +356,6 @@ function payMonth(p) {
   let sheet = ss.getSheetByName(SH_FARE);
   if (!sheet) { initSheets(); sheet = ss.getSheetByName(SH_FARE); }
 
-  // กันซ้ำ
   if (isPaid(sheet, sid, year, term, month)) return { ok: true, already: true };
 
   const id = 'F' + Date.now();
@@ -364,7 +437,7 @@ function getDashboard(p) {
   const roster = readRoster(ss);
   const rosterMap = {};
   roster.forEach(s => rosterMap[s.id] = s);
-  const riderIds = readRiderIds(ss);
+  const riders = readRiders(ss);
   const paid = readFarePaid(ss, year, term);
 
   const grades = {};
@@ -373,7 +446,7 @@ function getDashboard(p) {
     collected: 0, expected: 0, students: []
   });
 
-  Object.keys(riderIds).forEach(sid => {
+  Object.keys(riders).forEach(sid => {
     const s = rosterMap[sid];
     if (!s || !grades[s.grade]) return;
     let cnt = 0;
@@ -385,12 +458,11 @@ function getDashboard(p) {
     g.collected += amt;
     if (cnt === months.length && months.length > 0) g.fullyPaid++;
     g.students.push({
-      id: sid, name: s.name, paidCount: cnt,
-      paidAmount: amt, complete: cnt === months.length
+      id: sid, name: s.name, route: riders[sid].route,
+      paidCount: cnt, paidAmount: amt, complete: cnt === months.length
     });
   });
 
-  // sort students in each grade
   Object.keys(grades).forEach(g => {
     grades[g].students.sort((a, b) => a.name.localeCompare(b.name, 'th'));
   });
@@ -403,10 +475,7 @@ function getDashboard(p) {
   }, { riders: 0, fullyPaid: 0, collected: 0, expected: 0 });
   totals.outstanding = totals.expected - totals.collected;
 
-  return {
-    ok: true, year, term, monthList: months, termTotal,
-    grades: activeGrades, totals
-  };
+  return { ok: true, year, term, monthList: months, termTotal, grades: activeGrades, totals };
 }
 
 // ============================================================
@@ -474,7 +543,6 @@ function thaiDate(d) {
 }
 function thaiYear() { return new Date().getFullYear() + 543; }
 
-// เมนูช่วยตั้งค่าใน Google Sheets
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('🚌 ระบบค่ารถ')

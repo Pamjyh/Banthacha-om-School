@@ -14,6 +14,7 @@
     --border:#e6e6e6; --border-light:#f0ede8;
     --green:#1aae39; --green-soft:#e8f7ec; --red:#e03e3e; --red-soft:#fdecec;
     --amber:#dd8a00; --amber-soft:#fdf4e3;
+    --off:#aab2bd;
     --shadow-sm:0 1px 3px rgba(0,0,0,.06); --shadow-md:0 4px 12px rgba(0,0,0,.08);
     --r-sm:6px; --r-md:10px; --r-lg:14px;
     --font:'Sarabun',sans-serif;
@@ -23,26 +24,22 @@
   .wrap{max-width:1080px;margin:0 auto;padding:20px 16px 60px}
   .hide{display:none!important}
 
-  /* Header */
   header{display:flex;align-items:center;gap:12px;padding:14px 0 18px}
   .logo{width:42px;height:42px;border-radius:11px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px}
   header h1{font-size:19px;font-weight:700;letter-spacing:-.3px}
   header p{font-size:13px;color:var(--ink-muted)}
   .badge{margin-left:auto;font-size:12px;color:var(--ink-muted);background:var(--surface);border:1px solid var(--border);padding:5px 11px;border-radius:30px}
 
-  /* Tabs */
   .tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:4px;margin-bottom:18px;overflow-x:auto}
   .tab{flex:1;min-width:max-content;border:none;background:transparent;font-family:var(--font);font-size:14px;font-weight:500;color:var(--ink-muted);padding:9px 14px;border-radius:7px;cursor:pointer;white-space:nowrap;transition:.15s}
   .tab:hover{background:var(--canvas-soft)}
   .tab.active{background:var(--primary);color:#fff}
 
-  /* Controls */
-  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:16px}
   label.fld{font-size:13px;color:var(--ink-muted);display:flex;flex-direction:column;gap:4px}
   select,input[type=text],input[type=number]{font-family:var(--font);font-size:14px;padding:8px 11px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--ink);min-width:120px}
   select:focus,input:focus{outline:none;border-color:var(--primary)}
 
-  /* Buttons */
   .btn{font-family:var(--font);font-size:14px;font-weight:600;padding:9px 16px;border-radius:var(--r-sm);border:1px solid var(--border);background:var(--surface);color:var(--ink-2);cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:6px}
   .btn:hover{background:var(--canvas-soft)}
   .btn-primary{background:var(--primary);border-color:var(--primary);color:#fff}
@@ -50,46 +47,59 @@
   .btn-sm{padding:6px 11px;font-size:13px}
   .btn-ghost{border-color:transparent;background:transparent;color:var(--primary)}
 
-  /* Card */
   .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:16px}
-  .card-h{padding:14px 18px;border-bottom:1px solid var(--border-light);font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+  .card-h{padding:14px 18px;border-bottom:1px solid var(--border-light);font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
-  /* Table */
   table{width:100%;border-collapse:collapse;font-size:14px}
   th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border-light)}
-  th{font-size:12px;font-weight:600;color:var(--ink-muted);background:var(--canvas-soft);position:sticky;top:0}
+  th{font-size:12px;font-weight:600;color:var(--ink-muted);background:var(--canvas-soft)}
   td.c,th.c{text-align:center}
   td.r,th.r{text-align:right}
   tr:last-child td{border-bottom:none}
   .name{font-weight:500}
   .muted{color:var(--ink-faint);font-size:13px}
+  tr.norider td{background:#fafafa}
+  tr.norider .name{color:var(--ink-faint);font-weight:400}
 
-  /* Tick */
   .tick{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:15px;color:transparent;transition:.12s}
   .tick:hover{border-color:var(--primary)}
   .tick.on{background:var(--green-soft);border-color:var(--green);color:var(--green)}
   .tick.busy{opacity:.4;cursor:wait}
+  .dash{color:var(--ink-faint)}
+
+  .route-inp{min-width:96px;width:108px;padding:6px 9px;font-size:13px}
+  .route-inp:disabled{background:#f3f3f1;color:var(--ink-faint);cursor:not-allowed}
 
   .pill{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px}
   .pill-green{background:var(--green-soft);color:var(--green)}
   .pill-amber{background:var(--amber-soft);color:var(--amber)}
   .pill-red{background:var(--red-soft);color:var(--red)}
+  .pill-gray{background:#eee;color:var(--ink-muted)}
 
-  /* Stat cards */
   .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
   .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px}
   .stat .k{font-size:12px;color:var(--ink-muted)}
   .stat .v{font-size:24px;font-weight:700;letter-spacing:-.5px;margin-top:3px}
 
-  /* Toggle row */
-  .switch{position:relative;width:42px;height:24px;flex:0 0 auto}
-  .switch input{opacity:0;width:0;height:0}
-  .slider{position:absolute;inset:0;background:var(--border);border-radius:24px;transition:.2s;cursor:pointer}
-  .slider:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:var(--shadow-sm)}
-  .switch input:checked + .slider{background:var(--green)}
-  .switch input:checked + .slider:before{transform:translateX(18px)}
+  /* Grade picker cards */
+  .grade-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+  .gcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);padding:18px;cursor:pointer;transition:.15s;text-align:left}
+  .gcard:hover{box-shadow:var(--shadow-md);transform:translateY(-2px);border-color:var(--primary)}
+  .gcard .gname{font-size:22px;font-weight:700;letter-spacing:-.5px}
+  .gcard .gsub{font-size:13px;color:var(--ink-muted);margin-top:2px}
+  .gcard .gmoney{font-size:14px;font-weight:600;margin-top:10px}
+  .gbar{background:var(--border-light);border-radius:20px;height:8px;overflow:hidden;margin-top:8px}
+  .gbar > div{background:var(--green);height:100%}
 
-  /* Login */
+  /* Toggle switch — เห็นชัด */
+  .switch{position:relative;display:inline-block;width:46px;height:26px}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;inset:0;background:var(--off);border-radius:26px;transition:.2s;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+  .slider:before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+  .switch input:checked + .slider{background:var(--green)}
+  .switch input:checked + .slider:before{transform:translateX(20px)}
+  .switch input:disabled + .slider{opacity:.5;cursor:wait}
+
   .login{max-width:360px;margin:60px auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-md);padding:30px 26px;text-align:center}
   .login .logo{margin:0 auto 14px}
   .login h2{font-size:20px;margin-bottom:4px}
@@ -104,7 +114,7 @@
 
   .note{font-size:13px;color:var(--ink-muted);background:var(--canvas-soft);border:1px solid var(--border-light);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;line-height:1.55}
   .ext-amt{font-size:30px;font-weight:700;color:var(--green);letter-spacing:-.5px}
-  @media(max-width:600px){ th,td{padding:8px 7px;font-size:13px} .tick{width:27px;height:27px} }
+  @media(max-width:600px){ th,td{padding:8px 6px;font-size:13px} .tick{width:26px;height:26px} .route-inp{width:84px;min-width:80px} }
 </style>
 </head>
 <body>
@@ -134,11 +144,9 @@
     <div class="tabs">
       <button class="tab active" data-page="collect" onclick="goTab(this)">📋 เก็บเงิน</button>
       <button class="tab" data-page="dash" onclick="goTab(this)">📊 แดชบอร์ด</button>
-      <button class="tab" data-page="riders" onclick="goTab(this)">🚍 คนนั่งรถ</button>
       <button class="tab" data-page="external" onclick="goTab(this)">💰 เงินนอก</button>
     </div>
 
-    <!-- shared term/year controls -->
     <div class="controls">
       <label class="fld">ปีการศึกษา
         <select id="selYear" onchange="reloadActive()"></select>
@@ -149,17 +157,24 @@
           <option value="2">เทอม 2</option>
         </select>
       </label>
-      <label class="fld" id="gradeWrap">ชั้น
-        <select id="selGrade" onchange="reloadActive()"><option value="">ทุกชั้น</option></select>
-      </label>
-      <button class="btn btn-sm" style="align-self:flex-end" onclick="reloadActive()">↻ รีเฟรช</button>
+      <button class="btn btn-sm" onclick="reloadActive()">↻ รีเฟรช</button>
     </div>
 
     <!-- COLLECT -->
     <div id="page-collect" class="page">
-      <div class="card">
-        <div class="card-h">📋 ตารางเก็บค่ารถ — ติ๊กช่องเมื่อจ่ายแล้ว</div>
-        <div id="gridBox"><div class="empty">กำลังโหลด...</div></div>
+      <!-- เลือกชั้น -->
+      <div id="collectGrades">
+        <p class="muted" style="margin-bottom:12px">แตะที่ชั้นเพื่อเข้าไปจัดการคนนั่งรถ สายรถ และเก็บเงิน</p>
+        <div id="gradeCards" class="grade-grid"><div class="empty">กำลังโหลด...</div></div>
+      </div>
+      <!-- รายชั้น -->
+      <div id="collectClass" class="hide">
+        <button class="btn btn-sm" onclick="backToGrades()" style="margin-bottom:14px">← เลือกชั้นอื่น</button>
+        <div class="note">เปิดสวิตช์ <b>นั่งรถ</b> เฉพาะคนที่ขึ้นรถ → ใส่สายรถ แล้วติ๊กช่องเดือนที่จ่าย (หรือปุ่ม "จ่าย 400" ทั้งเทอม)</div>
+        <div class="card">
+          <div class="card-h"><span id="classTitle">ชั้น</span><span class="muted" id="classCount"></span></div>
+          <div id="classBox"><div class="empty">กำลังโหลด...</div></div>
+        </div>
       </div>
     </div>
 
@@ -169,15 +184,6 @@
       <div class="card">
         <div class="card-h">📊 สรุปรายชั้น</div>
         <div id="dashBox"><div class="empty">กำลังโหลด...</div></div>
-      </div>
-    </div>
-
-    <!-- RIDERS -->
-    <div id="page-riders" class="page hide">
-      <div class="note">เปิดสวิตช์เฉพาะนักเรียนที่นั่งรถ — เฉพาะคนที่เปิดไว้จะขึ้นในตารางเก็บเงินและแดชบอร์ด รายชื่อนี้อยู่ถาวร ไม่รีเซตตามเทอม</div>
-      <div class="card">
-        <div class="card-h">🚍 เลือกคนนั่งรถ <span class="muted" id="riderCount"></span></div>
-        <div id="ridersBox"><div class="empty">กำลังโหลด...</div></div>
       </div>
     </div>
 
@@ -199,9 +205,9 @@
             <label class="fld">หมายเหตุ
               <input type="text" id="extNote" style="min-width:200px" placeholder="(ไม่บังคับ)">
             </label>
-            <button class="btn btn-primary" style="align-self:flex-end" onclick="saveExternal()">บันทึกเข้าเงินนอก</button>
+            <button class="btn btn-primary" onclick="saveExternal()">บันทึกเข้าเงินนอก</button>
           </div>
-          <a class="btn btn-ghost btn-sm" id="smLink" href="https://pamjyh.github.io/School-Management-System/" target="_blank" rel="noopener" style="margin-top:6px">↗ เปิดระบบบริหารงาน (ลงบัญชีเงินนอก)</a>
+          <a class="btn btn-ghost btn-sm" id="smLink" href="../ระบบบริหารงาน/" target="_blank" rel="noopener" style="margin-top:6px">↗ เปิดระบบบริหารงาน (ลงบัญชีเงินนอก)</a>
         </div>
       </div>
       <div class="card">
@@ -217,14 +223,12 @@
 
 <script>
 // ====== CONFIG ======
-// 1) Deploy Code.gs เป็น Web App แล้วเอา URL มาวางตรงนี้
 var API = 'https://script.google.com/macros/s/AKfycbw-DoN-yD8PpPjqKNGlaKad1O7Y6laBH4aztJbB_zzGe9i4fzmbsxz7fa4s4HwtHbqI_g/exec';
-// 2) ลิงก์ระบบบริหารงาน (เผื่อแก้)
-var SCHOOL_MGMT_URL = 'https://pamjyh.github.io/School-Management-System/';
+// ลิงก์ระบบบริหารงาน — ใช้ path สัมพัทธ์ (อยู่ใน repo เดียวกัน)
+var SCHOOL_MGMT_URL = '../ระบบบริหารงาน/';
 
-var STATE = { role:null, pw:'', cfg:null, page:'collect', lastDash:null };
+var STATE = { role:null, pw:'', cfg:null, page:'collect', collectView:'grades', curGrade:null };
 
-// ====== API helper (GET) ======
 function api(action, params){
   params = params || {};
   params.action = action;
@@ -245,7 +249,7 @@ function doLogin(){
   var pw = document.getElementById('pw').value.trim();
   if(!pw){ document.getElementById('loginErr').textContent='กรุณาใส่รหัสผ่าน'; return; }
   if(API.indexOf('PASTE_')===0){
-    document.getElementById('loginErr').textContent='⚠ ยังไม่ได้ตั้งค่า API — แก้ตัวแปร API ใน index.html';
+    document.getElementById('loginErr').textContent='⚠ ยังไม่ได้ตั้งค่า API';
     return;
   }
   document.getElementById('loginErr').textContent='กำลังตรวจสอบ...';
@@ -262,71 +266,139 @@ function doLogin(){
 function bootstrap(){
   api('getConfig').then(function(c){
     STATE.cfg = c;
-    // years dropdown: ปีปัจจุบัน + ย้อนหลัง 1 + หน้า 1
     var y = c.currentYear, sy = document.getElementById('selYear');
     sy.innerHTML='';
     [y+1, y, y-1].forEach(function(yy){
       var o=document.createElement('option'); o.value=yy; o.textContent=yy; if(yy===y)o.selected=true; sy.appendChild(o);
-    });
-    var sg = document.getElementById('selGrade');
-    (c.grades||[]).forEach(function(g){
-      var o=document.createElement('option'); o.value=g; o.textContent=g; sg.appendChild(o);
     });
     document.getElementById('smLink').href = SCHOOL_MGMT_URL;
     reloadActive();
   });
 }
 
-// ====== TABS ======
 function goTab(btn){
   document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
   btn.classList.add('active');
   STATE.page = btn.dataset.page;
   document.querySelectorAll('.page').forEach(function(p){p.classList.add('hide');});
   document.getElementById('page-'+STATE.page).classList.remove('hide');
-  // ชั้น relevant เฉพาะ collect/dash
-  document.getElementById('gradeWrap').style.display = (STATE.page==='external')?'none':'';
   reloadActive();
 }
 
 function ctx(){ return {
   year: document.getElementById('selYear').value,
-  term: document.getElementById('selTerm').value,
-  grade: document.getElementById('selGrade').value
+  term: document.getElementById('selTerm').value
 };}
 
 function reloadActive(){
   var p = STATE.page;
-  if(p==='collect') loadGrid();
+  if(p==='collect') loadCollect();
   else if(p==='dash') loadDash();
-  else if(p==='riders') loadRiders();
   else if(p==='external') loadExternal();
 }
 
-// ====== COLLECT GRID ======
-function loadGrid(){
+// ====== COLLECT ======
+function loadCollect(){
+  if(STATE.collectView==='class' && STATE.curGrade){
+    document.getElementById('collectGrades').classList.add('hide');
+    document.getElementById('collectClass').classList.remove('hide');
+    loadClassGrid();
+  } else {
+    STATE.collectView='grades';
+    document.getElementById('collectClass').classList.add('hide');
+    document.getElementById('collectGrades').classList.remove('hide');
+    loadGradeCards();
+  }
+}
+
+function loadGradeCards(){
   var c = ctx();
-  document.getElementById('gridBox').innerHTML='<div class="empty">กำลังโหลด...</div>';
-  api('getFareGrid', {year:c.year, term:c.term, grade:c.grade}).then(function(res){
-    if(!res.ok){ document.getElementById('gridBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
-    if(!res.students.length){ document.getElementById('gridBox').innerHTML='<div class="empty">ยังไม่มีคนนั่งรถในชั้นนี้ — ไปแท็บ "คนนั่งรถ" เพื่อเลือกก่อน</div>'; return; }
-    var months = res.monthList;
-    var h = '<div style="overflow-x:auto"><table><thead><tr><th>ชื่อ</th><th class="c">ชั้น</th>';
-    months.forEach(function(m){ h+='<th class="c">'+m+'</th>'; });
-    h += '<th class="c">สถานะ</th><th class="c">จ่ายทั้งเทอม</th></tr></thead><tbody>';
-    res.students.forEach(function(s){
-      h += '<tr data-id="'+s.id+'"><td class="name">'+esc(s.name)+'</td><td class="c muted">'+s.grade+'</td>';
-      months.forEach(function(m){
-        var on = s.months[m];
-        h += '<td class="c"><div class="tick'+(on?' on':'')+'" onclick="toggleTick(this)" data-id="'+s.id+'" data-month="'+m+'">✓</div></td>';
-      });
-      var pill = s.complete?'<span class="pill pill-green">ครบ</span>':(s.paidCount>0?'<span class="pill pill-amber">'+s.paidCount+'/'+months.length+'</span>':'<span class="pill pill-red">ค้าง</span>');
-      h += '<td class="c">'+pill+'</td>';
-      h += '<td class="c"><button class="btn btn-sm" onclick="payAllTerm(\''+s.id+'\')">'+(s.complete?'✓ ครบแล้ว':'จ่าย 400')+'</button></td>';
-      h += '</tr>';
+  document.getElementById('gradeCards').innerHTML='<div class="empty">กำลังโหลด...</div>';
+  api('getGradeSummary', {year:c.year, term:c.term}).then(function(res){
+    if(!res.ok){ document.getElementById('gradeCards').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
+    if(!res.grades.length){ document.getElementById('gradeCards').innerHTML='<div class="empty">ยังไม่มีรายชื่อนักเรียน (ดึงจากชีตออมทรัพย์)</div>'; return; }
+    var h='';
+    res.grades.forEach(function(g){
+      var pct = g.expected>0?Math.round(g.collected/g.expected*100):0;
+      var sub = g.riders>0 ? ('นั่งรถ '+g.riders+' คน · จ่ายครบ '+g.fullyPaid) : 'ยังไม่มีคนนั่งรถ — แตะเพื่อเพิ่ม';
+      h+='<div class="gcard" onclick="openClass(\''+g.grade+'\')">'+
+           '<div class="gname">'+g.grade+'</div>'+
+           '<div class="gsub">'+sub+'</div>'+
+           (g.riders>0?('<div class="gmoney">เก็บได้ '+money(g.collected)+' / '+money(g.expected)+'</div><div class="gbar"><div style="width:'+pct+'%"></div></div>'):'')+
+         '</div>';
     });
-    h += '</tbody></table></div>';
-    document.getElementById('gridBox').innerHTML = h;
+    document.getElementById('gradeCards').innerHTML=h;
+  });
+}
+
+function openClass(grade){
+  STATE.collectView='class'; STATE.curGrade=grade;
+  loadCollect();
+}
+function backToGrades(){
+  STATE.collectView='grades'; STATE.curGrade=null;
+  loadCollect();
+}
+
+function loadClassGrid(){
+  var c = ctx(), grade = STATE.curGrade;
+  document.getElementById('classTitle').textContent = 'ชั้น '+grade;
+  document.getElementById('classBox').innerHTML='<div class="empty">กำลังโหลด...</div>';
+  api('getFareGrid', {year:c.year, term:c.term, grade:grade}).then(function(res){
+    if(!res.ok){ document.getElementById('classBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
+    if(!res.students.length){ document.getElementById('classBox').innerHTML='<div class="empty">ไม่มีนักเรียนในชั้นนี้</div>'; return; }
+    var months = res.monthList;
+    var riders = res.students.filter(function(s){return s.rides;}).length;
+    document.getElementById('classCount').textContent = '— นั่งรถ '+riders+' / '+res.students.length+' คน';
+    var h='<div style="overflow-x:auto"><table><thead><tr><th>ชื่อ</th><th class="c">นั่งรถ</th><th class="c">สายรถ</th>';
+    months.forEach(function(m){ h+='<th class="c">'+m+'</th>'; });
+    h+='<th class="c">สถานะ</th><th class="c"></th></tr></thead><tbody>';
+    res.students.forEach(function(s){
+      h+='<tr data-id="'+s.id+'" class="'+(s.rides?'':'norider')+'">';
+      h+='<td class="name">'+esc(s.name)+'</td>';
+      h+='<td class="c"><label class="switch"><input type="checkbox" '+(s.rides?'checked':'')+' onchange="toggleRiderInClass(this,\''+s.id+'\')"><span class="slider"></span></label></td>';
+      h+='<td class="c"><input class="route-inp" type="text" value="'+esc(s.route)+'" placeholder="สายรถ" '+(s.rides?'':'disabled')+' onchange="saveRoute(this,\''+s.id+'\')"></td>';
+      months.forEach(function(m){
+        if(s.rides){
+          var on = s.months[m];
+          h+='<td class="c"><div class="tick'+(on?' on':'')+'" onclick="toggleTick(this)" data-id="'+s.id+'" data-month="'+m+'">✓</div></td>';
+        } else {
+          h+='<td class="c"><span class="dash">–</span></td>';
+        }
+      });
+      h+='<td class="c">'+statusPill(s, months.length)+'</td>';
+      h+='<td class="c">'+(s.rides?'<button class="btn btn-sm" onclick="payAllTerm(\''+s.id+'\')">'+(s.complete?'✓ ครบ':'จ่าย 400')+'</button>':'')+'</td>';
+      h+='</tr>';
+    });
+    h+='</tbody></table></div>';
+    document.getElementById('classBox').innerHTML=h;
+  });
+}
+
+function statusPill(s, totalMonths){
+  if(!s.rides) return '<span class="muted">ไม่ขึ้นรถ</span>';
+  if(s.complete) return '<span class="pill pill-green">ครบ</span>';
+  if(s.paidCount>0) return '<span class="pill pill-amber">'+s.paidCount+'/'+totalMonths+'</span>';
+  return '<span class="pill pill-red">ค้าง</span>';
+}
+
+function toggleRiderInClass(el, sid){
+  el.disabled=true;
+  var route='';
+  var row=el.closest('tr'); var ri=row?row.querySelector('.route-inp'):null;
+  if(ri) route=ri.value.trim();
+  api('setRider', {password:STATE.pw, studentId:sid, rides:el.checked?'1':'0', route:route}).then(function(res){
+    if(!res.ok){ toast(res.error||'ผิดพลาด',true); el.checked=!el.checked; el.disabled=false; return; }
+    toast(el.checked?'เพิ่มเป็นคนนั่งรถ ✓':'เอาออกจากคนนั่งรถ');
+    loadClassGrid(); // โหลดใหม่เพื่อเปิด/ปิดช่องติ๊ก
+  }).catch(function(){ el.disabled=false; el.checked=!el.checked; toast('เชื่อมต่อไม่ได้',true); });
+}
+
+function saveRoute(el, sid){
+  var route=el.value.trim();
+  api('setRoute', {password:STATE.pw, studentId:sid, route:route}).then(function(res){
+    if(!res.ok){ toast(res.error||'ผิดพลาด',true); return; }
+    toast('บันทึกสายรถแล้ว ✓');
   });
 }
 
@@ -341,7 +413,7 @@ function toggleTick(el){
     if(!res.ok){ toast(res.error||'ผิดพลาด', true); return; }
     el.classList.toggle('on');
     toast(wasOn?'ยกเลิก '+month:'จ่าย '+month+' ✓');
-    updateRowStatus(sid);
+    updateRowStatus(sid, c);
   }).catch(function(){ el.classList.remove('busy'); toast('เชื่อมต่อไม่ได้',true); });
 }
 
@@ -349,11 +421,16 @@ function updateRowStatus(sid){
   var row = document.querySelector('tr[data-id="'+sid+'"]'); if(!row) return;
   var ticks = row.querySelectorAll('.tick');
   var total = ticks.length, on = row.querySelectorAll('.tick.on').length;
-  var cell = row.querySelectorAll('td')[2+total]; // status cell
-  if(!cell) return;
-  if(on===total) cell.innerHTML='<span class="pill pill-green">ครบ</span>';
-  else if(on>0) cell.innerHTML='<span class="pill pill-amber">'+on+'/'+total+'</span>';
-  else cell.innerHTML='<span class="pill pill-red">ค้าง</span>';
+  // status cell = third from last (status, then action). columns: name,nang,route,...months, status, action
+  var cells = row.querySelectorAll('td');
+  var statusCell = cells[cells.length-2];
+  if(!statusCell) return;
+  if(on===total && total>0) statusCell.innerHTML='<span class="pill pill-green">ครบ</span>';
+  else if(on>0) statusCell.innerHTML='<span class="pill pill-amber">'+on+'/'+total+'</span>';
+  else statusCell.innerHTML='<span class="pill pill-red">ค้าง</span>';
+  // ปุ่มจ่าย
+  var btn = cells[cells.length-1].querySelector('button');
+  if(btn) btn.textContent = (on===total && total>0)?'✓ ครบ':'จ่าย 400';
 }
 
 function payAllTerm(sid){
@@ -361,7 +438,7 @@ function payAllTerm(sid){
   api('payTerm', {password:STATE.pw, studentId:sid, year:c.year, term:c.term}).then(function(res){
     if(!res.ok){ toast(res.error||'ผิดพลาด', true); return; }
     toast('จ่ายครบทั้งเทอมแล้ว ✓');
-    loadGrid();
+    loadClassGrid();
   });
 }
 
@@ -371,7 +448,6 @@ function loadDash(){
   document.getElementById('dashBox').innerHTML='<div class="empty">กำลังโหลด...</div>';
   api('getDashboard', {year:c.year, term:c.term}).then(function(res){
     if(!res.ok){ document.getElementById('dashBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
-    STATE.lastDash = res;
     var t = res.totals;
     document.getElementById('dashStats').innerHTML =
       stat('คนนั่งรถ', t.riders + ' คน') +
@@ -393,40 +469,9 @@ function loadDash(){
 }
 function stat(k,v){ return '<div class="stat"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>'; }
 
-// ====== RIDERS ======
-function loadRiders(){
-  document.getElementById('ridersBox').innerHTML='<div class="empty">กำลังโหลด...</div>';
-  var grade = document.getElementById('selGrade').value;
-  api('getRiders', grade?{grade:grade}:{}).then(function(res){
-    if(!res.ok){ document.getElementById('ridersBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
-    var riders = res.students.filter(function(s){return s.rides;}).length;
-    document.getElementById('riderCount').textContent = '— นั่งรถ '+riders+' / ทั้งหมด '+res.students.length+' คน';
-    if(!res.students.length){ document.getElementById('ridersBox').innerHTML='<div class="empty">ไม่พบรายชื่อนักเรียน (ดึงจากชีตออมทรัพย์)</div>'; return; }
-    var h='<table><thead><tr><th>ชื่อ</th><th class="c">ชั้น</th><th class="c">นั่งรถ</th></tr></thead><tbody>';
-    res.students.forEach(function(s){
-      h+='<tr><td class="name">'+esc(s.name)+'</td><td class="c muted">'+s.grade+'</td>'+
-         '<td class="c"><label class="switch"><input type="checkbox" '+(s.rides?'checked':'')+' onchange="toggleRider(this,\''+s.id+'\')"><span class="slider"></span></label></td></tr>';
-    });
-    h+='</tbody></table>';
-    document.getElementById('ridersBox').innerHTML=h;
-  });
-}
-function toggleRider(el, sid){
-  el.disabled=true;
-  api('setRider', {password:STATE.pw, studentId:sid, rides:el.checked?'1':'0'}).then(function(res){
-    el.disabled=false;
-    if(!res.ok){ toast(res.error||'ผิดพลาด',true); el.checked=!el.checked; return; }
-    toast(el.checked?'เพิ่มเป็นคนนั่งรถ ✓':'เอาออกจากคนนั่งรถ');
-    var cnt=document.querySelectorAll('#ridersBox input:checked').length;
-    var tot=document.querySelectorAll('#ridersBox input').length;
-    document.getElementById('riderCount').textContent='— นั่งรถ '+cnt+' / ทั้งหมด '+tot+' คน';
-  }).catch(function(){ el.disabled=false; el.checked=!el.checked; toast('เชื่อมต่อไม่ได้',true); });
-}
-
 // ====== EXTERNAL ======
 function loadExternal(){
   var c = ctx();
-  // ดึงยอดเก็บได้จาก dashboard ของเทอมที่เลือก
   api('getDashboard', {year:c.year, term:c.term}).then(function(res){
     var collected = (res.ok && res.totals)?res.totals.collected:0;
     document.getElementById('extCollected').textContent = money(collected);
