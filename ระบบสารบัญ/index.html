@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบสารบัญ — โรงเรียนบ้านท่าชะอม</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#7c3aed">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="สารบัญ">
+<link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <!-- DOCX text extraction -->
@@ -456,7 +462,7 @@
 // ============================================================
 //  CONFIG — แก้ตรงนี้หลัง deploy Apps Script
 // ============================================================
-var API = 'https://script.google.com/macros/s/AKfycbxtUMeq4I39k4o0_x9MwIqPpVjdOZUHP7OXyBzs_ZNkkQQ3DW75Z6nULCJ-GHjFrxEyIQ/exec';
+var API = 'https://script.google.com/macros/s/AKfycbwPKoYGeMRJH2V42GLgDnsrXDRHJCGCRGMW4JcbuoPxChYuaClKj5PjfWAmRS-zj-KF/exec';
 // ตัวอย่าง: 'https://script.google.com/macros/s/AKfy.../exec'
 
 // ============================================================
@@ -886,5 +892,13 @@ function esc(s) {
     .replace(/"/g,'&quot;');
 }
 </script>
+
+// ─── PWA Service Worker ───────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .catch(() => {});
+  });
+}
 </body>
 </html>

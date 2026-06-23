@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ระบบออมทรัพย์นักเรียนโรงเรียนบ้านท่าชะอม</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1aae39">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ออมทรัพย์">
+<link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Mitr:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -2247,5 +2253,13 @@ function showErr(id,msg) {var e=document.getElementById(id+'-err');e.textContent
 })();
 
 </script>
+
+// ─── PWA Service Worker ───────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .catch(() => {});
+  });
+}
 </body>
 </html>

@@ -1,0 +1,16 @@
+{
+  "name": "ค่ารถนักเรียน — บ้านท่าชะอม",
+  "short_name": "ค่ารถ",
+  "description": "ระบบเก็บค่ารถนักเรียน โรงเรียนบ้านท่าชะอม",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0075de",
+  "background_color": "#ffffff",
+  "lang": "th",
+  "icons": [
+    { "src": "../assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "../assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

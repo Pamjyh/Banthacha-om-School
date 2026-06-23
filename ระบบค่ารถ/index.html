@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ระบบเก็บค่ารถ — โรงเรียนบ้านท่าชะอม</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0075de">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ค่ารถ">
+<link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -427,7 +433,7 @@ function updateClassCount(){
 
 function saveRoute(el, sid){
   var route=el.value.trim();
-  api('setRoute', {password:STATE.pw, studentId:sid, route:route}).then(function(res){
+  api('setRoute', {studentId:sid, route:route}).then(function(res){
     if(!res.ok){ toast(res.error||'ผิดพลาด',true); return; }
     toast('บันทึกสายรถแล้ว ✓');
   });
@@ -530,7 +536,7 @@ function saveExternal(){
   var label = document.getElementById('extLabel').value.trim();
   var note = document.getElementById('extNote').value.trim();
   if(!confirm('บันทึก '+money(amount)+' เข้าบัญชีเงินนอก?\n('+label+')')) return;
-  api('recordExternal', {password:STATE.pw, year:c.year, term:c.term, amount:amount, label:label, note:note}).then(function(res){
+  api('recordExternal', {year:c.year, term:c.term, amount:amount, label:label, note:note}).then(function(res){
     if(!res.ok){ toast(res.error||'ผิดพลาด', true); return; }
     toast('บันทึกเข้าเงินนอกแล้ว ✓');
     document.getElementById('extNote').value='';
@@ -539,7 +545,7 @@ function saveExternal(){
 }
 function delExternal(id){
   if(!confirm('ลบรายการนี้?')) return;
-  api('deleteExternal', {password:STATE.pw, id:id}).then(function(res){
+  api('deleteExternal', {id:id}).then(function(res){
     if(!res.ok){ toast(res.error||'ผิดพลาด', true); return; }
     toast('ลบแล้ว'); loadExternal();
   });
@@ -552,5 +558,13 @@ function esc(s){ return String(s||'').replace(/[&<>"]/g,function(m){return {'&':
 // เริ่มทำงานทันที (ไม่มี login)
 bootstrap();
 </script>
+
+// ─── PWA Service Worker ───────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .catch(() => {});
+  });
+}
 </body>
 </html>

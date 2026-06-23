@@ -4,8 +4,8 @@
 // ============================================================
 
 const SHEET_ID         = '1_FiMepObJro052keUyznmYCnygfNKVGta7LFA3-bVQM';
-const TEACHER_PASSWORD = '61010097';
-const ADMIN_PASSWORD   = 'admin61010097';
+const TEACHER_PASSWORD = 'REPLACE_WITH_YOUR_PASSWORD';   // ← ตั้งรหัสของคุณเองก่อน deploy
+const ADMIN_PASSWORD   = 'REPLACE_WITH_YOUR_ADMIN_PASSWORD'; // ← ห้ามใช้ค่านี้จริง
 const SCHOOL_NAME      = 'โรงเรียนบ้านท่าชะอม';
 
 const GRADES = ['อ.2','อ.3','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6'];
