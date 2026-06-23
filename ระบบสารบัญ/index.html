@@ -889,9 +889,9 @@ function esc(s) {
     .replace(/&/g,'&amp;')
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
 }
-</script>
 
 // ─── PWA Service Worker ───────────────────────────────────────────
 if ('serviceWorker' in navigator) {
@@ -900,5 +900,6 @@ if ('serviceWorker' in navigator) {
       .catch(() => {});
   });
 }
+</script>
 </body>
 </html>

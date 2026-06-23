@@ -1481,11 +1481,11 @@ function doLoadMonthData() {
   apiCall({action:'getHistory', grade:curGrade, limit:1000}, function(r) {
     if (!r.ok) { if(mEl) mEl.innerHTML='<div class="load">โหลดไม่ได้: '+r.error+'</div>'; return; }
 
-    // กรองตามเดือน/ปีที่เลือก (ใช้ ' year' เพื่อป้องกัน substring ผิด)
+    // กรองตามเดือน/ปีที่เลือก — ผ่าน fmtDate() ก่อนเพื่อรองรับทั้ง ISO และ Thai format
     var yearStr = ' '+String(stuYearSel);
     var txs = (r.transactions||[]).filter(function(t){
       if (!t.date) return false;
-      var d = String(t.date);
+      var d = fmtDate(t.date); // แปลงเป็น thai string ก่อน filter
       return d.indexOf(stuMonthSel) >= 0 && d.indexOf(yearStr) >= 0;
     });
 
@@ -1908,7 +1908,14 @@ function askDelTx(txId,type,amount,name,stuId) {
 function loadAdmin() {
   document.getElementById('admin-body').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
   apiCall({action:'getAllSummary',password:_pw},function(r){
-    if (!r.ok) {toast(r.error,'err'); return;}
+    if (!r.ok) {
+      document.getElementById('admin-body').innerHTML=
+        '<div class="empty"><div style="font-size:32px;margin-bottom:8px">⚠️</div>'+
+        '<div style="font-weight:600;color:var(--red)">โหลดข้อมูลไม่ได้</div>'+
+        '<div style="font-size:13px;color:var(--ts);margin-top:4px">'+(r.error||'ไม่ทราบสาเหตุ')+'</div>'+
+        '<button onclick="loadAdmin()" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button></div>';
+      return;
+    }
     adData=r; renderAdTab('ov');
   });
 }
@@ -2252,14 +2259,14 @@ function showErr(id,msg) {var e=document.getElementById(id+'-err');e.textContent
   });
 })();
 
-</script>
-
 // ─── PWA Service Worker ───────────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+  window.addEventListener('load', function() {
     navigator.serviceWorker.register('../sw.js', { scope: '../' })
-      .catch(() => {});
+      .catch(function(){});
   });
 }
+
+</script>
 </body>
 </html>

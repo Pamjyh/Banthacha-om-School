@@ -259,11 +259,14 @@ function fTime(ts){return new Date(ts).toLocaleTimeString('th-TH',{hour:'2-digit
 function gdist(la1,lo1,la2,lo2){const R=6371000,dL=(la2-la1)*Math.PI/180,dO=(lo2-lo1)*Math.PI/180;const a=Math.sin(dL/2)**2+Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*Math.sin(dO/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
 function toast(msg,type='ok'){document.querySelectorAll('.toast').forEach(t=>t.remove());const t=document.createElement('div');t.className=`toast t-${type}`;t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000);}
 function closeModal(){stopFaceScan();document.querySelectorAll('.overlay').forEach(m=>m.remove());}
+function esc(s){return String(s||'').replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
+const ADMIN_PW_KEY='thatime_admin_hash';
+async function hashPw(pw){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
 
 function photoImg(emp, w='100%', h='100%', radius='0'){
   return emp.photo
     ? `<img src="${emp.photo}" style="width:${w};height:${h};object-fit:cover;border-radius:${radius};">`
-    : `<div style="width:${w};height:${h};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#3a4a7a;background:#d0d5e8;border-radius:${radius};">${emp.name.slice(0,1)}</div>`;
+    : `<div style="width:${w};height:${h};display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#3a4a7a;background:#d0d5e8;border-radius:${radius};">${esc(emp.name.slice(0,1))}</div>`;
 }
 
 async function boot(){
@@ -319,7 +322,7 @@ async function loadEmpGrid(){
       </div>
       <div class="id-photo-wrap">
         ${e.photo
-          ? `<img class="id-photo" src="${e.photo}" alt="${e.name}">`
+          ? `<img class="id-photo" src="${e.photo}" alt="${esc(e.name)}">`
           : `<div class="id-photo-placeholder"><div class="initial">${e.name.slice(0,1)}</div><div class="ph-text">ไม่มีรูปภาพ</div></div>`
         }
         ${onLeave.has(e.id)
@@ -330,8 +333,8 @@ async function loadEmpGrid(){
         </div>`}
       </div>
       <div class="id-footer">
-        <div class="id-name">${e.name}</div>
-        <span class="id-code">${e.username}</span>
+        <div class="id-name">${esc(e.name)}</div>
+        <span class="id-code">${esc(e.username)}</span>
       </div>
     </div>`;
   }).join('');
@@ -347,11 +350,11 @@ function openCheckModal(empId){
     <div class="modal-handle"></div>
     <div class="check-modal-inner">
       <div class="check-modal-photo">
-        ${emp.photo?`<img src="${emp.photo}" alt="${emp.name}">`:`<div class="cm-initial">${emp.name.slice(0,1)}</div>`}
+        ${emp.photo?`<img src="${emp.photo}" alt="${esc(emp.name)}">`:`<div class="cm-initial">${esc(emp.name.slice(0,1))}</div>`}
       </div>
       <div class="check-modal-info">
-        <div class="check-modal-name">${emp.name}</div>
-        <div class="check-modal-code">${emp.username}</div>
+        <div class="check-modal-name">${esc(emp.name)}</div>
+        <div class="check-modal-code">${esc(emp.username)}</div>
         <div class="check-modal-status" id="lastStatus"><span style="color:var(--faint);font-size:12px;">กำลังตรวจสอบ…</span></div>
       </div>
     </div>
@@ -416,7 +419,7 @@ function openAdminLogin(){
   overlay.innerHTML=`<div class="modal"><div class="modal-handle"></div>
     <div style="text-align:center;margin-bottom:20px;"><div style="font-size:24px;margin-bottom:8px;">⚙️</div>
     <div style="font-size:20px;font-weight:700;">Admin</div>
-    <div style="font-size:13px;color:var(--muted);margin-top:4px;">ใส่รหัสผ่านผู้ดูแลระบบ</div></div>
+    <div style="font-size:13px;color:var(--muted);margin-top:4px;">${localStorage.getItem(ADMIN_PW_KEY)?'ใส่รหัสผ่านผู้ดูแลระบบ':'ตั้งรหัสผ่านใหม่ (ครั้งแรก)'}</div></div>
     <div class="modal-err" id="adminErr"></div>
     <input class="modal-input" id="adminPass" type="password" placeholder="รหัสผ่าน">
     <button class="btn-in" style="background:var(--primary);" onclick="doAdminLogin()">เข้าสู่ระบบ</button>
@@ -427,9 +430,13 @@ function openAdminLogin(){
   document.getElementById('adminPass').addEventListener('keydown',e=>{if(e.key==='Enter')doAdminLogin();});
 }
 
-function doAdminLogin(){
-  const pass=document.getElementById('adminPass')?.value;
-  if(pass==='admin123'){adminUser={name:'ผู้ดูแลระบบ'};closeModal();renderAdmin();}
+async function doAdminLogin(){
+  const pass=document.getElementById('adminPass')?.value||'';
+  if(!pass){const el=document.getElementById('adminErr');if(el)el.textContent='กรุณาระบุรหัสผ่าน';return;}
+  const stored=localStorage.getItem(ADMIN_PW_KEY);
+  const h=await hashPw(pass);
+  if(!stored){localStorage.setItem(ADMIN_PW_KEY,h);adminUser={name:'ผู้ดูแลระบบ'};closeModal();renderAdmin();return;}
+  if(h===stored){adminUser={name:'ผู้ดูแลระบบ'};closeModal();renderAdmin();}
   else{const el=document.getElementById('adminErr');if(el)el.textContent='รหัสผ่านไม่ถูกต้อง';}
 }
 function logoutAdmin(){adminUser=null;boot();}
@@ -639,10 +646,10 @@ async function loadEmployeesAdmin(){
     ${!emps||emps.length===0?'<div class="empty">ยังไม่มีพนักงาน</div>':
       emps.map(e=>`<div class="emp-row">
         <div style="display:flex;align-items:center;gap:12px;flex:1;min-width:0;">
-          <div class="emp-thumb">${e.photo?`<img src="${e.photo}" alt="${e.name}">`:`${e.name.slice(0,1)}`}</div>
+          <div class="emp-thumb">${e.photo?`<img src="${e.photo}" alt="${esc(e.name)}">`:`${esc(e.name.slice(0,1))}`}</div>
           <div style="min-width:0;">
-            <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.name}</div>
-            <div style="font-size:12px;color:var(--faint);">${e.username}</div>
+            <div style="font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(e.name)}</div>
+            <div style="font-size:12px;color:var(--faint);">${esc(e.username)}</div>
           </div>
         </div>
         <div class="emp-row-actions">
@@ -852,7 +859,7 @@ function openLeaveModal(empId){
     <div class="modal-handle"></div>
     <div class="leave-form-scroll">
       <h2 style="font-size:18px;font-weight:700;margin-bottom:4px;">📋 ใบลา</h2>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">${emp.name} · ${emp.username}</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">${esc(emp.name)} · ${esc(emp.username)}</p>
 
       <div class="ff" style="margin-bottom:14px;">
         <label>ประเภทการลา *</label>
@@ -1198,7 +1205,6 @@ async function exportHistory(){
 
 
 boot();
-</script>
 
 // ─── PWA Service Worker ───────────────────────────────────────────
 if ('serviceWorker' in navigator) {
@@ -1207,5 +1213,6 @@ if ('serviceWorker' in navigator) {
       .catch(() => {});
   });
 }
+</script>
 </body>
 </html>

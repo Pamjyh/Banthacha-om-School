@@ -553,18 +553,18 @@ function delExternal(id){
 
 // ====== utils ======
 function money(n){ return (Number(n)||0).toLocaleString('th-TH')+' บาท'; }
-function esc(s){ return String(s||'').replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];}); }
+function esc(s){ return String(s||'').replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
 
 // เริ่มทำงานทันที (ไม่มี login)
 bootstrap();
-</script>
 
 // ─── PWA Service Worker ───────────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
+  window.addEventListener('load', function() {
     navigator.serviceWorker.register('../sw.js', { scope: '../' })
-      .catch(() => {});
+      .catch(function(){});
   });
 }
+</script>
 </body>
 </html>
