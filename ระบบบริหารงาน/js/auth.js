@@ -2,7 +2,7 @@
 // AUTH — password gate (view-only public, edit requires password)
 // =====================================================================
 const ADMIN_PW_KEY   = 'school_admin_hash';     // localStorage — hash ถาวร
-const ADMIN_SES_KEY  = 'school_admin_session';  // sessionStorage — หมดเมื่อปิด tab
+const ADMIN_SES_KEY  = 'school_admin_session';  // sessionStorage — หมดอัตโนมัติเมื่อปิด tab/browser
 const ADMIN_LOCK_KEY = 'school_login_lock';     // localStorage — rate limit {count, lockedUntil}
 const MAX_ATTEMPTS   = 5;
 const LOCK_MS        = 15 * 60 * 1000; // 15 นาที

@@ -187,6 +187,7 @@ function _renderImportPreview(rows){
 
 // ---------- ยืนยัน import ----------
 async function confirmImport(){
+  if(!adminGuard()) return;
   if(!IMPORT_ROWS.length){ alert('ไม่มีข้อมูลที่จะนำเข้า'); return; }
 
   var status = document.getElementById('importStatus');
@@ -398,6 +399,7 @@ function _renderExcelPreview(rows, sheetName){
 
 // ---------- ยืนยัน import ----------
 async function confirmExcelImport(){
+  if(!adminGuard()) return;
   var matched = IMPORT_EXCEL_ROWS.filter(function(r){ return r.fund_id; });
   if(!matched.length){ alert('ไม่มีรายการที่จับคู่หมวดเงินได้'); return; }
 

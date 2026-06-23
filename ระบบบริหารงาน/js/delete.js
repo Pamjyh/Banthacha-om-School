@@ -15,7 +15,18 @@ async function confirmDel(){
       FINANCE_LOADED=false;
     }
     else if(type==='project'){       await DEL('projects',`id=eq.${id}`); FINANCE_LOADED=false; }
-    else if(type==='finance_transaction'){ await DEL('finance_transactions',`id=eq.${id}`); FINANCE_LOADED=false; }
+    else if(type==='finance_transaction'){
+      // ถ้า transaction ผูกกับ procurement_item → revert สถานะพัสดุก่อน DEL
+      // (ป้องกันพัสดุแสดง "เบิกแล้ว" ทั้งที่ไม่มี finance record รองรับแล้ว)
+      var linkedTx = FINANCE_TRANSACTIONS.find(function(t){ return String(t.id)===String(id); });
+      if(linkedTx && linkedTx.procurement_id){
+        await PATCH('procurement_items','id=eq.'+linkedTx.procurement_id,{withdraw_status:'ยังไม่เบิก', withdraw_no:null});
+        var linkedProc = PROC.find(function(i){ return i.id===linkedTx.procurement_id; });
+        if(linkedProc){ linkedProc.withdraw_status='ยังไม่เบิก'; linkedProc.withdraw_no=null; }
+      }
+      await DEL('finance_transactions',`id=eq.${id}`);
+      FINANCE_LOADED=false;
+    }
     else if(type==='external_transaction'){ await DEL('external_transactions',`id=eq.${id}`); EXT_LOADED=false; }
     if(type==='finance_transaction'){
       await loadFinanceData();

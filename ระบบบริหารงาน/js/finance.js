@@ -109,7 +109,7 @@ function renderTransactions(){
     var typeColor = i.transaction_type==='รับ'?'var(--up)':i.transaction_type==='จ่าย'?'var(--signal)':'var(--slate)';
     var fundName  = (i.fund_categories && i.fund_categories.name) ? i.fund_categories.name : '—';
     var projName  = (i.projects && i.projects.name) ? i.projects.name : '';
-    var descCell  = (i.description||'—')+(projName?'<br><span style="font-size:11px;color:var(--slate)">'+projName+'</span>':'');
+    var descCell  = escHtml(i.description||'—')+(projName?'<br><span style="font-size:11px;color:var(--slate)">'+escHtml(projName)+'</span>':'');
     return '<tr>'+
       '<td style="white-space:nowrap">'+fmtDate(i.transaction_date)+'</td>'+
       '<td><span style="font-size:11px;font-weight:700;color:'+typeColor+'">'+

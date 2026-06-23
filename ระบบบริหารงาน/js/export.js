@@ -64,7 +64,7 @@ function exportFinanceCSV(){
       i.transaction_type || '',
       (i.fund_categories && i.fund_categories.name) ? i.fund_categories.name : '',
       i.description || '',
-      i.doc_no || '',
+      i.document_no || '',
       i.holding_type || '',
       i.amount || 0,
       (i.projects && i.projects.name) ? i.projects.name : '',

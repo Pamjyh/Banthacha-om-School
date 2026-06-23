@@ -115,10 +115,10 @@ function renderProc(){
     return`<tr>
       <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">จ.${i.seq}</td>
       <td><span class="badge ${i.type==='จัดซื้อ'?'b-buy':'b-hire'}">${i.type}</span></td>
-      <td class="ink" style="max-width:220px">${i.title}</td>
-      <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.projects?.name||'—'}</td>
-      <td>${i.person||'—'}</td>
-      <td style="font-size:12px;color:var(--muted)">${i.budget_source||'—'}</td>
+      <td class="ink" style="max-width:220px">${escHtml(i.title)}</td>
+      <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(i.projects?.name||'—')}</td>
+      <td>${escHtml(i.person||'—')}</td>
+      <td style="font-size:12px;color:var(--muted)">${escHtml(i.budget_source||'—')}</td>
       <td style="font-family:var(--mono);font-size:11px">${fmtDate(i.report_date)}</td>
       <td class="r">${fmt(i.amount)}</td>
       <td><button class="st-btn ${isDone?'st-done':'st-pend'} admin-only" onclick="toggleStatus('${i.id}','${i.withdraw_status}')"><span class="st-dot ${isDone?'sd-done':'sd-pend'}"></span>${isDone?'เบิกแล้ว':'รอเบิก'}</button></td>
