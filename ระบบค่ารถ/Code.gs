@@ -4,10 +4,9 @@
 // เก็บข้อมูลรายเทอม / รีเซตทุกเทอม + บันทึกเงินนอกถาวร
 // ============================================================
 
-const SHEET_ID         = '1_FiMepObJro052keUyznmYCnygfNKVGta7LFA3-bVQM';
-const TEACHER_PASSWORD = '61010097';
-const ADMIN_PASSWORD   = 'admin61010097';
-const SCHOOL_NAME      = 'โรงเรียนบ้านท่าชะอม';
+// ระบบนี้ไม่มีรหัสผ่าน — เปิดใช้งานได้ทุกคน (ใช้ภายในโรงเรียน)
+const SHEET_ID    = '1_FiMepObJro052keUyznmYCnygfNKVGta7LFA3-bVQM';
+const SCHOOL_NAME = 'โรงเรียนบ้านท่าชะอม';
 
 const GRADES = ['อ.2','อ.3','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6'];
 
@@ -38,7 +37,6 @@ function handleRequest(e) {
   let result;
   try {
     switch(action) {
-      case 'checkRole':       result = checkRole(params); break;
       case 'getConfig':       result = getConfig(); break;
       case 'getGradeSummary': result = getGradeSummary(params); break;
       case 'getRiders':       result = getRiders(params); break;
@@ -75,16 +73,6 @@ function getConfig() {
     termMonths: TERM_MONTHS,
     currentYear: thaiYear()
   };
-}
-
-function checkRole(p) {
-  if (p.password === ADMIN_PASSWORD)   return { ok: true, role: 'admin' };
-  if (p.password === TEACHER_PASSWORD) return { ok: true, role: 'teacher' };
-  return { ok: false, error: 'รหัสผ่านไม่ถูกต้อง' };
-}
-
-function checkAuth(p) {
-  return p.password === TEACHER_PASSWORD || p.password === ADMIN_PASSWORD;
 }
 
 // ============================================================
@@ -129,7 +117,12 @@ function styleHeader(sheet, cols) {
 // ============================================================
 // ROSTER (อ่านชีต "นักเรียน" ของระบบออมทรัพย์)
 // ============================================================
+// อ่านรายชื่อนักเรียน + cache 5 นาที (ชีตนี้ระบบค่ารถไม่ได้แก้ ออมทรัพย์เป็นคนแก้)
 function readRoster(ss) {
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get('cf_roster');
+  if (hit) { try { return JSON.parse(hit); } catch(e) {} }
+
   const sheet = ss.getSheetByName(SH_STUDENTS);
   if (!sheet) return [];
   const all = sheet.getDataRange().getValues();
@@ -143,7 +136,7 @@ function readRoster(ss) {
   const iName  = find(['ชื่อ-สกุล','ชื่อ สกุล','ชื่อ']);
   const iGrade = find(['ชั้นปัจจุบัน','ชั้น']);
   const iStat  = find(['สถานะ']);
-  return all.slice(1)
+  const list = all.slice(1)
     .filter(r => r[iId])
     .filter(r => iStat < 0 || String(r[iStat] || '').trim() !== 'จบการศึกษา')
     .map(r => ({
@@ -151,6 +144,8 @@ function readRoster(ss) {
       name:  iName  >= 0 ? String(r[iName]  || '') : '',
       grade: iGrade >= 0 ? String(r[iGrade] || '') : ''
     }));
+  try { cache.put('cf_roster', JSON.stringify(list), 300); } catch(e) {}
+  return list;
 }
 
 function gradeOrderVal(g) {
@@ -197,7 +192,6 @@ function getRiders(p) {
 }
 
 function setRider(p) {
-  if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   if (!p.studentId) return { ok: false, error: 'ไม่ระบุนักเรียน' };
   const rides = String(p.rides) === '1' || String(p.rides) === 'true';
   const route = String(p.route || '');
@@ -230,7 +224,6 @@ function setRider(p) {
 }
 
 function setRoute(p) {
-  if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   if (!p.studentId) return { ok: false, error: 'ไม่ระบุนักเรียน' };
   const route = String(p.route || '');
   const ss = SpreadsheetApp.openById(SHEET_ID);
@@ -344,7 +337,6 @@ function readFarePaid(ss, year, term) {
 }
 
 function payMonth(p) {
-  if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   const sid  = String(p.studentId || '');
   const year = String(p.year || thaiYear());
   const term = String(p.term || '1');
@@ -365,7 +357,6 @@ function payMonth(p) {
 }
 
 function unpayMonth(p) {
-  if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   const sid  = String(p.studentId || '');
   const year = String(p.year || thaiYear());
   const term = String(p.term || '1');
@@ -390,7 +381,6 @@ function unpayMonth(p) {
 }
 
 function payTerm(p) {
-  if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   const sid  = String(p.studentId || '');
   const year = String(p.year || thaiYear());
   const term = String(p.term || '1');
@@ -401,10 +391,14 @@ function payTerm(p) {
   let sheet = ss.getSheetByName(SH_FARE);
   if (!sheet) { initSheets(); sheet = ss.getSheetByName(SH_FARE); }
 
+  // อ่านค่ารถรอบเดียว (แทนการเช็คทีละเดือน)
+  const paid = readFarePaid(ss, year, term);
+  const have = paid[sid] || {};
   let added = 0;
+  const now = thaiDate(new Date());
   months.forEach(m => {
-    if (!isPaid(sheet, sid, year, term, m)) {
-      sheet.appendRow(['F' + Date.now() + '_' + m, sid, year, term, m, FARE_PER_MONTH, thaiDate(new Date())]);
+    if (!have[m]) {
+      sheet.appendRow(['F' + Date.now() + '_' + m, sid, year, term, m, FARE_PER_MONTH, now]);
       added++;
     }
   });
@@ -482,7 +476,6 @@ function getDashboard(p) {
 // EXTERNAL LEDGER (บันทึกเงินนอก) — ถาวร ไม่รีเซตตามเทอม
 // ============================================================
 function recordExternal(p) {
-  if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   const amount = parseFloat(p.amount);
   if (isNaN(amount) || amount <= 0) return { ok: false, error: 'จำนวนเงินไม่ถูกต้อง' };
   const year = String(p.year || thaiYear());
@@ -517,7 +510,6 @@ function getExternalLog(p) {
 }
 
 function deleteExternal(p) {
-  if (p.password !== ADMIN_PASSWORD) return { ok: false, error: 'เฉพาะผู้ดูแล' };
   if (!p.id) return { ok: false, error: 'ไม่ระบุรายการ' };
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName(SH_EXTERNAL);

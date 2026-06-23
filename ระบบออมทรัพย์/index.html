@@ -277,9 +277,16 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .mo-manual.on{display:block}
 .mo-manual-close{position:fixed;top:0;right:0;z-index:300;background:var(--hg);border:none;border-bottom-left-radius:12px;padding:10px 18px;color:#fff;font-size:14px;font-family:"Sarabun",sans-serif;cursor:pointer;font-weight:600;box-shadow:-2px 2px 12px rgba(0,0,0,.25)}
 .mo-manual-close:hover{background:var(--ga)}
+/* ===== API LOADING BAR ===== */
+#api-loading-bar{
+  position:fixed;top:0;left:0;height:3px;width:0%;
+  background:linear-gradient(90deg,#00754A,#cba258);
+  opacity:0;transition:width 0.4s ease,opacity 0.3s ease;z-index:9999;
+}
 </style>
 </head>
 <body>
+<div id="api-loading-bar"></div>
 
 <!-- MANUAL MODAL -->
 <div class="mo-manual" id="mo-manual">
@@ -1141,21 +1148,57 @@ function toast(msg,type) {
   setTimeout(function(){t.remove();},3500);
 }
 
+// ===== API LOADING BAR =====
+var _apiPending = 0;
+function _apiShowBar(on) {
+  var bar = document.getElementById('api-loading-bar');
+  if (!bar) return;
+  bar.style.opacity = on ? '1' : '0';
+  bar.style.width   = on ? '70%' : '100%';
+  if (!on) { setTimeout(function(){ bar.style.width='0%'; bar.style.opacity='0'; }, 300); }
+}
+
 // ===== API =====
-function apiCall(params,cb) {
-  var url = API+'?'+Object.keys(params).map(function(k){
-    return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
-  }).join('&');
+// SEC-1 fix: actions ที่มี password ส่งเป็น POST body (ไม่ปรากฏใน URL / browser history / server log)
+function apiCall(params, cb) {
+  var hasPassword = Object.prototype.hasOwnProperty.call(params, 'password');
   var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
   var tid  = ctrl ? setTimeout(function(){ ctrl.abort(); }, 20000) : null;
-  fetch(url, ctrl ? {signal: ctrl.signal} : {})
+
+  _apiPending++;
+  _apiShowBar(true);
+
+  var fetchOpts, url;
+  if (hasPassword) {
+    // POST — password อยู่ใน body เท่านั้น ไม่โดน log
+    var body = Object.keys(params).map(function(k){
+      return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
+    }).join('&');
+    url = API;
+    fetchOpts = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body
+    };
+  } else {
+    // GET — ปลอดภัย ไม่มีข้อมูลส่วนตัว
+    url = API+'?'+Object.keys(params).map(function(k){
+      return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
+    }).join('&');
+    fetchOpts = {};
+  }
+  if (ctrl) fetchOpts.signal = ctrl.signal;
+
+  fetch(url, fetchOpts)
     .then(function(r){ if(tid) clearTimeout(tid); return r.text(); })
     .then(function(txt){
+      _apiPending--; if(_apiPending<=0){ _apiPending=0; _apiShowBar(false); }
       try { cb(JSON.parse(txt)); }
       catch(e){ cb({ok:false,error:'ข้อมูลผิดรูปแบบจากเซิร์ฟเวอร์: '+txt.substring(0,120)}); }
     })
     .catch(function(e){
       if(tid) clearTimeout(tid);
+      _apiPending--; if(_apiPending<=0){ _apiPending=0; _apiShowBar(false); }
       var msg = (e.name==='AbortError') ? 'เชื่อมต่อหมดเวลา (20 วินาที) — ตรวจสอบ Apps Script URL' : 'เชื่อมต่อไม่ได้: '+e.message;
       cb({ok:false,error:msg});
     });

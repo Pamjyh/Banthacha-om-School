@@ -65,7 +65,7 @@
       display: flex; align-items: center; gap: 7px;
     }
     .id-header-logo { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-    .id-header-text { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.85); letter-spacing: 0.3px; line-height: 1.3; overflow: hidden; }
+    .id-header-text { font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.85); letter-spacing: 0.3px; line-height: 1.3; overflow: hidden; }
 
     /* Photo area */
     .id-photo-wrap {
@@ -1058,14 +1058,17 @@ async function exportLeaves(){
 // ===== FACE RECOGNITION HELPERS =====
 const FACE_MODEL_URL='https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model';
 
-async function loadFaceModels(){
-  if(window._faceApiReady)return;
-  await Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
-    faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACE_MODEL_URL),
-    faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL),
-  ]);
-  window._faceApiReady=true;
+// onProgress(msg) — optional callback แสดงสถานะระหว่างโหลด (~30MB)
+async function loadFaceModels(onProgress){
+  if(window._faceApiReady) return;
+  const upd = onProgress || function(){};
+  upd('⏳ โหลด AI (1/3) — ตรวจจับใบหน้า…');
+  await faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL);
+  upd('⏳ โหลด AI (2/3) — จุดสังเกตใบหน้า…');
+  await faceapi.nets.faceLandmark68TinyNet.loadFromUri(FACE_MODEL_URL);
+  upd('⏳ โหลด AI (3/3) — จดจำใบหน้า…');
+  await faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL);
+  window._faceApiReady = true;
 }
 
 async function extractDescriptor(imgEl){
@@ -1097,9 +1100,8 @@ async function startFaceScan(empId,type){
   }
   const faceTxt=document.getElementById('faceTxt');
   if(!window._faceApiReady){
-    if(faceTxt)faceTxt.textContent='⏳ กำลังโหลด AI…';
     try{
-      await loadFaceModels();
+      await loadFaceModels(function(msg){ if(faceTxt) faceTxt.textContent=msg; });
     }catch(e){
       aEl.innerHTML=`<p style="color:var(--red);text-align:center;font-size:13px;padding:10px 0;">❌ โหลด AI ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต</p><button class="btn-cancel" style="margin-top:10px;" onclick="stopFaceScan();closeModal()">ปิด</button>`;return;
     }

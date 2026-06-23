@@ -261,6 +261,7 @@ async function saveProcItem(){
   if(!seq){alert('กรุณาระบุลำดับที่');return}
   const eid=document.getElementById('procEditId').value;
   const projVal=document.getElementById('pProject').value;
+  const newStatus=document.getElementById('pStatus').value;
   const body={
     year_id:CY, seq, type:document.getElementById('pType').value, title,
     project_id:projVal||null,
@@ -268,14 +269,24 @@ async function saveProcItem(){
     budget_source:document.getElementById('pBudgetSrc').value,
     report_date:document.getElementById('pDate').value||null,
     amount:parseFloat(document.getElementById('pAmount').value)||0,
-    withdraw_status:document.getElementById('pStatus').value,
+    withdraw_status:newStatus,
     withdraw_no:document.getElementById('pWithdrawNo').value.trim()||null,
     remark:document.getElementById('pRemark').value.trim()||null
   };
   show('loadingOverlay','flex');
   try{
-    if(eid) await PATCH('procurement_items',`id=eq.${eid}`,body);
-    else await POST('procurement_items',body);
+    if(eid){
+      await PATCH('procurement_items',`id=eq.${eid}`,body);
+      // sync finance: ลบเก่าก่อนเสมอ ป้องกัน double-write แล้วสร้างใหม่ถ้าเบิกแล้ว
+      await deleteWithdrawTransaction(eid);
+      if(newStatus==='เบิกแล้ว') await createWithdrawTransaction({...body, id:eid});
+    } else {
+      // POST returns created record (return=representation)
+      const created = await POST('procurement_items',body);
+      if(newStatus==='เบิกแล้ว' && created && created[0]){
+        await createWithdrawTransaction({...body, id:created[0].id});
+      }
+    }
     await loadAll(); closeProcForm();
   }catch(e){ hide('loadingOverlay'); alert('บันทึกไม่ได้: '+e.message); }
 }

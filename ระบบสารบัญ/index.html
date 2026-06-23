@@ -456,7 +456,7 @@
 // ============================================================
 //  CONFIG — แก้ตรงนี้หลัง deploy Apps Script
 // ============================================================
-var API = 'https://script.google.com/macros/s/AKfycbywaks-xZI6uGxA3iVvz7O9-epfpk-Gkacl-9ODIxBa0rVilUN2ITd8Cv4aoghLFJbrsw/exec';
+var API = 'https://script.google.com/macros/s/AKfycbxtUMeq4I39k4o0_x9MwIqPpVjdOZUHP7OXyBzs_ZNkkQQ3DW75Z6nULCJ-GHjFrxEyIQ/exec';
 // ตัวอย่าง: 'https://script.google.com/macros/s/AKfy.../exec'
 
 // ============================================================
@@ -465,6 +465,7 @@ var API = 'https://script.google.com/macros/s/AKfycbywaks-xZI6uGxA3iVvz7O9-epfpk
 var _file             = null;
 var _teachers         = [];
 var _selectedTeachers = [];
+var _mentionAll       = false;
 
 // ============================================================
 //  INIT
@@ -561,17 +562,14 @@ function populateTeachers(list) {
     btn.className = 't-chip';
     btn.dataset.idx = idx;
 
-    // แสดงชื่อ LINE จริงถ้ามี, ไม่อย่างนั้นแสดงชื่อในระบบ
-    var displayLabel = t.lineDisplayName || t.name;
-    btn.textContent = displayLabel;
+    // แสดงชื่อ-นามสกุลจริงในระบบเสมอ (mention ใน LINE ใช้ชื่อ LINE อัตโนมัติผ่าน userId)
+    btn.textContent = t.name;
 
-    // Tooltip แสดงชื่อเต็มในระบบ + สถานะ LINE
-    if (t.lineDisplayName) {
-      btn.title = t.name + '\nLINE: @' + t.lineDisplayName + (t.hasUserId ? ' ✓' : '');
-    } else if (t.hasUserId) {
-      btn.title = t.name + '\n(มี userId แต่ยังไม่ได้ตั้ง lineDisplayName)';
+    // Tooltip แสดงสถานะ LINE mention
+    if (t.hasUserId) {
+      btn.title = t.name + '\n✅ มี userId — mention จะขึ้นสีฟ้าใน LINE';
     } else {
-      btn.title = t.name + '\n(ยังไม่มี userId — mention จะไม่เป็นสีฟ้า)';
+      btn.title = t.name + '\n⚠️ ยังไม่มี userId — mention จะไม่เป็นสีฟ้า';
     }
 
     btn.addEventListener('click', function() { toggleTeacher(t.name, btn); });
@@ -580,6 +578,7 @@ function populateTeachers(list) {
 }
 
 function toggleTeacher(name, btn) {
+  _mentionAll = false;  // toggle รายคน → ยกเลิก @All
   var i = _selectedTeachers.indexOf(name);
   if (i >= 0) {
     _selectedTeachers.splice(i, 1);
@@ -594,11 +593,12 @@ function toggleTeacher(name, btn) {
 
 function quickSelect(n) {
   _selectedTeachers = [];
+  _mentionAll = (n < 0);  // เลือกทุกคน → @All, ล้าง → false
   document.querySelectorAll('.t-chip').forEach(function(c) { c.classList.remove('selected'); });
   var chips = document.querySelectorAll('.t-chip');
   var count = n < 0 ? chips.length : Math.min(n, chips.length);
   for (var i = 0; i < count; i++) {
-    _selectedTeachers.push(_teachers[i].name);   // ส่ง system name ให้ backend
+    _selectedTeachers.push(_teachers[i].name);
     chips[i].classList.add('selected');
   }
   updateSelHint();
@@ -608,8 +608,9 @@ function quickSelect(n) {
 function updateSelHint() {
   var el = document.getElementById('selHint');
   var n = _selectedTeachers.length;
-  el.textContent = n === 0 ? 'ยังไม่ได้เลือก' :
-    'เลือกแล้ว ' + n + ' คน: ' + _selectedTeachers.join(', ');
+  if (n === 0) { el.textContent = 'ยังไม่ได้เลือก'; return; }
+  var prefix = _mentionAll ? '📢 @ทุกคนในกลุ่ม — ' : '';
+  el.textContent = prefix + 'เลือกแล้ว ' + n + ' คน: ' + _selectedTeachers.join(', ');
 }
 
 
@@ -815,6 +816,7 @@ async function submitDoc() {
         mimeType:     _file.type || 'application/octet-stream',
         docTitle:     title,
         teacherNames: teachers,
+        mentionAll:   _mentionAll,
         note:         note,
         yearType:     getYearType(),
         year:         getYear(),

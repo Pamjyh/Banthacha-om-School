@@ -120,25 +120,14 @@
 <body>
 <div class="wrap">
 
-  <!-- ===== LOGIN ===== -->
-  <div id="loginView" class="login">
-    <div class="logo">🚌</div>
-    <h2>ระบบเก็บค่ารถ</h2>
-    <p>โรงเรียนบ้านท่าชะอม</p>
-    <input type="password" id="pw" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="btn btn-primary" onclick="doLogin()">เข้าสู่ระบบ</button>
-    <p style="margin-top:14px;font-size:12px" id="loginErr"></p>
-  </div>
-
   <!-- ===== APP ===== -->
-  <div id="appView" class="hide">
+  <div id="appView">
     <header>
       <div class="logo">🚌</div>
       <div>
         <h1>ระบบเก็บค่ารถ</h1>
         <p>โรงเรียนบ้านท่าชะอม</p>
       </div>
-      <span class="badge" id="roleBadge"></span>
     </header>
 
     <div class="tabs">
@@ -149,7 +138,7 @@
 
     <div class="controls">
       <label class="fld">ปีการศึกษา
-        <select id="selYear" onchange="reloadActive()"></select>
+        <select id="selYear" onchange="onYearChange()"></select>
       </label>
       <label class="fld">เทอม
         <select id="selTerm" onchange="reloadActive()">
@@ -223,11 +212,12 @@
 
 <script>
 // ====== CONFIG ======
-var API = 'https://script.google.com/macros/s/AKfycbw-DoN-yD8PpPjqKNGlaKad1O7Y6laBH4aztJbB_zzGe9i4fzmbsxz7fa4s4HwtHbqI_g/exec';
+var API = 'https://script.google.com/macros/s/AKfycbwpcY7SCxGr6iZqLgKJZIDs-XCiBYN0zGqJOJ6_8LXCtxDb-wWpQ1kvW23B-0V2CZnc-g/exec';
 // ลิงก์ระบบบริหารงาน — ใช้ path สัมพัทธ์ (อยู่ใน repo เดียวกัน)
 var SCHOOL_MGMT_URL = '../ระบบบริหารงาน/';
 
-var STATE = { role:null, pw:'', cfg:null, page:'collect', collectView:'grades', curGrade:null };
+// ไม่มีหน้า login / ไม่มีรหัสผ่าน — เข้าใช้งานได้เลย
+var STATE = { role:'admin', pw:'', cfg:null, page:'collect', collectView:'grades', curGrade:null };
 
 function api(action, params){
   params = params || {};
@@ -244,34 +234,13 @@ function toast(msg, isErr){
   setTimeout(function(){ t.className='toast'; }, 2200);
 }
 
-// ====== LOGIN ======
-function doLogin(){
-  var pw = document.getElementById('pw').value.trim();
-  if(!pw){ document.getElementById('loginErr').textContent='กรุณาใส่รหัสผ่าน'; return; }
-  if(API.indexOf('PASTE_')===0){
-    document.getElementById('loginErr').textContent='⚠ ยังไม่ได้ตั้งค่า API';
-    return;
-  }
-  document.getElementById('loginErr').textContent='กำลังตรวจสอบ...';
-  api('checkRole', {password:pw}).then(function(res){
-    if(!res.ok){ document.getElementById('loginErr').textContent=res.error||'รหัสไม่ถูกต้อง'; return; }
-    STATE.role = res.role; STATE.pw = pw;
-    document.getElementById('roleBadge').textContent = res.role==='admin'?'ผู้ดูแลระบบ':'ครู';
-    document.getElementById('loginView').classList.add('hide');
-    document.getElementById('appView').classList.remove('hide');
-    bootstrap();
-  }).catch(function(){ document.getElementById('loginErr').textContent='เชื่อมต่อไม่ได้ — ตรวจ URL'; });
-}
-
 function bootstrap(){
   api('getConfig').then(function(c){
     STATE.cfg = c;
-    var y = c.currentYear, sy = document.getElementById('selYear');
-    sy.innerHTML='';
-    [y+1, y, y-1].forEach(function(yy){
-      var o=document.createElement('option'); o.value=yy; o.textContent=yy; if(yy===y)o.selected=true; sy.appendChild(o);
-    });
+    buildYears();
     document.getElementById('smLink').href = SCHOOL_MGMT_URL;
+    // จำชั้นล่าสุด → เปิดเข้าชั้นเดิมเลย
+    try { var lg = localStorage.getItem('cf_lastGrade'); if(lg){ STATE.collectView='class'; STATE.curGrade=lg; } } catch(e) {}
     reloadActive();
   });
 }
@@ -289,6 +258,38 @@ function ctx(){ return {
   year: document.getElementById('selYear').value,
   term: document.getElementById('selTerm').value
 };}
+
+// ====== ปีการศึกษา (เพิ่มเองได้เรื่อยๆ) ======
+function buildYears(){
+  var sy = document.getElementById('selYear');
+  var cur = STATE.cfg.currentYear;
+  var extra = [];
+  try { extra = JSON.parse(localStorage.getItem('cf_years')||'[]'); } catch(e) {}
+  var all = [cur+1, cur, cur-1, cur-2].concat(extra).map(Number).filter(function(v){return v>2500;});
+  all = all.filter(function(v,i){ return all.indexOf(v)===i; }).sort(function(a,b){ return b-a; });
+  var prev = sy.value && sy.value!=='__add__' ? parseInt(sy.value) : cur;
+  sy.innerHTML='';
+  all.forEach(function(yy){ var o=document.createElement('option'); o.value=yy; o.textContent=yy; sy.appendChild(o); });
+  var addO=document.createElement('option'); addO.value='__add__'; addO.textContent='➕ เพิ่มปี...'; sy.appendChild(addO);
+  sy.value = all.indexOf(prev)>=0 ? prev : cur;
+}
+
+function onYearChange(){
+  var sy = document.getElementById('selYear');
+  if(sy.value==='__add__'){
+    var inp = prompt('ใส่ปีการศึกษา (พ.ศ.) เช่น '+(STATE.cfg.currentYear+1));
+    var y = parseInt(inp);
+    if(y && y>2500 && y<3000){
+      var extra=[]; try{ extra=JSON.parse(localStorage.getItem('cf_years')||'[]'); }catch(e){}
+      if(extra.indexOf(y)<0){ extra.push(y); try{ localStorage.setItem('cf_years', JSON.stringify(extra)); }catch(e){} }
+      buildYears(); sy.value=y;
+    } else {
+      sy.value = STATE.cfg.currentYear;
+      if(inp!==null) toast('ปีไม่ถูกต้อง', true);
+    }
+  }
+  reloadActive();
+}
 
 function reloadActive(){
   var p = STATE.page;
@@ -333,6 +334,7 @@ function loadGradeCards(){
 
 function openClass(grade){
   STATE.collectView='class'; STATE.curGrade=grade;
+  try { localStorage.setItem('cf_lastGrade', grade); } catch(e) {}
   loadCollect();
 }
 function backToGrades(){
@@ -347,7 +349,7 @@ function loadClassGrid(){
   api('getFareGrid', {year:c.year, term:c.term, grade:grade}).then(function(res){
     if(!res.ok){ document.getElementById('classBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
     if(!res.students.length){ document.getElementById('classBox').innerHTML='<div class="empty">ไม่มีนักเรียนในชั้นนี้</div>'; return; }
-    var months = res.monthList;
+    var months = res.monthList; STATE.monthList = months;
     var riders = res.students.filter(function(s){return s.rides;}).length;
     document.getElementById('classCount').textContent = '— นั่งรถ '+riders+' / '+res.students.length+' คน';
     var h='<div style="overflow-x:auto"><table><thead><tr><th>ชื่อ</th><th class="c">นั่งรถ</th><th class="c">สายรถ</th>';
@@ -383,15 +385,44 @@ function statusPill(s, totalMonths){
 }
 
 function toggleRiderInClass(el, sid){
-  el.disabled=true;
-  var route='';
-  var row=el.closest('tr'); var ri=row?row.querySelector('.route-inp'):null;
-  if(ri) route=ri.value.trim();
-  api('setRider', {password:STATE.pw, studentId:sid, rides:el.checked?'1':'0', route:route}).then(function(res){
-    if(!res.ok){ toast(res.error||'ผิดพลาด',true); el.checked=!el.checked; el.disabled=false; return; }
-    toast(el.checked?'เพิ่มเป็นคนนั่งรถ ✓':'เอาออกจากคนนั่งรถ');
-    loadClassGrid(); // โหลดใหม่เพื่อเปิด/ปิดช่องติ๊ก
-  }).catch(function(){ el.disabled=false; el.checked=!el.checked; toast('เชื่อมต่อไม่ได้',true); });
+  var row = el.closest('tr');
+  var rides = el.checked;
+  var ri = row ? row.querySelector('.route-inp') : null;
+  var route = ri ? ri.value.trim() : '';
+  // optimistic: เปลี่ยนแถวทันที ไม่ต้องโหลดตารางใหม่
+  morphRiderRow(row, sid, rides);
+  updateClassCount();
+  el.disabled = true;
+  api('setRider', {studentId:sid, rides:rides?'1':'0', route:route}).then(function(res){
+    el.disabled = false;
+    if(!res.ok){ toast(res.error||'ผิดพลาด',true); el.checked=!rides; morphRiderRow(row,sid,!rides); updateClassCount(); return; }
+    toast(rides?'เพิ่มเป็นคนนั่งรถ ✓':'เอาออกจากคนนั่งรถ');
+  }).catch(function(){ el.disabled=false; el.checked=!rides; morphRiderRow(row,sid,!rides); updateClassCount(); toast('เชื่อมต่อไม่ได้',true); });
+}
+
+function morphRiderRow(row, sid, rides){
+  if(!row) return;
+  var cells = row.querySelectorAll('td'); var n = cells.length;
+  var ri = cells[2].querySelector('.route-inp');
+  if(rides){
+    row.classList.remove('norider');
+    if(ri) ri.disabled = false;
+    for(var i=3;i<n-2;i++){ var m=(STATE.monthList||[])[i-3]; cells[i].innerHTML='<div class="tick" onclick="toggleTick(this)" data-id="'+sid+'" data-month="'+m+'">✓</div>'; }
+    cells[n-2].innerHTML='<span class="pill pill-red">ค้าง</span>';
+    cells[n-1].innerHTML='<button class="btn btn-sm" onclick="payAllTerm(\''+sid+'\')">จ่าย 400</button>';
+  } else {
+    row.classList.add('norider');
+    if(ri) ri.disabled = true;
+    for(var j=3;j<n-2;j++){ cells[j].innerHTML='<span class="dash">–</span>'; }
+    cells[n-2].innerHTML='<span class="muted">ไม่ขึ้นรถ</span>';
+    cells[n-1].innerHTML='';
+  }
+}
+
+function updateClassCount(){
+  var total = document.querySelectorAll('#classBox tbody tr').length;
+  var riders = document.querySelectorAll('#classBox tbody input:checked').length;
+  document.getElementById('classCount').textContent = '— นั่งรถ '+riders+' / '+total+' คน';
 }
 
 function saveRoute(el, sid){
@@ -403,18 +434,15 @@ function saveRoute(el, sid){
 }
 
 function toggleTick(el){
-  if(el.classList.contains('busy')) return;
   var c = ctx(), sid = el.dataset.id, month = el.dataset.month;
   var wasOn = el.classList.contains('on');
-  el.classList.add('busy');
+  // optimistic: เปลี่ยนทันที แล้วค่อยบันทึกเบื้องหลัง
+  el.classList.toggle('on');
+  updateRowStatus(sid);
   var act = wasOn?'unpayMonth':'payMonth';
-  api(act, {password:STATE.pw, studentId:sid, year:c.year, term:c.term, month:month}).then(function(res){
-    el.classList.remove('busy');
-    if(!res.ok){ toast(res.error||'ผิดพลาด', true); return; }
-    el.classList.toggle('on');
-    toast(wasOn?'ยกเลิก '+month:'จ่าย '+month+' ✓');
-    updateRowStatus(sid, c);
-  }).catch(function(){ el.classList.remove('busy'); toast('เชื่อมต่อไม่ได้',true); });
+  api(act, {studentId:sid, year:c.year, term:c.term, month:month}).then(function(res){
+    if(!res.ok){ toast('บันทึกไม่สำเร็จ: '+(res.error||''), true); el.classList.toggle('on'); updateRowStatus(sid); }
+  }).catch(function(){ toast('เชื่อมต่อไม่ได้ — ไม่ได้บันทึก', true); el.classList.toggle('on'); updateRowStatus(sid); });
 }
 
 function updateRowStatus(sid){
@@ -435,11 +463,13 @@ function updateRowStatus(sid){
 
 function payAllTerm(sid){
   var c = ctx();
-  api('payTerm', {password:STATE.pw, studentId:sid, year:c.year, term:c.term}).then(function(res){
-    if(!res.ok){ toast(res.error||'ผิดพลาด', true); return; }
+  // optimistic: ติ๊กครบทันที
+  var row = document.querySelector('tr[data-id="'+sid+'"]');
+  if(row){ row.querySelectorAll('.tick').forEach(function(t){ t.classList.add('on'); }); updateRowStatus(sid); }
+  api('payTerm', {studentId:sid, year:c.year, term:c.term}).then(function(res){
+    if(!res.ok){ toast(res.error||'ผิดพลาด', true); loadClassGrid(); return; }
     toast('จ่ายครบทั้งเทอมแล้ว ✓');
-    loadClassGrid();
-  });
+  }).catch(function(){ toast('เชื่อมต่อไม่ได้', true); loadClassGrid(); });
 }
 
 // ====== DASHBOARD ======
@@ -518,6 +548,9 @@ function delExternal(id){
 // ====== utils ======
 function money(n){ return (Number(n)||0).toLocaleString('th-TH')+' บาท'; }
 function esc(s){ return String(s||'').replace(/[&<>"]/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m];}); }
+
+// เริ่มทำงานทันที (ไม่มี login)
+bootstrap();
 </script>
 </body>
 </html>
