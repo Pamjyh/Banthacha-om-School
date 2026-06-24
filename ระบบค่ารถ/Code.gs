@@ -38,6 +38,7 @@ function handleRequest(e) {
   try {
     switch(action) {
       case 'getConfig':       result = getConfig(); break;
+      case 'getBootstrap':    result = getBootstrap(params); break;
       case 'getGradeSummary': result = getGradeSummary(params); break;
       case 'getRiders':       result = getRiders(params); break;
       case 'setRider':        result = setRider(params); break;
@@ -158,6 +159,10 @@ function gradeOrderVal(g) {
 // อ่านคืน {sid: {route:'...'}}
 // ============================================================
 function readRiders(ss) {
+  const cache = CacheService.getScriptCache();
+  const hit = cache.get('cf_riders');
+  if (hit) { try { return JSON.parse(hit); } catch(e) {} }
+
   const sheet = ss.getSheetByName(SH_RIDERS);
   const map = {};
   if (!sheet) return map;
@@ -169,6 +174,7 @@ function readRiders(ss) {
   all.slice(1).forEach(r => {
     if (r[iId]) map[String(r[iId])] = { route: iRoute >= 0 ? String(r[iRoute] || '') : '' };
   });
+  try { cache.put('cf_riders', JSON.stringify(map), 180); } catch(e) {}
   return map;
 }
 
@@ -220,6 +226,7 @@ function setRider(p) {
     if (rowIdx > 0) sheet.deleteRow(rowIdx);
   }
   SpreadsheetApp.flush();
+  try { CacheService.getScriptCache().remove('cf_riders'); } catch(e) {}
   return { ok: true, studentId: sid, rides: rides, route: route };
 }
 
@@ -235,6 +242,7 @@ function setRoute(p) {
     if (String(data[i][0]) === sid) {
       sheet.getRange(i + 1, 4).setValue(route);
       SpreadsheetApp.flush();
+      try { CacheService.getScriptCache().remove('cf_riders'); } catch(e) {}
       return { ok: true, studentId: sid, route: route };
     }
   }
@@ -243,6 +251,7 @@ function setRoute(p) {
   const info = roster.filter(s => s.id === sid)[0] || { name: '', grade: '' };
   sheet.appendRow([sid, info.name, info.grade, route, thaiDate(new Date())]);
   SpreadsheetApp.flush();
+  try { CacheService.getScriptCache().remove('cf_riders'); } catch(e) {}
   return { ok: true, studentId: sid, route: route, added: true };
 }
 
@@ -321,6 +330,11 @@ function getFareGrid(p) {
 }
 
 function readFarePaid(ss, year, term) {
+  const cache = CacheService.getScriptCache();
+  const key = 'cf_paid_' + year + '_' + term;
+  const hit = cache.get(key);
+  if (hit) { try { return JSON.parse(hit); } catch(e) {} }
+
   const sheet = ss.getSheetByName(SH_FARE);
   const paid = {};
   if (!sheet) return paid;
@@ -333,6 +347,7 @@ function readFarePaid(ss, year, term) {
     if (!paid[sid]) paid[sid] = {};
     paid[sid][m] = true;
   });
+  try { cache.put(key, JSON.stringify(paid), 180); } catch(e) {}
   return paid;
 }
 
@@ -353,6 +368,7 @@ function payMonth(p) {
   const id = 'F' + Date.now();
   sheet.appendRow([id, sid, year, term, month, FARE_PER_MONTH, thaiDate(new Date())]);
   SpreadsheetApp.flush();
+  try { CacheService.getScriptCache().remove('cf_paid_' + year + '_' + term); } catch(e) {}
   return { ok: true, id: id, studentId: sid, month: month, amount: FARE_PER_MONTH };
 }
 
@@ -377,6 +393,7 @@ function unpayMonth(p) {
     }
   }
   SpreadsheetApp.flush();
+  try { CacheService.getScriptCache().remove('cf_paid_' + year + '_' + term); } catch(e) {}
   return { ok: true, studentId: sid, month: month };
 }
 
@@ -403,6 +420,7 @@ function payTerm(p) {
     }
   });
   SpreadsheetApp.flush();
+  try { CacheService.getScriptCache().remove('cf_paid_' + year + '_' + term); } catch(e) {}
   return { ok: true, studentId: sid, addedMonths: added, totalAmount: months.length * FARE_PER_MONTH };
 }
 
@@ -522,6 +540,22 @@ function deleteExternal(p) {
     }
   }
   return { ok: false, error: 'ไม่พบรายการ' };
+}
+
+// ============================================================
+// BOOTSTRAP — รวม getConfig + getGradeSummary ในคำขอเดียว (ลด round-trip)
+// ============================================================
+function getBootstrap(p) {
+  const cfg = getConfig();
+  const summary = getGradeSummary(p);
+  return { ok: true, config: cfg, summary: summary };
+}
+
+// ============================================================
+// KEEP WARM — เรียกจาก time-based trigger ทุก 10 นาที กัน cold-start
+// ============================================================
+function keepWarm() {
+  SpreadsheetApp.openById(SHEET_ID);
 }
 
 // ============================================================

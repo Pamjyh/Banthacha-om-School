@@ -218,12 +218,27 @@
 
 <script>
 // ====== CONFIG ======
-var API = 'https://script.google.com/macros/s/AKfycbwpcY7SCxGr6iZqLgKJZIDs-XCiBYN0zGqJOJ6_8LXCtxDb-wWpQ1kvW23B-0V2CZnc-g/exec';
+var API = 'https://script.google.com/macros/s/AKfycbxXD62fz-gFrG3ZOJxlCMI8u-S7N9D0dZ2jNwQ3MMz3SHcnQ4BtBE2oHvOIuG16s_512w/exec';
 // ลิงก์ระบบบริหารงาน — ใช้ path สัมพัทธ์ (อยู่ใน repo เดียวกัน)
 var SCHOOL_MGMT_URL = '../ระบบบริหารงาน/';
 
 // ไม่มีหน้า login / ไม่มีรหัสผ่าน — เข้าใช้งานได้เลย
-var STATE = { role:'admin', pw:'', cfg:null, page:'collect', collectView:'grades', curGrade:null };
+var STATE = { role:'admin', pw:'', cfg:null, page:'collect', collectView:'grades', curGrade:null, lastCollected:0 };
+
+// ─── client-side session cache (ล้างเมื่อ refresh — ไม่ใช้ localStorage) ───
+var _cc = {};
+var CC_TTL = 90 * 1000; // 90 วินาที
+function ccGet(k){ var e=_cc[k]; if(!e||Date.now()-e.t>CC_TTL){delete _cc[k];return null;} return e.d; }
+function ccSet(k,d){ _cc[k]={d:d,t:Date.now()}; }
+function ccDel(k){ delete _cc[k]; }
+function ccDelPfx(pfx){ Object.keys(_cc).forEach(function(k){if(k.indexOf(pfx)===0)delete _cc[k];}); }
+
+function clientThaiYear(){ return new Date().getFullYear()+543; }
+function clientCurrentTerm(){ var m=new Date().getMonth()+1; return (m>=11||m<=2)?'2':'1'; }
+function updateLastCollected(summary){
+  if(!summary||!summary.grades) return;
+  STATE.lastCollected = summary.grades.reduce(function(s,g){return s+(g.collected||0);},0);
+}
 
 function api(action, params){
   params = params || {};
@@ -241,10 +256,15 @@ function toast(msg, isErr){
 }
 
 function bootstrap(){
-  api('getConfig').then(function(c){
-    STATE.cfg = c;
+  var defYear = clientThaiYear(), defTerm = clientCurrentTerm();
+  api('getBootstrap', {year:defYear, term:defTerm}).then(function(res){
+    if(!res.ok){ document.getElementById('gradeCards').innerHTML='<div class="empty">โหลดไม่ได้ กรุณา refresh</div>'; return; }
+    STATE.cfg = res.config;
     buildYears();
     document.getElementById('smLink').href = SCHOOL_MGMT_URL;
+    // cache grade summary สำหรับ default ปี/เทอม
+    ccSet('sum_'+defYear+'_'+defTerm, res.summary);
+    updateLastCollected(res.summary);
     // จำชั้นล่าสุด → เปิดเข้าชั้นเดิมเลย
     try { var lg = localStorage.getItem('cf_lastGrade'); if(lg){ STATE.collectView='class'; STATE.curGrade=lg; } } catch(e) {}
     reloadActive();
@@ -320,22 +340,32 @@ function loadCollect(){
 
 function loadGradeCards(){
   var c = ctx();
+  var sk = 'sum_'+c.year+'_'+c.term;
+  var cached = ccGet(sk);
+  if(cached){ renderGradeCards(cached); return; }
   document.getElementById('gradeCards').innerHTML='<div class="empty">กำลังโหลด...</div>';
   api('getGradeSummary', {year:c.year, term:c.term}).then(function(res){
-    if(!res.ok){ document.getElementById('gradeCards').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
-    if(!res.grades.length){ document.getElementById('gradeCards').innerHTML='<div class="empty">ยังไม่มีรายชื่อนักเรียน (ดึงจากชีตออมทรัพย์)</div>'; return; }
-    var h='';
-    res.grades.forEach(function(g){
-      var pct = g.expected>0?Math.round(g.collected/g.expected*100):0;
-      var sub = g.riders>0 ? ('นั่งรถ '+g.riders+' คน · จ่ายครบ '+g.fullyPaid) : 'ยังไม่มีคนนั่งรถ — แตะเพื่อเพิ่ม';
-      h+='<div class="gcard" onclick="openClass(\''+g.grade+'\')">'+
-           '<div class="gname">'+g.grade+'</div>'+
-           '<div class="gsub">'+sub+'</div>'+
-           (g.riders>0?('<div class="gmoney">เก็บได้ '+money(g.collected)+' / '+money(g.expected)+'</div><div class="gbar"><div style="width:'+pct+'%"></div></div>'):'')+
-         '</div>';
-    });
-    document.getElementById('gradeCards').innerHTML=h;
+    ccSet(sk, res);
+    updateLastCollected(res);
+    renderGradeCards(res);
   });
+}
+
+function renderGradeCards(res){
+  if(!res.ok){ document.getElementById('gradeCards').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
+  if(!res.grades.length){ document.getElementById('gradeCards').innerHTML='<div class="empty">ยังไม่มีรายชื่อนักเรียน (ดึงจากชีตออมทรัพย์)</div>'; return; }
+  updateLastCollected(res);
+  var h='';
+  res.grades.forEach(function(g){
+    var pct = g.expected>0?Math.round(g.collected/g.expected*100):0;
+    var sub = g.riders>0 ? ('นั่งรถ '+g.riders+' คน · จ่ายครบ '+g.fullyPaid) : 'ยังไม่มีคนนั่งรถ — แตะเพื่อเพิ่ม';
+    h+='<div class="gcard" onclick="openClass(\''+g.grade+'\')">'+
+         '<div class="gname">'+g.grade+'</div>'+
+         '<div class="gsub">'+sub+'</div>'+
+         (g.riders>0?('<div class="gmoney">เก็บได้ '+money(g.collected)+' / '+money(g.expected)+'</div><div class="gbar"><div style="width:'+pct+'%"></div></div>'):'')+
+       '</div>';
+  });
+  document.getElementById('gradeCards').innerHTML=h;
 }
 
 function openClass(grade){
@@ -350,37 +380,46 @@ function backToGrades(){
 
 function loadClassGrid(){
   var c = ctx(), grade = STATE.curGrade;
+  var gk = 'grid_'+c.year+'_'+c.term+'_'+grade;
+  var cached = ccGet(gk);
+  if(cached){ renderClassGrid(cached); return; }
   document.getElementById('classTitle').textContent = 'ชั้น '+grade;
   document.getElementById('classBox').innerHTML='<div class="empty">กำลังโหลด...</div>';
   api('getFareGrid', {year:c.year, term:c.term, grade:grade}).then(function(res){
-    if(!res.ok){ document.getElementById('classBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
-    if(!res.students.length){ document.getElementById('classBox').innerHTML='<div class="empty">ไม่มีนักเรียนในชั้นนี้</div>'; return; }
-    var months = res.monthList; STATE.monthList = months;
-    var riders = res.students.filter(function(s){return s.rides;}).length;
-    document.getElementById('classCount').textContent = '— นั่งรถ '+riders+' / '+res.students.length+' คน';
-    var h='<div style="overflow-x:auto"><table><thead><tr><th>ชื่อ</th><th class="c">นั่งรถ</th><th class="c">สายรถ</th>';
-    months.forEach(function(m){ h+='<th class="c">'+m+'</th>'; });
-    h+='<th class="c">สถานะ</th><th class="c"></th></tr></thead><tbody>';
-    res.students.forEach(function(s){
-      h+='<tr data-id="'+s.id+'" class="'+(s.rides?'':'norider')+'">';
-      h+='<td class="name">'+esc(s.name)+'</td>';
-      h+='<td class="c"><label class="switch"><input type="checkbox" '+(s.rides?'checked':'')+' onchange="toggleRiderInClass(this,\''+s.id+'\')"><span class="slider"></span></label></td>';
-      h+='<td class="c"><input class="route-inp" type="text" value="'+esc(s.route)+'" placeholder="สายรถ" '+(s.rides?'':'disabled')+' onchange="saveRoute(this,\''+s.id+'\')"></td>';
-      months.forEach(function(m){
-        if(s.rides){
-          var on = s.months[m];
-          h+='<td class="c"><div class="tick'+(on?' on':'')+'" onclick="toggleTick(this)" data-id="'+s.id+'" data-month="'+m+'">✓</div></td>';
-        } else {
-          h+='<td class="c"><span class="dash">–</span></td>';
-        }
-      });
-      h+='<td class="c">'+statusPill(s, months.length)+'</td>';
-      h+='<td class="c">'+(s.rides?'<button class="btn btn-sm" onclick="payAllTerm(\''+s.id+'\')">'+(s.complete?'✓ ครบ':'จ่าย 400')+'</button>':'')+'</td>';
-      h+='</tr>';
-    });
-    h+='</tbody></table></div>';
-    document.getElementById('classBox').innerHTML=h;
+    ccSet(gk, res);
+    renderClassGrid(res);
   });
+}
+
+function renderClassGrid(res){
+  if(!res.ok){ document.getElementById('classBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
+  if(!res.students.length){ document.getElementById('classBox').innerHTML='<div class="empty">ไม่มีนักเรียนในชั้นนี้</div>'; return; }
+  document.getElementById('classTitle').textContent = 'ชั้น '+STATE.curGrade;
+  var months = res.monthList; STATE.monthList = months;
+  var riders = res.students.filter(function(s){return s.rides;}).length;
+  document.getElementById('classCount').textContent = '— นั่งรถ '+riders+' / '+res.students.length+' คน';
+  var h='<div style="overflow-x:auto"><table><thead><tr><th>ชื่อ</th><th class="c">นั่งรถ</th><th class="c">สายรถ</th>';
+  months.forEach(function(m){ h+='<th class="c">'+m+'</th>'; });
+  h+='<th class="c">สถานะ</th><th class="c"></th></tr></thead><tbody>';
+  res.students.forEach(function(s){
+    h+='<tr data-id="'+s.id+'" class="'+(s.rides?'':'norider')+'">';
+    h+='<td class="name">'+esc(s.name)+'</td>';
+    h+='<td class="c"><label class="switch"><input type="checkbox" '+(s.rides?'checked':'')+' onchange="toggleRiderInClass(this,\''+s.id+'\')"><span class="slider"></span></label></td>';
+    h+='<td class="c"><input class="route-inp" type="text" value="'+esc(s.route)+'" placeholder="สายรถ" '+(s.rides?'':'disabled')+' onchange="saveRoute(this,\''+s.id+'\')"></td>';
+    months.forEach(function(m){
+      if(s.rides){
+        var on = s.months[m];
+        h+='<td class="c"><div class="tick'+(on?' on':'')+'" onclick="toggleTick(this)" data-id="'+s.id+'" data-month="'+m+'">✓</div></td>';
+      } else {
+        h+='<td class="c"><span class="dash">–</span></td>';
+      }
+    });
+    h+='<td class="c">'+statusPill(s, months.length)+'</td>';
+    h+='<td class="c">'+(s.rides?'<button class="btn btn-sm" onclick="payAllTerm(\''+s.id+'\')">'+(s.complete?'✓ ครบ':'จ่าย 400')+'</button>':'')+'</td>';
+    h+='</tr>';
+  });
+  h+='</tbody></table></div>';
+  document.getElementById('classBox').innerHTML=h;
 }
 
 function statusPill(s, totalMonths){
@@ -402,6 +441,7 @@ function toggleRiderInClass(el, sid){
   api('setRider', {studentId:sid, rides:rides?'1':'0', route:route}).then(function(res){
     el.disabled = false;
     if(!res.ok){ toast(res.error||'ผิดพลาด',true); el.checked=!rides; morphRiderRow(row,sid,!rides); updateClassCount(); return; }
+    ccDelPfx('sum_'); ccDelPfx('grid_');
     toast(rides?'เพิ่มเป็นคนนั่งรถ ✓':'เอาออกจากคนนั่งรถ');
   }).catch(function(){ el.disabled=false; el.checked=!rides; morphRiderRow(row,sid,!rides); updateClassCount(); toast('เชื่อมต่อไม่ได้',true); });
 }
@@ -435,6 +475,7 @@ function saveRoute(el, sid){
   var route=el.value.trim();
   api('setRoute', {studentId:sid, route:route}).then(function(res){
     if(!res.ok){ toast(res.error||'ผิดพลาด',true); return; }
+    var c=ctx(); ccDel('grid_'+c.year+'_'+c.term+'_'+STATE.curGrade);
     toast('บันทึกสายรถแล้ว ✓');
   });
 }
@@ -447,7 +488,8 @@ function toggleTick(el){
   updateRowStatus(sid);
   var act = wasOn?'unpayMonth':'payMonth';
   api(act, {studentId:sid, year:c.year, term:c.term, month:month}).then(function(res){
-    if(!res.ok){ toast('บันทึกไม่สำเร็จ: '+(res.error||''), true); el.classList.toggle('on'); updateRowStatus(sid); }
+    if(!res.ok){ toast('บันทึกไม่สำเร็จ: '+(res.error||''), true); el.classList.toggle('on'); updateRowStatus(sid); return; }
+    ccDelPfx('sum_'); ccDel('grid_'+c.year+'_'+c.term+'_'+STATE.curGrade); ccDelPfx('dash_');
   }).catch(function(){ toast('เชื่อมต่อไม่ได้ — ไม่ได้บันทึก', true); el.classList.toggle('on'); updateRowStatus(sid); });
 }
 
@@ -473,47 +515,64 @@ function payAllTerm(sid){
   var row = document.querySelector('tr[data-id="'+sid+'"]');
   if(row){ row.querySelectorAll('.tick').forEach(function(t){ t.classList.add('on'); }); updateRowStatus(sid); }
   api('payTerm', {studentId:sid, year:c.year, term:c.term}).then(function(res){
-    if(!res.ok){ toast(res.error||'ผิดพลาด', true); loadClassGrid(); return; }
+    if(!res.ok){ toast(res.error||'ผิดพลาด', true); ccDel('grid_'+c.year+'_'+c.term+'_'+STATE.curGrade); loadClassGrid(); return; }
+    ccDelPfx('sum_'); ccDel('grid_'+c.year+'_'+c.term+'_'+STATE.curGrade); ccDelPfx('dash_');
     toast('จ่ายครบทั้งเทอมแล้ว ✓');
-  }).catch(function(){ toast('เชื่อมต่อไม่ได้', true); loadClassGrid(); });
+  }).catch(function(){ toast('เชื่อมต่อไม่ได้', true); ccDel('grid_'+c.year+'_'+c.term+'_'+STATE.curGrade); loadClassGrid(); });
 }
 
 // ====== DASHBOARD ======
 function loadDash(){
   var c = ctx();
+  var dk = 'dash_'+c.year+'_'+c.term;
+  var cached = ccGet(dk);
+  if(cached){ renderDash(cached); return; }
   document.getElementById('dashBox').innerHTML='<div class="empty">กำลังโหลด...</div>';
   api('getDashboard', {year:c.year, term:c.term}).then(function(res){
-    if(!res.ok){ document.getElementById('dashBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
-    var t = res.totals;
-    document.getElementById('dashStats').innerHTML =
-      stat('คนนั่งรถ', t.riders + ' คน') +
-      stat('จ่ายครบ', t.fullyPaid + ' คน') +
-      stat('เก็บได้', money(t.collected)) +
-      stat('ค้างชำระ', money(t.outstanding));
-    if(!res.grades.length){ document.getElementById('dashBox').innerHTML='<div class="empty">ยังไม่มีคนนั่งรถ</div>'; return; }
-    var h='<table><thead><tr><th>ชั้น</th><th class="c">คนนั่งรถ</th><th class="c">จ่ายครบ</th><th class="r">เก็บได้</th><th class="r">ค้าง</th><th class="c">ความคืบหน้า</th></tr></thead><tbody>';
-    res.grades.forEach(function(g){
-      var out = g.expected - g.collected;
-      var pct = g.expected>0?Math.round(g.collected/g.expected*100):0;
-      h+='<tr><td class="name">'+g.grade+'</td><td class="c">'+g.riders+'</td><td class="c">'+g.fullyPaid+'</td>'+
-         '<td class="r">'+money(g.collected)+'</td><td class="r" style="color:var(--red)">'+(out>0?money(out):'—')+'</td>'+
-         '<td class="c"><div style="background:var(--border-light);border-radius:20px;height:8px;overflow:hidden;min-width:70px"><div style="background:var(--green);height:100%;width:'+pct+'%"></div></div><span class="muted" style="font-size:11px">'+pct+'%</span></td></tr>';
-    });
-    h+='</tbody></table>';
-    document.getElementById('dashBox').innerHTML=h;
+    ccSet(dk, res);
+    renderDash(res);
   });
+}
+
+function renderDash(res){
+  if(!res.ok){ document.getElementById('dashBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
+  var t = res.totals;
+  document.getElementById('dashStats').innerHTML =
+    stat('คนนั่งรถ', t.riders + ' คน') +
+    stat('จ่ายครบ', t.fullyPaid + ' คน') +
+    stat('เก็บได้', money(t.collected)) +
+    stat('ค้างชำระ', money(t.outstanding));
+  if(!res.grades.length){ document.getElementById('dashBox').innerHTML='<div class="empty">ยังไม่มีคนนั่งรถ</div>'; return; }
+  var h='<table><thead><tr><th>ชั้น</th><th class="c">คนนั่งรถ</th><th class="c">จ่ายครบ</th><th class="r">เก็บได้</th><th class="r">ค้าง</th><th class="c">ความคืบหน้า</th></tr></thead><tbody>';
+  res.grades.forEach(function(g){
+    var out = g.expected - g.collected;
+    var pct = g.expected>0?Math.round(g.collected/g.expected*100):0;
+    h+='<tr><td class="name">'+g.grade+'</td><td class="c">'+g.riders+'</td><td class="c">'+g.fullyPaid+'</td>'+
+       '<td class="r">'+money(g.collected)+'</td><td class="r" style="color:var(--red)">'+(out>0?money(out):'—')+'</td>'+
+       '<td class="c"><div style="background:var(--border-light);border-radius:20px;height:8px;overflow:hidden;min-width:70px"><div style="background:var(--green);height:100%;width:'+pct+'%"></div></div><span class="muted" style="font-size:11px">'+pct+'%</span></td></tr>';
+  });
+  h+='</tbody></table>';
+  document.getElementById('dashBox').innerHTML=h;
 }
 function stat(k,v){ return '<div class="stat"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>'; }
 
 // ====== EXTERNAL ======
 function loadExternal(){
   var c = ctx();
-  api('getDashboard', {year:c.year, term:c.term}).then(function(res){
-    var collected = (res.ok && res.totals)?res.totals.collected:0;
-    document.getElementById('extCollected').textContent = money(collected);
-    document.getElementById('extAmount').value = collected||'';
-    document.getElementById('extLabel').value = 'ค่ารถ เทอม '+c.term+'/'+c.year;
-  });
+  // คำนวณ collected จาก cache ที่มีอยู่ — ไม่ต้องเรียก getDashboard แยก
+  var collected = 0;
+  var dashCached = ccGet('dash_'+c.year+'_'+c.term);
+  var sumCached  = ccGet('sum_'+c.year+'_'+c.term);
+  if(dashCached && dashCached.ok && dashCached.totals) {
+    collected = dashCached.totals.collected;
+  } else if(sumCached && sumCached.ok && sumCached.grades) {
+    collected = sumCached.grades.reduce(function(s,g){return s+(g.collected||0);},0);
+  } else {
+    collected = STATE.lastCollected || 0;
+  }
+  document.getElementById('extCollected').textContent = money(collected);
+  document.getElementById('extAmount').value = collected||'';
+  document.getElementById('extLabel').value = 'ค่ารถ เทอม '+c.term+'/'+c.year;
   document.getElementById('extBox').innerHTML='<div class="empty">กำลังโหลด...</div>';
   api('getExternalLog', {}).then(function(res){
     if(!res.ok){ document.getElementById('extBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
