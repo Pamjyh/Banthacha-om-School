@@ -1130,7 +1130,9 @@ async function startFaceScan(empId,type){
     return;
   }
   if(faceTxt)faceTxt.textContent='👤 หันหน้าเข้ากล้อง…';
-  let counting=false,cdIv=null,mismatchCount=0;
+  const FACE_THRESH=0.45;   // strict: < 0.4 = same, 0.4-0.5 = risky, > 0.5 = different
+  const MATCH_NEEDED=3;     // consecutive frames required before countdown
+  let counting=false,cdIv=null,mismatchCount=0,matchStreak=0;
   faceTimer=setInterval(async()=>{
     const vid=document.getElementById('faceVid');
     const cdEl=document.getElementById('faceCD');
@@ -1141,30 +1143,49 @@ async function startFaceScan(empId,type){
       det=await faceapi.detectSingleFace(vid,new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.5}))
         .withFaceLandmarks(true).withFaceDescriptor();
     }catch(e){}
-    if(det&&!counting){
+    if(det){
       const dist=faceapi.euclideanDistance(det.descriptor,storedDesc);
-      if(dist>0.62){
+      if(dist>FACE_THRESH){
+        // ใบหน้าไม่ตรง — reset streak และ countdown ถ้ากำลังนับอยู่
+        matchStreak=0;
         mismatchCount++;
+        if(counting){
+          // ยกเลิก countdown เพราะหน้าเปลี่ยน
+          counting=false;
+          clearInterval(cdIv);cdIv=null;
+          if(cdEl)cdEl.style.opacity=0;
+        }
         if(txtEl)txtEl.textContent=`❌ ใบหน้าไม่ตรง (${mismatchCount} ครั้ง) — กรุณาลองใหม่`;
         return;
       }
+      // หน้าตรง — เพิ่ม streak
+      matchStreak++;
       mismatchCount=0;
-      counting=true;let cd=3;
-      if(txtEl)txtEl.textContent='✅ ยืนยันตัวตนสำเร็จ กรุณานิ่ง…';
-      cdEl.style.opacity=1;cdEl.textContent=cd;
-      cdIv=setInterval(()=>{
-        cd--;
-        const el=document.getElementById('faceCD');
-        if(!el){clearInterval(cdIv);return;}
-        if(cd>0){el.textContent=cd;}else{
-          clearInterval(cdIv);clearInterval(faceTimer);faceTimer=null;
-          stopFaceScan();
-          const g=window._gps||{};
-          _doCheckGPS(empId,type,g.lat,g.lng,g.d);
-        }
-      },1000);
-    }else if(!det&&!counting){
-      if(txtEl)txtEl.textContent=storedDesc?'👤 หันหน้าเข้ากล้อง…':'⚠️ ยังไม่มีข้อมูลใบหน้า — กรุณาอัปโหลดรูปใหม่';
+      if(matchStreak<MATCH_NEEDED){
+        if(txtEl)txtEl.textContent=`✅ กำลังยืนยัน… (${matchStreak}/${MATCH_NEEDED})`;
+        return;
+      }
+      // ผ่าน MATCH_NEEDED frames ติดต่อกัน → เริ่ม countdown
+      if(!counting){
+        counting=true;let cd=3;
+        if(txtEl)txtEl.textContent='✅ ยืนยันตัวตนสำเร็จ กรุณานิ่ง…';
+        cdEl.style.opacity=1;cdEl.textContent=cd;
+        cdIv=setInterval(()=>{
+          cd--;
+          const el=document.getElementById('faceCD');
+          if(!el){clearInterval(cdIv);return;}
+          if(cd>0){el.textContent=cd;}else{
+            clearInterval(cdIv);clearInterval(faceTimer);faceTimer=null;
+            stopFaceScan();
+            const g=window._gps||{};
+            _doCheckGPS(empId,type,g.lat,g.lng,g.d);
+          }
+        },1000);
+      }
+    }else{
+      // ไม่พบใบหน้า — reset streak แต่ไม่ยกเลิก countdown
+      matchStreak=0;
+      if(!counting&&txtEl)txtEl.textContent=storedDesc?'👤 หันหน้าเข้ากล้อง…':'⚠️ ยังไม่มีข้อมูลใบหน้า — กรุณาอัปโหลดรูปใหม่';
     }
   },600);
 }
