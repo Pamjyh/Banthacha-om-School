@@ -24,7 +24,22 @@ function doGet(e)  { return handleRequest(e); }
 function doPost(e) { return handleRequest(e); }
 
 function handleRequest(e) {
-  const params = (e && e.parameter) ? e.parameter : {};
+  // Merge POST body into params (GAS 302 redirect can lose POST body from e.parameter)
+  let params = (e && e.parameter) ? e.parameter : {};
+  if (e && e.postData && e.postData.contents) {
+    try {
+      var _pp = {};
+      e.postData.contents.split('&').forEach(function(pair) {
+        var kv = pair.split('=');
+        if (kv.length >= 1) {
+          var k = decodeURIComponent(kv[0].replace(/\+/g,' '));
+          var v = kv.length > 1 ? decodeURIComponent(kv.slice(1).join('=').replace(/\+/g,' ')) : '';
+          _pp[k] = v;
+        }
+      });
+      params = Object.assign({}, _pp, params);
+    } catch(_) {}
+  }
   const action = params.action || '';
   let result;
   try {
@@ -47,6 +62,7 @@ function handleRequest(e) {
       case 'getGraduated':      result = getGraduated(params); break;
       case 'checkRole':         result = checkRole(params); break;
       case 'initSheets':        result = initSheets(); break;
+      case 'getBootstrap':      result = getBootstrap(); break;
       default: result = { ok: false, error: 'Unknown action: ' + action };
     }
   } catch(err) {
@@ -203,6 +219,14 @@ function getStudentByName(p) {
 }
 
 function getStudents(p) {
+  // Cache ต่อชั้น (180 วินาที) — ลดการอ่าน sheet ซ้ำ
+  if (p.grade) {
+    const sCache = CacheService.getScriptCache();
+    const cKey = 'ss_stus_' + p.grade;
+    const hit = sCache.get(cKey);
+    if (hit) { try { return JSON.parse(hit); } catch(e) {} }
+  }
+
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName('นักเรียน');
   if (!sheet) return { ok: false, error: 'ไม่พบ sheet — กรุณา Run initSheets ก่อน' };
@@ -258,7 +282,11 @@ function getStudents(p) {
 
   const balances = calcAllBalances(ss);
   students = students.map(s => ({ ...s, balance: balances[String(s.id)] || 0 }));
-  return { ok: true, students, debug: { headers: headers, idxGrade: idxGrade, idxStatus: idxStatus } };
+  const result = { ok: true, students, debug: { headers: headers, idxGrade: idxGrade, idxStatus: idxStatus } };
+  if (p.grade) {
+    try { CacheService.getScriptCache().put('ss_stus_' + p.grade, JSON.stringify(result), 180); } catch(e) {}
+  }
+  return result;
 }
 
 function addStudent(p) {
@@ -324,6 +352,8 @@ function editStudent(p) {
       sheet.getRange(i+1, 2).setValue(name);
       if (p.bankAccount !== undefined)
         sheet.getRange(i+1, 6).setValue(p.bankAccount);
+      SpreadsheetApp.flush();
+      try { GRADES.forEach(function(g){ CacheService.getScriptCache().remove('ss_stus_'+g); }); } catch(e) {}
       return { ok: true, name };
     }
   }
@@ -338,6 +368,8 @@ function deleteStudent(p) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === p.studentId) {
       sheet.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      invalidateBalanceCache();
       return { ok: true };
     }
   }
@@ -391,6 +423,7 @@ function addTransaction(p, type) {
   // append ตรงๆ ตาม column order ที่กำหนด: id, นักเรียน_id, ชื่อ, ชั้น, ประเภท, จำนวนเงิน, ปีการศึกษา, วันที่
   txSheet.appendRow([id, p.studentId, studentName, studentGrade, type, amount, yearVal, dateStr]);
   SpreadsheetApp.flush(); // บังคับ commit
+  invalidateBalanceCache();
   const rowsAfter = txSheet.getLastRow();
 
   // คำนวณ balance ใหม่จาก balance เก่า + transaction นี้ (ไม่ re-read sheet หลัง write)
@@ -414,6 +447,10 @@ function getBalance(studentId) {
 }
 
 function calcAllBalances(ss) {
+  const sCache = CacheService.getScriptCache();
+  const hit = sCache.get('ss_balances');
+  if (hit) { try { return JSON.parse(hit); } catch(e) {} }
+
   const txSheet = ss.getSheetByName('ธุรกรรม');
   const balances = {};
   if (!txSheet) return balances;
@@ -423,7 +460,17 @@ function calcAllBalances(ss) {
     if (!balances[sid]) balances[sid] = 0;
     balances[sid] += (r[4] === 'ฝาก' ? parseFloat(r[5])||0 : -(parseFloat(r[5])||0));
   });
+  try { sCache.put('ss_balances', JSON.stringify(balances), 180); } catch(e) {}
   return balances;
+}
+
+// ลบ cache หลัง write — เรียกหลัง SpreadsheetApp.flush() ทุกครั้ง
+function invalidateBalanceCache() {
+  try {
+    const c = CacheService.getScriptCache();
+    c.remove('ss_balances');
+    GRADES.forEach(function(g){ c.remove('ss_stus_' + g); });
+  } catch(e) {}
 }
 
 function editTransaction(p) {
@@ -442,6 +489,8 @@ function editTransaction(p) {
         if (newAmount > balWithout) return { ok: false, error: 'ยอดไม่พอ (มี ' + balWithout + ' บาท)' };
       }
       txSheet.getRange(i+1, 6).setValue(newAmount);
+      SpreadsheetApp.flush();
+      invalidateBalanceCache();
       return { ok: true, newBalance: getBalance(sid) };
     }
   }
@@ -458,6 +507,8 @@ function deleteTransaction(p) {
     if (data[i][0] === p.txId) {
       const sid = data[i][1];
       txSheet.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      invalidateBalanceCache();
       return { ok: true, newBalance: getBalance(sid) };
     }
   }
@@ -970,6 +1021,69 @@ function getGraduated(p) {
   return { ok: true, students: rows.map(r => ({
     id:r[0], name:r[1], entryYear:r[3], bankAccount:r[5]||'', balance: balances[r[0]]||0
   }))};
+}
+
+// ============================================================
+// BOOTSTRAP — คืนนักเรียนทุกชั้นในคำขอเดียว (ลด 8 calls → 1 call)
+// ============================================================
+function getBootstrap() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const studSheet = ss.getSheetByName('นักเรียน');
+  if (!studSheet) return { ok: false, error: 'ไม่พบ sheet นักเรียน' };
+
+  const allData = studSheet.getDataRange().getValues();
+  const headers = allData[0].map(h => String(h).trim());
+
+  function findCol(names) {
+    for (var n of names) { var idx = headers.indexOf(n); if (idx >= 0) return idx; }
+    return -1;
+  }
+  const idxId     = findCol(['id']);
+  const idxName   = findCol(['ชื่อ-สกุล','ชื่อ สกุล','ชื่อ']);
+  const idxGrade  = findCol(['ชั้นปัจจุบัน','ชั้น']);
+  const idxYear   = findCol(['ปีที่เข้า','ปีการศึกษา']);
+  const idxStatus = findCol(['สถานะ']);
+  const idxBank   = findCol(['เลขบัญชี_ธกส','เลขบัญชีธกส','เลขบัญชี']);
+
+  // คำนวณยอดครั้งเดียว — ใช้ cache
+  const balances = calcAllBalances(ss);
+
+  // จัดกลุ่มตามชั้น
+  const gradeMap = {};
+  GRADES.forEach(g => gradeMap[g] = []);
+
+  allData.slice(1).forEach(r => {
+    if (!r[idxId]) return;
+    const status = idxStatus >= 0 ? String(r[idxStatus] || '').trim() : '';
+    if (status === 'จบการศึกษา') return;
+    const grade = idxGrade >= 0 ? String(r[idxGrade] || '').trim() : '';
+    if (!gradeMap[grade]) return; // ชั้นที่ไม่อยู่ใน GRADES
+    gradeMap[grade].push({
+      id:          String(r[idxId] || ''),
+      name:        idxName   >= 0 ? String(r[idxName]   || '') : '',
+      grade,
+      entryYear:   idxYear   >= 0 ? String(r[idxYear]   || '') : '',
+      status:      status || 'กำลังเรียน',
+      bankAccount: idxBank   >= 0 ? String(r[idxBank]   || '') : '',
+      balance:     balances[String(r[idxId])] || 0
+    });
+  });
+
+  // เรียงตามลำดับ id และเซ็ต GAS cache ต่อชั้น
+  const sCache = CacheService.getScriptCache();
+  GRADES.forEach(g => {
+    gradeMap[g].sort(function(a,b){
+      return (parseInt(String(a.id).replace('S',''))||0) - (parseInt(String(b.id).replace('S',''))||0);
+    });
+    try { sCache.put('ss_stus_'+g, JSON.stringify({ok:true,students:gradeMap[g]}), 180); } catch(e) {}
+  });
+
+  return { ok: true, grades: gradeMap };
+}
+
+// keepWarm — รัน time-based trigger ทุก 10 นาทีเพื่อป้องกัน cold start
+function keepWarm() {
+  SpreadsheetApp.openById(SHEET_ID);
 }
 
 // ============================================================

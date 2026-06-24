@@ -1104,7 +1104,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbzjDEIzw8sAm3NDeJkTb6ReojWrFuqZeBDOgitaU_45BWL-iXZFpIL0haDdM3-kveWghQ/exec';
+var API = 'https://script.google.com/macros/s/AKfycbwEJmLAG3zAULe0S-fRhrhurZTecI_eLwoDi-YKKRGqHapBbjwXITSU6KSi3YRoyIsLIA/exec';
 // รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
 var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
@@ -1245,7 +1245,7 @@ function login() {
     role = r.role;
     err.style.display = 'none';
     if (role === 'admin') { go('admin'); loadAdmin(); }
-    else { renderGrades(); go('grades'); }
+    else { bootstrapTeacher(); }
   });
 }
 function logout() {
@@ -1254,6 +1254,42 @@ function logout() {
   document.getElementById('lpw').value='';
   document.getElementById('lerr').style.display='none';
   go('login');
+}
+
+// ===== CLIENT SESSION CACHE (90 วินาที TTL) =====
+var _cc = {}, CC_TTL = 90 * 1000;
+function ccGet(k){ var e=_cc[k]; if(!e||Date.now()-e.t>CC_TTL){delete _cc[k];return null;} return e.d; }
+function ccSet(k,d){ _cc[k]={d:d,t:Date.now()}; }
+function ccDel(k){ delete _cc[k]; }
+function ccDelPfx(pfx){ Object.keys(_cc).forEach(function(k){if(k.indexOf(pfx)===0)delete _cc[k];}); }
+
+// ===== BOOTSTRAP (1 call แทน 8 calls) =====
+function bootstrapTeacher() {
+  go('grades');
+  var el = document.getElementById('grade-grid');
+  // แสดง skeleton ก่อน
+  el.innerHTML = GRADES.map(function(g){
+    return '<div class="gc" onclick="pickGrade(\''+g+'\')">' +
+      '<div class="gc-icon">'+ICONS[g]+'</div>' +
+      '<div class="gc-name">'+g+'</div>' +
+      '<div class="gc-info" id="gci-'+g.replace('.','_')+'">กำลังโหลด...</div>' +
+      '</div>';
+  }).join('');
+
+  apiCall({action:'getBootstrap'}, function(r) {
+    if (!r.ok) { toast('โหลดไม่ได้: '+(r.error||''),'err'); return; }
+    GRADES.forEach(function(g){
+      var students = (r.grades && r.grades[g]) ? r.grades[g] : [];
+      cache[g] = students;
+      ccSet('stus_'+g, students);
+      var el2 = document.getElementById('gci-'+g.replace('.','_'));
+      if (!el2) return;
+      var total = students.reduce(function(s,x){return s+x.balance;},0);
+      el2.innerHTML = students.length
+        ? students.length+' คน · <b style="color:var(--ga)">'+fmt(total)+' ฿</b>'
+        : 'ยังไม่มีนักเรียน';
+    });
+  });
 }
 
 // ===== GRADE SELECT =====
@@ -1298,10 +1334,17 @@ function pickGrade(g) {
 }
 
 // ===== STUDENTS =====
-function loadStus() {
-  delete cache[curGrade];
-  document.getElementById('stu-list').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
+function loadStus(forceRefresh) {
   var se=document.getElementById('stu-search'); if(se) se.value='';
+  // ใช้ client cache ถ้ายังสด (ไม่ force refresh)
+  var cached = !forceRefresh && ccGet('stus_'+curGrade);
+  if (cached) {
+    allStus=cached; filteredStus=cached; cache[curGrade]=cached; stus=cached; stuPage=0;
+    renderStus(); renderStats();
+    return;
+  }
+  delete cache[curGrade]; ccDel('stus_'+curGrade);
+  document.getElementById('stu-list').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
   apiCall({action:'getStudents',grade:curGrade},function(r){
     if (!r.ok) {
       document.getElementById('stu-list').innerHTML=
@@ -1309,13 +1352,14 @@ function loadStus() {
         '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'+
         '<div style="font-weight:600;margin-bottom:4px">โหลดรายชื่อไม่ได้</div>'+
         '<div style="font-size:12px;color:#666;word-break:break-all">'+(r.error||'ไม่ทราบสาเหตุ')+'</div>'+
-        '<button onclick="loadStus()" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button>'+
+        '<button onclick="loadStus(true)" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button>'+
         '</div>';
       return;
     }
     allStus=r.students||[];
     filteredStus=allStus;
     cache[curGrade]=allStus;
+    ccSet('stus_'+curGrade, allStus);
     stus=allStus;
     stuPage=0;
     renderStus(); renderStats();
@@ -1703,10 +1747,10 @@ function submitBulk() {
       btn.disabled=false; btn.textContent='💾 บันทึกทั้งหมด';
       if (!fail.length) {
         toast('✓ บันทึกสำเร็จ '+ok+' คน','ok');
-        delete cache[curGrade]; // ล้าง cache ให้ grade grid refresh
-        loadStus(); setTimeout(function(){go('students');},600);
+        delete cache[curGrade]; ccDel('stus_'+curGrade);
+        loadStus(true); setTimeout(function(){go('students');},600);
       } else {
-        toast('สำเร็จ '+ok+' · ล้มเหลว '+fail.length+' คน','err'); loadStus();
+        toast('สำเร็จ '+ok+' · ล้มเหลว '+fail.length+' คน','err'); loadStus(true);
       }
       return;
     }
@@ -1781,6 +1825,7 @@ function confirmTx() {
     showOk('tx','✓ '+(txMode==='dep'?'ฝาก':'ถอน')+' '+fmt(amt)+' บาท · ยอดใหม่ '+fmt(r.newBalance)+' บาท'+dbg);
     var s=allStus.filter(function(x){return x.id===selStu.id;})[0];
     if(s){s.balance=r.newBalance; selStu.balance=r.newBalance;}
+    ccDel('stus_'+curGrade); // ล้าง client cache เพราะยอดเงินเปลี่ยน
     renderStus(); renderStats(); loadGradeTx();
     setTimeout(function(){
       closeMo('tx');
@@ -1824,9 +1869,9 @@ function confirmAdd() {
         document.getElementById('add-names').value='';
         document.getElementById('add-one').value='';
         document.getElementById('add-bank').value='';
-        loadStus(); setTimeout(function(){closeMo('add');},1500);
+        loadStus(true); setTimeout(function(){closeMo('add');},1500);
       } else {
-        showErr('add','สำเร็จ '+ok+' · ล้มเหลว: '+fail.join(', ')); loadStus();
+        showErr('add','สำเร็จ '+ok+' · ล้มเหลว: '+fail.join(', ')); loadStus(true);
       }
       return;
     }
@@ -1853,7 +1898,7 @@ function confirmEdit() {
   if (!name) {showErr('edit','กรุณาใส่ชื่อ'); return;}
   apiCall({action:'editStudent',studentId:editStuId,name:name,bankAccount:bank,password:_pw},function(r){
     if (!r.ok) {showErr('edit',r.error); return;}
-    toast('✓ แก้ไขสำเร็จ','ok'); closeMo('edit'); loadStus();
+    toast('✓ แก้ไขสำเร็จ','ok'); closeMo('edit'); loadStus(true);
   });
 }
 
@@ -1867,7 +1912,7 @@ function askDelStu(id,name,bal) {
       if (!r.ok) {document.getElementById('del-err').textContent=r.error;document.getElementById('del-err').style.display='block'; return;}
       toast('✓ ลบ '+name+' สำเร็จ','ok'); closeMo('del');
       if(selStu&&selStu.id===id) selStu=null;
-      loadStus();
+      loadStus(true);
     });
   };
   openMo('del');
@@ -1886,7 +1931,7 @@ function confirmEditTx() {
   if (!amt||amt<=0) {showErr('etx','กรุณาใส่จำนวนเงิน'); return;}
   apiCall({action:'editTransaction',txId:editTxId,amount:amt,password:_pw},function(r){
     if (!r.ok) {showErr('etx',r.error); return;}
-    toast('✓ แก้ไขยอดสำเร็จ','ok'); closeMo('etx'); loadStus(); loadGradeTx();
+    toast('✓ แก้ไขยอดสำเร็จ','ok'); closeMo('etx'); loadStus(true); loadGradeTx();
   });
 }
 
@@ -1898,7 +1943,7 @@ function askDelTx(txId,type,amount,name,stuId) {
   document.getElementById('del-btn').onclick=function(){
     apiCall({action:'deleteTransaction',txId:txId,password:_pw},function(r){
       if (!r.ok) {document.getElementById('del-err').textContent=r.error;document.getElementById('del-err').style.display='block'; return;}
-      toast('✓ ลบรายการสำเร็จ','ok'); closeMo('del'); loadStus(); loadGradeTx();
+      toast('✓ ลบรายการสำเร็จ','ok'); closeMo('del'); loadStus(true); loadGradeTx();
     });
   };
   openMo('del');
