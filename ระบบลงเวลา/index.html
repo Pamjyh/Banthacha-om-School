@@ -262,6 +262,7 @@ function closeModal(){stopFaceScan();document.querySelectorAll('.overlay').forEa
 function esc(s){return String(s||'').replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
 const ADMIN_PW_KEY='thatime_admin_hash';
 async function hashPw(pw){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(pw));return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+function getH(){return localStorage.getItem(ADMIN_PW_KEY)||'';}
 
 function photoImg(emp, w='100%', h='100%', radius='0'){
   return emp.photo
@@ -435,9 +436,14 @@ async function doAdminLogin(){
   if(!pass){const el=document.getElementById('adminErr');if(el)el.textContent='กรุณาระบุรหัสผ่าน';return;}
   const stored=localStorage.getItem(ADMIN_PW_KEY);
   const h=await hashPw(pass);
-  if(!stored){localStorage.setItem(ADMIN_PW_KEY,h);adminUser={name:'ผู้ดูแลระบบ'};closeModal();renderAdmin();return;}
-  if(h===stored){adminUser={name:'ผู้ดูแลระบบ'};closeModal();renderAdmin();}
-  else{const el=document.getElementById('adminErr');if(el)el.textContent='รหัสผ่านไม่ถูกต้อง';}
+  // Local fast-reject: stored hash exists but doesn't match
+  if(stored&&h!==stored){const el=document.getElementById('adminErr');if(el)el.textContent='รหัสผ่านไม่ถูกต้อง';return;}
+  // Sync hash to Supabase (first-run, re-sync on new device, or reconfirm on normal login)
+  // admin_set_hash(new=h, old=h): NULL→set; stored=h→re-confirm; stored≠h→false (wrong pw)
+  const {data:ok}=await sb.rpc('admin_set_hash',{p_new_hash:h,p_old_hash:h});
+  if(!ok){const el=document.getElementById('adminErr');if(el)el.textContent='รหัสผ่านไม่ถูกต้อง';return;}
+  localStorage.setItem(ADMIN_PW_KEY,h);
+  adminUser={name:'ผู้ดูแลระบบ'};closeModal();renderAdmin();
 }
 function logoutAdmin(){adminUser=null;boot();}
 
@@ -694,10 +700,8 @@ async function uploadPhoto(input,empId){
       toast('⏳ กำลังวิเคราะห์ใบหน้า…');
       await loadFaceModels();
       const descriptor=await extractDescriptor(img);
-      const updatePayload={photo:compressed};
-      if(descriptor)updatePayload.face_descriptor=descriptor;
-      const {error}=await sb.from('employees').update(updatePayload).eq('id',empId);
-      if(error){toast('❌ '+error.message.slice(0,60),'err');return;}
+      const {data:ok,error}=await sb.rpc('admin_update_employee_photo',{p_hash:getH(),p_id:empId,p_photo:compressed,p_face_descriptor:descriptor||null});
+      if(error||!ok){toast('❌ '+(error?.message||'ไม่ผ่านการตรวจสอบ').slice(0,60),'err');return;}
       toast(descriptor?'✅ อัปโหลดรูปและบันทึกใบหน้าสำเร็จ!':'✅ อัปโหลดรูปแล้ว (ไม่พบใบหน้า ลองรูปอื่น)');
       await loadEmployeesAdmin();
     };
@@ -724,15 +728,16 @@ async function addEmp(){
     const desc=await extractDescriptor(img);
     if(desc)payload.face_descriptor=desc;
   }
-  const {error}=await sb.from('employees').insert(payload);
-  if(error){if(err)err.textContent=error.message.includes('unique')?'Username นี้มีอยู่แล้ว':error.message.slice(0,80);return;}
+  const {data:result,error}=await sb.rpc('admin_add_employee',{p_hash:getH(),p_name:name,p_username:user,p_photo:payload.photo||null,p_face_descriptor:payload.face_descriptor||null});
+  if(error||(result&&result.error)){if(err)err.textContent=result?.error==='unique'?'Username นี้มีอยู่แล้ว':(error?.message||result?.error||'ไม่สำเร็จ').slice(0,80);return;}
   toast('✅ เพิ่มพนักงานสำเร็จ!');newPhotoData=null;
   await loadEmployeesAdmin();
 }
 
 async function delEmp(id){
   if(!confirm('ยืนยันการลบพนักงานนี้?'))return;
-  await sb.from('employees').delete().eq('id',id);
+  const {data:ok}=await sb.rpc('admin_delete_employee',{p_hash:getH(),p_id:id});
+  if(!ok){toast('❌ ลบไม่สำเร็จ','err');return;}
   toast('ลบพนักงานแล้ว');await loadEmployeesAdmin();
 }
 
@@ -828,8 +833,8 @@ async function saveSettings(){
   const rad=parseInt(document.getElementById('sRad').value);
   const name=document.getElementById('sName')?.value.trim()||'';
   if(isNaN(lat)||isNaN(lng)||isNaN(rad)){toast('❌ กรอกข้อมูลให้ถูกต้อง','err');return;}
-  const {error}=await sb.from('settings').update({school_name:name,office_lat:lat,office_lng:lng,radius:rad,holidays:settingsCache.holidays||[],extra_workdays:settingsCache.extra_workdays||[],updated_at:new Date().toISOString()}).eq('id',settingsCache.id);
-  if(error){toast('❌ บันทึกไม่สำเร็จ: '+error.message,'err');return;}
+  const {data:ok,error}=await sb.rpc('admin_update_settings',{p_hash:getH(),p_school_name:name,p_lat:lat,p_lng:lng,p_radius:rad,p_holidays:settingsCache.holidays||[],p_extra_workdays:settingsCache.extra_workdays||[]});
+  if(error||!ok){toast('❌ บันทึกไม่สำเร็จ: '+(error?.message||'ไม่ผ่านการตรวจสอบ'),'err');return;}
   settingsCache={...settingsCache,school_name:name,office_lat:lat,office_lng:lng,radius:rad};
   document.getElementById('navTitle').textContent=name;
   toast('✅ บันทึกแล้ว!');
@@ -1006,23 +1011,23 @@ function renderLeaveTable(lvs, filter){
 
 async function delAttendance(id){
   if(!confirm('ลบรายการนี้?'))return;
-  const {error}=await sb.from('attendance').delete().eq('id',id);
-  if(error){toast('❌ ลบไม่สำเร็จ','err');return;}
+  const {data:ok,error}=await sb.rpc('admin_delete_attendance',{p_hash:getH(),p_id:id});
+  if(error||!ok){toast('❌ ลบไม่สำเร็จ','err');return;}
   toast('🗑️ ลบแล้ว');
   await loadHistory();
 }
 
 async function delLeave(id){
   if(!confirm('ลบใบลานี้?'))return;
-  const {error}=await sb.from('leaves').delete().eq('id',id);
-  if(error){toast('❌ ลบไม่สำเร็จ','err');return;}
+  const {data:ok,error}=await sb.rpc('admin_delete_leave',{p_hash:getH(),p_id:id});
+  if(error||!ok){toast('❌ ลบไม่สำเร็จ','err');return;}
   toast('🗑️ ลบแล้ว');
   await loadLeaves();
 }
 
 async function approveLeave(id, status){
-  const {error} = await sb.from('leaves').update({status}).eq('id',id);
-  if(error){toast('❌ '+error.message.slice(0,60),'err');return;}
+  const {data:ok,error} = await sb.rpc('admin_update_leave',{p_hash:getH(),p_id:id,p_status:status});
+  if(error||!ok){toast('❌ '+(error?.message||'ไม่ผ่านการตรวจสอบ').slice(0,60),'err');return;}
   toast(status==='approved'?'✅ อนุมัติใบลาแล้ว':'❌ ปฏิเสธใบลาแล้ว', status==='approved'?'ok':'err');
   const {error:lineErr}=await sb.rpc('send_line_leave_result',{p_leave_id:id,p_status:status});
   if(lineErr)toast('⚠️ แจ้ง LINE ไม่สำเร็จ: '+lineErr.message.slice(0,60),'err');
