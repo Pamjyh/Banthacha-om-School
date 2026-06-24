@@ -305,6 +305,7 @@ async function loadEmpGrid(){
   const {data:att}=await sb.from('attendance').select('*').gte('timestamp',today.toISOString()).order('timestamp',{ascending:false});
   const lastByEmp={};
   (att||[]).forEach(r=>{if(!lastByEmp[r.employee_id])lastByEmp[r.employee_id]=r;});
+  window._lastByEmp=lastByEmp;
   const todayStr=today.toISOString().slice(0,10);
   const {data:leavesToday}=await sb.from('leaves').select('*').eq('status','approved').lte('start_date',todayStr).gte('end_date',todayStr);
   const onLeave=new Set((leavesToday||[]).map(l=>l.employee_id));
@@ -384,7 +385,7 @@ async function loadCheckModal(empId){
     const gpsEl=document.getElementById('gpsStatus');
     if(d<=settingsCache.radius){
       if(gpsEl)gpsEl.textContent=`✅ อยู่ในรัศมี · ห่าง ${Math.round(d)} ม.`;
-      aEl.innerHTML=`<button id="actionBtn" class="${nextType==='in'?'btn-in':'btn-out'}" onclick="startFaceScan('${empId}','${nextType}')">${nextType==='in'?'🔍 สแกนใบหน้าเพื่อเช็คอิน':'🔍 สแกนใบหน้าเพื่อเช็คเอาท์'}</button><button class="btn-orange" style="margin-top:8px;" onclick="openLeaveModal('${empId}')">📋 ยื่นใบลา</button>`;
+      aEl.innerHTML=`<button id="actionBtn" class="${nextType==='in'?'btn-in':'btn-out'}" onclick="startFaceScan()">${nextType==='in'?'🔍 สแกนใบหน้าเพื่อเช็คอิน':'🔍 สแกนใบหน้าเพื่อเช็คเอาท์'}</button><button class="btn-orange" style="margin-top:8px;" onclick="openLeaveModal('${empId}')">📋 ยื่นใบลา</button>`;
     }else{
       if(gpsEl)gpsEl.textContent=`⚠️ ห่างออฟฟิศ ${Math.round(d)} ม. (เกิน ${settingsCache.radius} ม.)`;
       aEl.innerHTML=`<p style="text-align:center;color:var(--red);font-size:13px;font-weight:600;padding:8px 0;">❌ กรุณาเดินเข้าใกล้ออฟฟิศก่อน</p><button class="btn-orange" onclick="openLeaveModal('${empId}')">📋 ยื่นใบลา</button>`;
@@ -1098,9 +1099,17 @@ async function extractDescriptor(imgEl){
 // ===== FACE SCAN =====
 let faceStream=null,faceTimer=null;
 
-async function startFaceScan(empId,type){
+async function startFaceScan(){
   const aEl=document.getElementById('actionArea');
   if(!aEl)return;
+  // สร้าง allDescs จากพนักงานทุกคนที่มี face_descriptor
+  const allDescs=empsCache
+    .filter(e=>e.face_descriptor&&e.face_descriptor.length>0)
+    .map(e=>({id:e.id,name:e.name,desc:new Float32Array(e.face_descriptor)}));
+  if(!allDescs.length){
+    aEl.innerHTML=`<p style="text-align:center;color:var(--red);font-size:13px;padding:10px 0;">❌ ยังไม่มีข้อมูลใบหน้าของพนักงานคนใด<br>กรุณาให้ Admin อัปโหลดรูปก่อน</p><button class="btn-cancel" style="margin-top:10px;" onclick="closeModal()">ปิด</button>`;
+    return;
+  }
   aEl.innerHTML=`<div style="position:relative;border-radius:14px;overflow:hidden;background:#000;width:160px;aspect-ratio:3/4;margin:0 auto 10px;">
     <video id="faceVid" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;transform:scaleX(-1);"></video>
     <div id="faceCD" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:80px;font-weight:700;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,0.6);opacity:0;pointer-events:none;transition:opacity 0.2s;"></div>
@@ -1122,17 +1131,11 @@ async function startFaceScan(empId,type){
       aEl.innerHTML=`<p style="color:var(--red);text-align:center;font-size:13px;padding:10px 0;">❌ โหลด AI ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต</p><button class="btn-cancel" style="margin-top:10px;" onclick="stopFaceScan();closeModal()">ปิด</button>`;return;
     }
   }
-  const emp=empsCache.find(e=>e.id===empId);
-  const storedDesc=emp?.face_descriptor?new Float32Array(emp.face_descriptor):null;
-  if(!storedDesc){
-    stopFaceScan();
-    aEl.innerHTML=`<p style="text-align:center;color:var(--red);font-size:13px;padding:10px 0;">❌ ยังไม่มีข้อมูลใบหน้าของ ${emp?.name||''}<br>กรุณาให้ Admin อัปโหลดรูปใหม่ก่อน</p><button class="btn-cancel" style="margin-top:10px;" onclick="closeModal()">ปิด</button>`;
-    return;
-  }
   if(faceTxt)faceTxt.textContent='👤 หันหน้าเข้ากล้อง…';
-  const FACE_THRESH=0.45;   // strict: < 0.4 = same, 0.4-0.5 = risky, > 0.5 = different
-  const MATCH_NEEDED=3;     // consecutive frames required before countdown
-  let counting=false,cdIv=null,mismatchCount=0,matchStreak=0;
+  const FACE_THRESH=0.45;   // Euclidean distance threshold
+  const RATIO_THRESH=0.85;  // best/second ratio — ยิ่งต่ำยิ่ง unambiguous
+  const MATCH_NEEDED=3;     // consecutive matching frames ก่อน countdown
+  let counting=false,cdIv=null,matchStreak=0,lockedId=null,mismatchCount=0;
   faceTimer=setInterval(async()=>{
     const vid=document.getElementById('faceVid');
     const cdEl=document.getElementById('faceCD');
@@ -1144,32 +1147,47 @@ async function startFaceScan(empId,type){
         .withFaceLandmarks(true).withFaceDescriptor();
     }catch(e){}
     if(det){
-      const dist=faceapi.euclideanDistance(det.descriptor,storedDesc);
-      if(dist>FACE_THRESH){
-        // ใบหน้าไม่ตรง — reset streak และ countdown ถ้ากำลังนับอยู่
-        matchStreak=0;
-        mismatchCount++;
+      // 1:N — หาพนักงานที่ใกล้ที่สุดและรองลงมา
+      let bestDist=Infinity,bestEmp=null,secondDist=Infinity;
+      for(const e of allDescs){
+        const d=faceapi.euclideanDistance(det.descriptor,e.desc);
+        if(d<bestDist){secondDist=bestDist;bestDist=d;bestEmp=e;}
+        else if(d<secondDist){secondDist=d;}
+      }
+      // ratio test: ถ้า best ใกล้กับ second มากเกินไป = ambiguous
+      const ratio=allDescs.length>1?bestDist/secondDist:0;
+      const matched=bestDist<FACE_THRESH&&(allDescs.length===1||ratio<RATIO_THRESH);
+      if(!matched){
+        matchStreak=0;mismatchCount++;
         if(counting){
-          // ยกเลิก countdown เพราะหน้าเปลี่ยน
-          counting=false;
-          clearInterval(cdIv);cdIv=null;
+          // swap-face attack หรือหน้าเปลี่ยนระหว่าง countdown → ยกเลิก
+          counting=false;clearInterval(cdIv);cdIv=null;lockedId=null;
           if(cdEl)cdEl.style.opacity=0;
         }
-        if(txtEl)txtEl.textContent=`❌ ใบหน้าไม่ตรง (${mismatchCount} ครั้ง) — กรุณาลองใหม่`;
+        if(txtEl)txtEl.textContent=`❌ ไม่พบใบหน้าตรงกัน (${mismatchCount} ครั้ง) — กรุณาลองใหม่`;
         return;
       }
-      // หน้าตรง — เพิ่ม streak
-      matchStreak++;
-      mismatchCount=0;
+      // ตรวจ swap-face attack: ถ้า lockedId ล็อคไว้แล้ว แต่เจอคนอื่น → ยกเลิก
+      if(lockedId&&lockedId!==bestEmp.id){
+        matchStreak=0;mismatchCount++;
+        if(counting){
+          counting=false;clearInterval(cdIv);cdIv=null;lockedId=null;
+          if(cdEl)cdEl.style.opacity=0;
+        }
+        if(txtEl)txtEl.textContent=`🚫 ตรวจพบการสลับใบหน้า — กรุณาลองใหม่`;
+        return;
+      }
+      lockedId=bestEmp.id;matchStreak++;mismatchCount=0;
       if(matchStreak<MATCH_NEEDED){
-        if(txtEl)txtEl.textContent=`✅ กำลังยืนยัน… (${matchStreak}/${MATCH_NEEDED})`;
+        if(txtEl)txtEl.textContent=`✅ พบ ${bestEmp.name} — กำลังยืนยัน… (${matchStreak}/${MATCH_NEEDED})`;
         return;
       }
       // ผ่าน MATCH_NEEDED frames ติดต่อกัน → เริ่ม countdown
       if(!counting){
         counting=true;let cd=3;
-        if(txtEl)txtEl.textContent='✅ ยืนยันตัวตนสำเร็จ กรุณานิ่ง…';
+        if(txtEl)txtEl.textContent=`✅ ยืนยัน ${bestEmp.name} สำเร็จ กรุณานิ่ง…`;
         cdEl.style.opacity=1;cdEl.textContent=cd;
+        const confirmedId=lockedId; // snapshot id ก่อน countdown
         cdIv=setInterval(()=>{
           cd--;
           const el=document.getElementById('faceCD');
@@ -1177,15 +1195,18 @@ async function startFaceScan(empId,type){
           if(cd>0){el.textContent=cd;}else{
             clearInterval(cdIv);clearInterval(faceTimer);faceTimer=null;
             stopFaceScan();
+            // auto-determine check-in/out type จาก attendance ล่าสุด
+            const lastRec=window._lastByEmp?.[confirmedId];
+            const checkType=(lastRec&&lastRec.type==='in')?'out':'in';
             const g=window._gps||{};
-            _doCheckGPS(empId,type,g.lat,g.lng,g.d);
+            _doCheckGPS(confirmedId,checkType,g.lat,g.lng,g.d);
           }
         },1000);
       }
     }else{
       // ไม่พบใบหน้า — reset streak แต่ไม่ยกเลิก countdown
       matchStreak=0;
-      if(!counting&&txtEl)txtEl.textContent=storedDesc?'👤 หันหน้าเข้ากล้อง…':'⚠️ ยังไม่มีข้อมูลใบหน้า — กรุณาอัปโหลดรูปใหม่';
+      if(!counting&&txtEl)txtEl.textContent='👤 หันหน้าเข้ากล้อง…';
     }
   },600);
 }
