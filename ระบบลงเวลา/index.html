@@ -433,16 +433,14 @@ function openAdminLogin(){
 
 async function doAdminLogin(){
   const pass=document.getElementById('adminPass')?.value||'';
-  if(!pass){const el=document.getElementById('adminErr');if(el)el.textContent='กรุณาระบุรหัสผ่าน';return;}
-  const stored=localStorage.getItem(ADMIN_PW_KEY);
+  const errEl=document.getElementById('adminErr');
+  if(!pass){if(errEl)errEl.textContent='กรุณาระบุรหัสผ่าน';return;}
   const h=await hashPw(pass);
-  // Local fast-reject: stored hash exists but doesn't match
-  if(stored&&h!==stored){const el=document.getElementById('adminErr');if(el)el.textContent='รหัสผ่านไม่ถูกต้อง';return;}
-  // Sync hash to Supabase (first-run, re-sync on new device, or reconfirm on normal login)
-  // admin_set_hash(new=h, old=h): NULL→set; stored=h→re-confirm; stored≠h→false (wrong pw)
-  const {data:ok}=await sb.rpc('admin_set_hash',{p_new_hash:h,p_old_hash:h});
-  if(!ok){const el=document.getElementById('adminErr');if(el)el.textContent='รหัสผ่านไม่ถูกต้อง';return;}
-  localStorage.setItem(ADMIN_PW_KEY,h);
+  // Supabase คือ source of truth เสมอ
+  // admin_set_hash(new=h, old=h): NULL→ตั้งใหม่ได้; stored=h→ผ่าน; stored≠h→false
+  const {data:ok,error}=await sb.rpc('admin_set_hash',{p_new_hash:h,p_old_hash:h});
+  if(error||!ok){if(errEl)errEl.textContent='รหัสผ่านไม่ถูกต้อง';return;}
+  localStorage.setItem(ADMIN_PW_KEY,h); // อัปเดต local cache ให้ตรงกับ Supabase
   adminUser={name:'ผู้ดูแลระบบ'};closeModal();renderAdmin();
 }
 function logoutAdmin(){adminUser=null;boot();}
