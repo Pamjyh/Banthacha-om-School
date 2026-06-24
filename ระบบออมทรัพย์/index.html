@@ -1104,7 +1104,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbwEJmLAG3zAULe0S-fRhrhurZTecI_eLwoDi-YKKRGqHapBbjwXITSU6KSi3YRoyIsLIA/exec';
+var API = 'https://script.google.com/macros/s/AKfycbxEa7NGCAD3LCJEnN4DsuC7O2v2ZvdVvy3N63oJwQ13ZCzY9DiMreVYH_HldnEJ_6jfjQ/exec';
 // รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
 var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
@@ -1277,7 +1277,11 @@ function bootstrapTeacher() {
   }).join('');
 
   apiCall({action:'getBootstrap'}, function(r) {
-    if (!r.ok) { toast('โหลดไม่ได้: '+(r.error||''),'err'); return; }
+    if (!r.ok) {
+      // GAS ยังไม่ได้ deploy ใหม่ — fallback เป็น 8 calls แบบเดิม
+      if (r.error && r.error.indexOf('Unknown action') >= 0) { renderGrades(); return; }
+      toast('โหลดไม่ได้: '+(r.error||''),'err'); return;
+    }
     GRADES.forEach(function(g){
       var students = (r.grades && r.grades[g]) ? r.grades[g] : [];
       cache[g] = students;
