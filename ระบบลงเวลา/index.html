@@ -58,6 +58,7 @@
     .id-card {
       position: relative;
       aspect-ratio: 4/3;
+      min-width: 0; /* prevent flex/grid blowout */
       border-radius: 10px;
       overflow: hidden;
       cursor: default;
@@ -350,6 +351,7 @@ async function loadEmpGrid(){
   if(!grid) return;
   if(!emps||emps.length===0){grid.innerHTML='<p class="empty">ยังไม่มีพนักงาน — Admin เพิ่มพนักงานก่อน</p>';return;}
   grid.className='emp-grid';
+  grid.removeAttribute('style'); // clear inline display:flex ที่ override display:grid
   grid.innerHTML=emps.map(e=>{
     const last=lastByEmp[e.id];
     const isIn=last&&last.type==='in';
