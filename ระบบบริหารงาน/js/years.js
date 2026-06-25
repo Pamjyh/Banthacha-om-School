@@ -31,6 +31,7 @@ function openYearModal(){ renderYearList(); document.getElementById('yearOverlay
 function closeYearModal(){ document.getElementById('yearOverlay').classList.remove('open'); }
 
 async function deleteYear(id, yearBe){
+  if(!adminGuard()) return;
   if(!confirm(`ลบปีงบประมาณ ${yearBe}?\n⚠️ ข้อมูลโครงการ พัสดุ และการเงินในปีนี้จะถูกลบทั้งหมด`)) return;
   try{
     await DEL('years',`id=eq.${id}`);
@@ -40,6 +41,7 @@ async function deleteYear(id, yearBe){
   }catch(e){ alert('ลบไม่ได้: '+e.message); }
 }
 async function addYear(){
+  if(!adminGuard()) return;
   const y = parseInt(document.getElementById('newYear').value);
   if(!y||y<2560||y>2599){ alert('กรุณาระบุปีงบประมาณ พ.ศ. (2560–2599)'); return; }
   const exists = YEARS.find(r=>r.year_be===y);

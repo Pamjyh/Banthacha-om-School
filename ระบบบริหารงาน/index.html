@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ระบบบริหารงานโรงเรียน</title>
+<title>ระบบการเงินและพัสดุ</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2a9d99">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="บริหารงาน">
+<meta name="apple-mobile-web-app-title" content="การเงินและพัสดุ">
 <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./css/styles.css">
@@ -39,7 +39,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
   <div class="setup-box">
     <div class="setup-logo">
       <img src="./assets/school-logo.jpg" alt="โลโก้โรงเรียน" style="height:48px;width:48px;object-fit:contain;border-radius:10px">
-      <span style="font-size:16px;font-weight:700;letter-spacing:-.02em">ระบบบริหารงานโรงเรียน</span>
+      <span style="font-size:16px;font-weight:700;letter-spacing:-.02em">ระบบการเงินและพัสดุ</span>
     </div>
     <h1>เชื่อมต่อ<br>Supabase</h1>
     <p>ใส่ข้อมูลจาก Supabase Project ของท่าน<br>ดูได้ที่ Settings → API</p>
@@ -69,7 +69,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
     <div class="nav-pill">
       <div class="nav-brand" onclick="goPage('dashboard')">
         <img src="./assets/school-logo.jpg" alt="โลโก้โรงเรียน" style="height:36px;width:36px;object-fit:contain;border-radius:8px">
-        <span class="nav-title">ระบบงานโรงเรียน</span>
+        <span class="nav-title">ระบบการเงินและพัสดุ</span>
       </div>
       <div class="nav-tabs">
         <button class="nav-tab active" data-page="dashboard">ภาพรวม</button>
@@ -972,6 +972,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
 <script src="./js/app.js"></script>
 
 
+<script>
 // ─── PWA Service Worker ───────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -979,5 +980,6 @@ if ('serviceWorker' in navigator) {
       .catch(() => {});
   });
 }
+</script>
 </body>
 </html>
