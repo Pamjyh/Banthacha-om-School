@@ -761,7 +761,7 @@ async function uploadPhoto(input,empId){
       canvas.getContext('2d').drawImage(img,0,0,w,h);
       const compressed=canvas.toDataURL('image/jpeg',0.82);
       toast('⏳ กำลังวิเคราะห์ใบหน้า…');
-      await loadFaceModels();
+      try{ await loadFaceModels(); }catch(e){ toast('❌ โหลด AI ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต','err'); return; }
       const descriptor=await extractDescriptor(img);
       const {data:ok,error}=await sb.rpc('admin_update_employee_photo',{p_hash:getH(),p_id:empId,p_photo:compressed,p_face_descriptor:descriptor||null});
       if(error||!ok){toast('❌ '+(error?.message||'ไม่ผ่านการตรวจสอบ').slice(0,60),'err');return;}
@@ -787,7 +787,7 @@ async function addEmp(){
     if(w>h){if(w>MAX){h=h*(MAX/w);w=MAX;}}else{if(h>MAX){w=w*(MAX/h);h=MAX;}}
     canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);
     payload.photo=canvas.toDataURL('image/jpeg',0.82);
-    await loadFaceModels();
+    try{ await loadFaceModels(); }catch(e){ if(err)err.textContent='โหลด AI ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต'; return; }
     const desc=await extractDescriptor(img);
     if(desc)payload.face_descriptor=desc;
   }
