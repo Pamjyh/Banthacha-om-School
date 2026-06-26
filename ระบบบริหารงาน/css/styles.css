@@ -351,8 +351,46 @@ textarea.fc{resize:vertical;min-height:60px}
     font-size:12px;
   }
 
-  /* table 11 คอลัมน์ */
-  #page-procurement table{min-width:920px}
+}
+
+/* ═══ RESPONSIVE TABLES: ซ่อนคอลัมน์ไม่จำเป็นบน mobile ═══ */
+/* breakpoint 640px — phone เท่านั้น, tablet 768px+ ยังเห็นครบ */
+@media(max-width:640px){
+
+  /* 1. ภาพรวม — ซ่อน ผู้รับผิดชอบ (col 2) */
+  #db-proj-table th:nth-child(2),
+  #db-proj-table td:nth-child(2){display:none}
+  #db-proj-table table{min-width:380px}
+  #db-proj-table td:first-child{
+    max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+  }
+
+  /* 2. พัสดุ — ซ่อน ผู้รับผิดชอบ(5) แหล่งงบ(6) วันที่(7) เลขใบเบิก(10) */
+  /*    ตัดบรรทัด col 3 (รายการ) เพื่อลด row height */
+  #page-procurement th:nth-child(5),#page-procurement td:nth-child(5),
+  #page-procurement th:nth-child(6),#page-procurement td:nth-child(6),
+  #page-procurement th:nth-child(7),#page-procurement td:nth-child(7),
+  #page-procurement th:nth-child(10),#page-procurement td:nth-child(10){display:none}
+  #page-procurement table{min-width:480px}
+  #page-procurement td:nth-child(3){
+    max-width:140px !important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+  }
+
+  /* 3. เงินนอก — ซ่อน หมายเหตุ (col 4) */
+  #ext-tab-list th:nth-child(4),
+  #ext-tab-list td:nth-child(4){display:none}
+  #ext-tab-list table{min-width:260px}
+
+  /* 4. การเงิน transactions — ซ่อน เลขเอกสาร(5) ที่เก็บเงิน(6) */
+  #fin-tab-transactions th:nth-child(5),#fin-tab-transactions td:nth-child(5),
+  #fin-tab-transactions th:nth-child(6),#fin-tab-transactions td:nth-child(6){display:none}
+  #fin-tab-transactions table{min-width:480px}
+
+  /* 5. การเงิน เงินคงเหลือแยกหมวด */
+  #fin-tab-balance table{min-width:320px}
+
+  /* 6. สถานะ badge ห้ามตัดบรรทัด */
+  .st-btn{white-space:nowrap}
 }
 
 @media(max-width:480px){

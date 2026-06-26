@@ -2,7 +2,7 @@
 // Service Worker — โรงเรียนบ้านท่าชะอม
 // v1.0 — cache-first static, network-only API
 // =====================================================================
-const CACHE_NAME = 'banthacha-om-v1';
+const CACHE_NAME = 'banthacha-om-v2';
 
 // ไฟล์ที่ pre-cache ตอน install
 const PRE_CACHE = [

@@ -120,7 +120,25 @@
 
   .note{font-size:13px;color:var(--ink-muted);background:var(--canvas-soft);border:1px solid var(--border-light);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;line-height:1.55}
   .ext-amt{font-size:30px;font-weight:700;color:var(--green);letter-spacing:-.5px}
-  @media(max-width:600px){ th,td{padding:8px 6px;font-size:13px} .tick{width:26px;height:26px} .route-inp{width:84px;min-width:80px} }
+  @media(max-width:600px){
+    th,td{padding:7px 5px;font-size:13px}
+    .tick{width:24px;height:24px;font-size:13px}
+    .route-inp{width:80px;min-width:72px}
+
+    /* ซ่อน สถานะ column (nth-last-child(2) เพราะ dynamic months) */
+    #classBox th:nth-last-child(2),
+    #classBox td:nth-last-child(2){display:none}
+
+    /* sticky ชื่อ column — เห็นชื่อตลอดแม้เลื่อนไปดูเดือน */
+    #classBox th:first-child,
+    #classBox td:first-child{
+      position:sticky;left:0;z-index:2;
+      background:var(--surface);
+      box-shadow:2px 0 4px rgba(0,0,0,.07);
+      max-width:82px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+    }
+    #classBox th:first-child{background:var(--canvas-soft);z-index:3}
+  }
 </style>
 </head>
 <body>
