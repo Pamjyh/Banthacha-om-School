@@ -114,6 +114,8 @@
   .login .btn{width:100%;justify-content:center}
 
   .empty{text-align:center;color:var(--ink-faint);padding:36px 20px;font-size:14px}
+  .scroll-hint{font-size:11px;color:var(--ink-faint);text-align:right;padding:2px 4px 4px;margin:0}
+  #classBox{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:30px;font-size:14px;box-shadow:var(--shadow-md);opacity:0;pointer-events:none;transition:.25s;z-index:50}
   .toast.show{opacity:1}
   .toast.err{background:var(--red)}
@@ -123,7 +125,7 @@
   @media(max-width:600px){
     th,td{padding:7px 5px;font-size:13px}
     .tick{width:24px;height:24px;font-size:13px}
-    .route-inp{width:80px;min-width:72px}
+    .route-inp{width:36px;min-width:0;padding:3px 4px;font-size:12px}
 
     /* ซ่อน สถานะ column (nth-last-child(2) เพราะ dynamic months) */
     #classBox th:nth-last-child(2),
@@ -134,10 +136,16 @@
     #classBox td:first-child{
       position:sticky;left:0;z-index:2;
       background:var(--surface);
-      box-shadow:2px 0 4px rgba(0,0,0,.07);
-      max-width:82px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+      box-shadow:2px 0 5px rgba(0,0,0,.08);
+      min-width:100px;max-width:130px;
+      white-space:normal;word-break:break-word;
+      line-height:1.35;vertical-align:top;padding-top:8px
     }
-    #classBox th:first-child{background:var(--canvas-soft);z-index:3}
+    #classBox th:first-child{background:var(--canvas-soft);z-index:3;vertical-align:middle;padding-top:7px}
+
+    /* บีบคอลัมน์เดือน */
+    #classBox th:nth-child(n+4):nth-child(-n+7),
+    #classBox td:nth-child(n+4):nth-child(-n+7){min-width:34px;padding:6px 3px}
   }
 </style>
 </head>
@@ -186,6 +194,7 @@
         <div class="note">เปิดสวิตช์ <b>นั่งรถ</b> เฉพาะคนที่ขึ้นรถ → ใส่สายรถ แล้วติ๊กช่องเดือนที่จ่าย (หรือปุ่ม "จ่าย 400" ทั้งเทอม)</div>
         <div class="card">
           <div class="card-h"><span id="classTitle">ชั้น</span><span class="muted" id="classCount"></span></div>
+          <p class="scroll-hint" aria-hidden="true">← เลื่อนซ้าย-ขวาเพื่อดูข้อมูล →</p>
           <div id="classBox"><div class="empty">กำลังโหลด...</div></div>
         </div>
       </div>
