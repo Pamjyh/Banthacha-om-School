@@ -626,6 +626,7 @@ async function loadMonthly(){
   body.innerHTML=`
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
     <div class="sec-head" style="margin:0;">📊 สรุปรายเดือน</div>
+    <select class="sel" onchange="activeMonth=this.value+'-'+activeMonth.slice(5,7);loadAdminTab()">${Array.from({length:7},(_,i)=>{const y=new Date().getFullYear()-5+i;return `<option value="${y}" ${y===yr?'selected':''}>${y}</option>`;}).join('')}</select>
     <select class="sel" onchange="activeMonth=this.value;loadAdminTab()">${months.map(m=>`<option value="${m.v}" ${activeMonth===m.v?'selected':''}>${m.l}</option>`).join('')}</select>
     <span style="font-size:12px;color:var(--faint);">วันทำงาน ${workDays} วัน</span>
   </div>
@@ -721,11 +722,16 @@ async function loadEmployeesAdmin(){
             <div style="font-size:12px;color:var(--faint);">${esc(e.username)}</div>
           </div>
         </div>
-        <div class="emp-row-actions">
-          <label class="btn-outline" style="cursor:pointer;">
-            📷 รูป
+        <div class="emp-row-actions">${(()=>{
+          const fc=e.face_descriptors?.length||(e.face_descriptor?1:0);
+          return `<label class="btn-outline" style="cursor:pointer;" title="เปลี่ยนรูปหลัก — รีเซตใบหน้าทั้งหมด">
+            📷${fc>0?` (${fc})`:''}
             <input type="file" accept="image/*" style="display:none;" onchange="uploadPhoto(this,'${e.id}')">
-          </label>
+          </label>${fc>0?`<label class="btn-outline" style="cursor:pointer;font-size:11px;" title="เพิ่มมุมกล้องใหม่ (ไม่เปลี่ยนรูปหลัก)">
+            ➕ หน้า
+            <input type="file" accept="image/*" style="display:none;" onchange="addFacePhoto(this,'${e.id}')">
+          </label>`:''}`;
+        })()}
           <button class="btn-ghost" onclick="delEmp('${e.id}')">ลบ</button>
         </div>
       </div>`).join('')}
@@ -766,6 +772,26 @@ async function uploadPhoto(input,empId){
       const {data:ok,error}=await sb.rpc('admin_update_employee_photo',{p_hash:getH(),p_id:empId,p_photo:compressed,p_face_descriptor:descriptor||null});
       if(error||!ok){toast('❌ '+(error?.message||'ไม่ผ่านการตรวจสอบ').slice(0,60),'err');return;}
       toast(descriptor?'✅ อัปโหลดรูปและบันทึกใบหน้าสำเร็จ!':'✅ อัปโหลดรูปแล้ว (ไม่พบใบหน้า ลองรูปอื่น)');
+      await loadEmployeesAdmin();
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function addFacePhoto(input,empId){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async e=>{
+    const img=new Image();
+    img.onload=async()=>{
+      toast('⏳ กำลังวิเคราะห์ใบหน้า…');
+      try{await loadFaceModels();}catch(e){toast('❌ โหลด AI ไม่สำเร็จ','err');return;}
+      const descriptor=await extractDescriptor(img);
+      if(!descriptor){toast('❌ ไม่พบใบหน้าในรูปนี้ — ลองรูปอื่น','err');return;}
+      const{data:ok,error}=await sb.rpc('admin_add_face_descriptor',{p_hash:getH(),p_id:empId,p_descriptor:descriptor});
+      if(error||!ok){toast('❌ '+(error?.message||'ไม่สำเร็จ').slice(0,60),'err');return;}
+      toast('✅ เพิ่มรูปใบหน้าแล้ว!');
       await loadEmployeesAdmin();
     };
     img.src=e.target.result;
@@ -1166,10 +1192,15 @@ let faceStream=null,faceTimer=null;
 async function startFaceScan(){
   const aEl=document.getElementById('actionArea');
   if(!aEl)return;
-  // สร้าง allDescs จากพนักงานทุกคนที่มี face_descriptor
+  // สร้าง allDescs — รองรับ multi-photo (face_descriptors) และ single fallback (face_descriptor)
   const allDescs=empsCache
-    .filter(e=>e.face_descriptor&&e.face_descriptor.length>0)
-    .map(e=>({id:e.id,name:e.name,desc:new Float32Array(e.face_descriptor)}));
+    .filter(e=>(e.face_descriptors?.length>0)||(e.face_descriptor?.length>0))
+    .map(e=>({
+      id:e.id,name:e.name,
+      descs:e.face_descriptors?.length>0
+        ?e.face_descriptors.map(d=>new Float32Array(d))
+        :[new Float32Array(e.face_descriptor)]
+    }));
   if(!allDescs.length){
     aEl.innerHTML=`<p style="text-align:center;color:var(--red);font-size:13px;padding:10px 0;">❌ ยังไม่มีข้อมูลใบหน้าของพนักงานคนใด<br>กรุณาให้ Admin อัปโหลดรูปก่อน</p><button class="btn-cancel" style="margin-top:10px;" onclick="closeModal()">ปิด</button>`;
     return;
@@ -1211,12 +1242,13 @@ async function startFaceScan(){
         .withFaceLandmarks(true).withFaceDescriptor();
     }catch(e){}
     if(det){
-      // 1:N — หาพนักงานที่ใกล้ที่สุดและรองลงมา
+      // 1:N — หาพนักงานที่ใกล้ที่สุด (min dist จากทุก descriptor ของคนนั้น)
       let bestDist=Infinity,bestEmp=null,secondDist=Infinity;
       for(const e of allDescs){
-        const d=faceapi.euclideanDistance(det.descriptor,e.desc);
-        if(d<bestDist){secondDist=bestDist;bestDist=d;bestEmp=e;}
-        else if(d<secondDist){secondDist=d;}
+        let minD=Infinity;
+        for(const desc of e.descs){const d=faceapi.euclideanDistance(det.descriptor,desc);if(d<minD)minD=d;}
+        if(minD<bestDist){secondDist=bestDist;bestDist=minD;bestEmp=e;}
+        else if(minD<secondDist){secondDist=minD;}
       }
       // ratio test: ถ้า best ใกล้กับ second มากเกินไป = ambiguous
       const ratio=allDescs.length>1?bestDist/secondDist:0;
