@@ -1196,9 +1196,9 @@ async function startFaceScan(){
     }
   }
   if(faceTxt)faceTxt.textContent='👤 หันหน้าเข้ากล้อง…';
-  const FACE_THRESH=0.45;   // Euclidean distance threshold
+  const FACE_THRESH=0.48;   // Euclidean distance threshold (0.45→0.48: match ง่ายขึ้น, ratio test ยังคุมอยู่)
   const RATIO_THRESH=0.85;  // best/second ratio — ยิ่งต่ำยิ่ง unambiguous
-  const MATCH_NEEDED=3;     // consecutive matching frames ก่อน countdown
+  const MATCH_NEEDED=2;     // consecutive matching frames ก่อน countdown (3→2: เร็วขึ้น ~0.6วิ)
   let counting=false,cdIv=null,matchStreak=0,lockedId=null,mismatchCount=0;
   faceTimer=setInterval(async()=>{
     const vid=document.getElementById('faceVid');
@@ -1207,7 +1207,7 @@ async function startFaceScan(){
     if(!vid||!cdEl){clearInterval(faceTimer);return;}
     let det=null;
     try{
-      det=await faceapi.detectSingleFace(vid,new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.5}))
+      det=await faceapi.detectSingleFace(vid,new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4}))
         .withFaceLandmarks(true).withFaceDescriptor();
     }catch(e){}
     if(det){
@@ -1248,8 +1248,8 @@ async function startFaceScan(){
       }
       // ผ่าน MATCH_NEEDED frames ติดต่อกัน → เริ่ม countdown
       if(!counting){
-        counting=true;let cd=3;
-        if(txtEl)txtEl.textContent=`✅ ยืนยัน ${bestEmp.name} สำเร็จ กรุณานิ่ง…`;
+        counting=true;let cd=1; // 3→1: GPS pre-fetched แล้วใน window._gps ไม่ต้องรอ
+        if(txtEl)txtEl.textContent=`✅ ยืนยัน ${bestEmp.name} แล้ว กำลังบันทึก…`;
         cdEl.style.opacity=1;cdEl.textContent=cd;
         const confirmedId=lockedId; // snapshot id ก่อน countdown
         cdIv=setInterval(()=>{
@@ -1272,7 +1272,7 @@ async function startFaceScan(){
       matchStreak=0;
       if(!counting&&txtEl)txtEl.textContent='👤 หันหน้าเข้ากล้อง…';
     }
-  },600);
+  },400); // 600→400ms: scan loop เร็วขึ้น
 }
 
 function stopFaceScan(){

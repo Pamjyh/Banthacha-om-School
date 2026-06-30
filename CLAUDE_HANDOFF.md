@@ -141,6 +141,7 @@ IS_ADMIN             // boolean — set ใน auth.js
 - PWA: manifest.json theme `#0075de`
 
 ### สถานะ ✅ ครบทุกอย่าง
+- UI mobile fix (2026-06-30): sticky ชื่อ → `min-width:100px;max-width:130px;white-space:normal` (ชื่อขึ้นบรรทัด 2 ได้, ไม่ตัด), `-webkit-overflow-scrolling:touch`, บีบคอลัมน์เดือน+สายรถ, เพิ่ม scroll hint
 
 ---
 
@@ -167,12 +168,18 @@ Public ยังทำได้: attendance INSERT (เช็คอิน) + lea
 ### LINE Bot (Supabase pg_cron)
 | Function | เวลา (ไทย) | cron (UTC) |
 |----------|-----------|-----------|
-| `send_line_morning_summary()` | 08:30 | `30 1 * * 1-5` |
-| `send_line_evening_summary()` | 16:30 | `30 9 * * 1-5` |
+| `send_line_evening_summary()` | 16:45 | `45 9 * * 1-5` |
 
-**Format เช้า**: ✅ เช็คอินแล้ว / 🏖️ ลาจริง / 🚌 ราชการ/อบรม / ⏰ ยังไม่เช็ค  
-**Format เย็น**: ✅ กลับบ้าน / 🏫 ยังอยู่ / 🚌 ราชการ/อบรม / ❌ ขาด + random closing msg (สุ่ม 7 ข้อความ)  
-duty_types: `['ไปราชการ','อบรม','ประชุม','ศึกษาดูงาน']` — แยกจากวันลาจริง
+> ส่งเย็นอย่างเดียว (ประหยัด credits) — `send_line_morning_summary()` DROP แล้ว 2026-06-30
+
+**Format เย็น (format A)**:
+- หัว: `📋 สรุป [วัน] [วันที่] [เดือน] [ปี พ.ศ. 2 หลัก]`
+- `🌅 มา X/Y คน` → ชื่อต้น+เวลา inline คั่น `, ` (ใช้ `LTRIM(HH24:MI,'0')` ไม่ใช้ FMHH24)
+- Exception เย็น: 🏫 ยังอยู่ / ✅ กลับบ้าน (ตัวเลข) / 🚌 ราชการ / 🏖️ ลา / ❌ ขาด
+- Closing: หมุนเวียน 15 ข้อความตาม DOY modulo (ไม่ซ้ำในรอบ 15 วัน)
+
+duty_types: `['ไปราชการ','อบรม','ประชุม','ศึกษาดูงาน']` — แยกจากวันลาจริง  
+ชื่อต้น: `split_part(regexp_replace(name, '^(นางสาว|นาง|นาย)\s*',''), ' ', 1)` — ลำดับ regex สำคัญ นางสาว ก่อน นาง
 
 ### CDN Versions (pinned)
 - `supabase-js@2.108.2` — อย่าเปลี่ยนเป็น `@2` (unpinned) อีก
