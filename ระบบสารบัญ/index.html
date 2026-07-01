@@ -278,6 +278,42 @@
 
     .hidden { display: none !important; }
 
+    /* ─── Quota warning near submit ─── */
+    #quotaWarn {
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: var(--r-md);
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    #quotaWarn.warn-orange {
+      background: #fff7ed;
+      border: 1px solid #fcd4a6;
+      color: #9a4500;
+    }
+    #quotaWarn.warn-red {
+      background: var(--error-bg);
+      border: 1px solid var(--error-bd);
+      color: var(--warn);
+    }
+
+    /* ─── LINE Quota Badge ─── */
+    .quota-badge {
+      margin-left: auto;
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 11px;
+      border-radius: var(--r-full);
+      border: 1px solid;
+      line-height: 1.4;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .quota-ok   { background: var(--success-bg); border-color: var(--success-bd); color: #0f7a28; }
+    .quota-warn { background: #fff7ed;            border-color: #fcd4a6;           color: #9a4500; }
+    .quota-low  { background: var(--error-bg);    border-color: var(--error-bd);   color: var(--warn); }
+
     /* ─── Year selector ─── */
     .year-row {
       display: flex;
@@ -366,6 +402,7 @@
     <div class="hdr-title">ระบบสารบัญ</div>
     <div class="hdr-sub">โรงเรียนบ้านท่าชะอม · อัปโหลดและมอบหมายเอกสาร</div>
   </div>
+  <div id="lineQuotaBadge"></div>
 </header>
 
 <main>
@@ -450,6 +487,8 @@
 
     <div id="resultArea"></div>
 
+    <div id="quotaWarn" class="hidden"></div>
+
     <button id="submitBtn" disabled>
       ส่งเอกสาร &amp; แจ้ง LINE
     </button>
@@ -462,7 +501,7 @@
 // ============================================================
 //  CONFIG — แก้ตรงนี้หลัง deploy Apps Script
 // ============================================================
-var API = 'https://script.google.com/macros/s/AKfycbwPKoYGeMRJH2V42GLgDnsrXDRHJCGCRGMW4JcbuoPxChYuaClKj5PjfWAmRS-zj-KF/exec';
+var API = 'https://script.google.com/macros/s/AKfycbwO_gCkXYAjBKGwEbXTuEg-mKbK8lv_Po5csUnU7VzjZ7a-It22LyD6HOiYI1BdNh1V3A/exec';
 // ตัวอย่าง: 'https://script.google.com/macros/s/AKfy.../exec'
 
 // ============================================================
@@ -486,6 +525,8 @@ window.addEventListener('DOMContentLoaded', function() {
   setupDrop();
   populateYears();
   loadTeachers();
+  loadLineQuota();
+  setInterval(loadLineQuota, 5 * 60 * 1000); // refresh ทุก 5 นาที
 
   document.getElementById('fileInput').addEventListener('change', function() {
     if (this.files[0]) handleFile(this.files[0]);
@@ -502,9 +543,10 @@ window.addEventListener('DOMContentLoaded', function() {
 //  YEAR SELECTOR
 // ============================================================
 function populateYears() {
-  var sel = document.getElementById('yearSel');
+  var sel      = document.getElementById('yearSel');
   var thaiYear = new Date().getFullYear() + 543; // พ.ศ.
-  for (var y = thaiYear + 1; y >= thaiYear - 3; y--) {
+  var BASE     = 2566; // ปีเริ่มต้นระบบ — เพิ่มปีใหม่อัตโนมัติทุกปีโดยไม่ต้องแก้โค้ด
+  for (var y = thaiYear + 1; y >= BASE; y--) {
     var opt = document.createElement('option');
     opt.value = y;
     opt.textContent = y;
@@ -523,6 +565,42 @@ function getYearType() {
 
 function getYear() {
   return document.getElementById('yearSel').value;
+}
+
+// ============================================================
+//  LINE QUOTA
+// ============================================================
+function loadLineQuota() {
+  if (!API || API === 'YOUR_APPS_SCRIPT_URL') return;
+  fetch(API + '?action=getLineQuota')
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      var el = document.getElementById('lineQuotaBadge');
+      if (!el || !res.ok || res.remaining === null) return;
+      var rem = res.remaining, limit = res.limit;
+      var cls = rem > 100 ? 'quota-ok' : (rem > 30 ? 'quota-warn' : 'quota-low');
+      el.className = 'quota-badge ' + cls;
+      el.innerHTML = rem >= 0
+        ? '💬 LINE เหลือ ' + rem + ' / ' + limit
+        : '🚫 LINE เกิน quota (' + Math.abs(rem) + ')';
+      el.title = 'ใช้ไปแล้ว ' + res.used + ' ครั้งเดือนนี้';
+
+      // warning ใกล้ปุ่ม submit เมื่อ credits น้อย
+      var warnEl = document.getElementById('quotaWarn');
+      if (warnEl) {
+        if (rem <= 0) {
+          warnEl.className = 'warn-red';
+          warnEl.textContent = '🚫 LINE quota หมดแล้ว — เอกสารจะถูกบันทึกแต่ครูไม่ได้รับแจ้ง';
+        } else if (rem <= 30) {
+          warnEl.className = 'warn-red';
+          warnEl.textContent = '⚠️ LINE เหลือ ' + rem + ' credits — ใกล้หมดแล้ว';
+        } else {
+          warnEl.className = 'hidden';
+          warnEl.textContent = '';
+        }
+      }
+    })
+    .catch(function() { /* ไม่แสดงถ้า fetch ล้มเหลว */ });
 }
 
 // ============================================================
@@ -831,7 +909,8 @@ async function submitDoc() {
 
     if (!data.ok) { showError(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่'); return; }
 
-    showSuccess(teachers, data.url);
+    showSuccess(teachers, data.url, data.lineOk !== false);
+    setTimeout(loadLineQuota, 3000); // รอ LINE API update quota แล้ว refresh badge
   } catch (err) {
     showError('ไม่สามารถเชื่อมต่อได้: ' + err.message);
   }
@@ -854,14 +933,19 @@ function toBase64(f) {
   });
 }
 
-function showSuccess(teachers, url) {
+function showSuccess(teachers, url, lineOk) {
   var nameStr = teachers.length === 1
     ? teachers[0]
     : teachers.slice(0, -1).join(', ') + ' และ ' + teachers[teachers.length - 1];
+  var cls   = lineOk ? 'success' : 'error';
+  var icon  = lineOk ? '✅' : '⚠️';
+  var title = lineOk
+    ? 'อัปโหลดสำเร็จ — แจ้ง ' + esc(nameStr) + ' ทาง LINE แล้ว'
+    : 'อัปโหลดไฟล์สำเร็จ แต่ส่ง LINE ไม่สำเร็จ — กรุณาแจ้งครูด้วยตนเอง';
   document.getElementById('resultArea').innerHTML =
-    '<div class="result success">' +
-      '<div class="r-icon">✅</div>' +
-      '<div class="r-title">อัปโหลดสำเร็จ — แจ้ง ' + esc(nameStr) + ' ทาง LINE แล้ว</div>' +
+    '<div class="result ' + cls + '">' +
+      '<div class="r-icon">' + icon + '</div>' +
+      '<div class="r-title">' + esc(title) + '</div>' +
       '<a class="r-link" href="' + esc(url) + '" target="_blank">🔗 เปิดไฟล์บน Google Drive</a>' +
       '<br><button class="btn-reset" id="btnReset">ส่งเอกสารอีกชิ้น</button>' +
     '</div>';
