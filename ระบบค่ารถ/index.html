@@ -207,6 +207,14 @@
         <div class="card-h">📊 สรุปรายชั้น</div>
         <div id="dashBox"><div class="empty">กำลังโหลด...</div></div>
       </div>
+      <div class="card">
+        <div class="card-h">🚌 สรุปสายรถ</div>
+        <div id="routeBox"><div class="empty">กำลังโหลด...</div></div>
+      </div>
+      <div class="card">
+        <div class="card-h">📅 สรุปรายเดือน</div>
+        <div id="monthBox"><div class="empty">กำลังโหลด...</div></div>
+      </div>
     </div>
 
     <!-- EXTERNAL -->
@@ -245,7 +253,7 @@
 
 <script>
 // ====== CONFIG ======
-var API = 'https://script.google.com/macros/s/AKfycbwBcJIcNODOdvCsYLFKxvpPSJqgI6c04PMVMbh4Vjqh2S8j4hihYp7pnjcuk8-ki4i8pQ/exec';
+var API = 'https://script.google.com/macros/s/AKfycbxAQqAdzl0x8Juwu4OD5A3q0EwUux1iDVHSsTJDXnGwFjmXnyJOedfIZGA9D1tqrPb2bQ/exec';
 // ลิงก์ระบบบริหารงาน — ใช้ path สัมพัทธ์ (อยู่ใน repo เดียวกัน)
 var SCHOOL_MGMT_URL = '../ระบบบริหารงาน/';
 
@@ -555,6 +563,8 @@ function loadDash(){
   var cached = ccGet(dk);
   if(cached){ renderDash(cached); return; }
   document.getElementById('dashBox').innerHTML='<div class="empty">กำลังโหลด...</div>';
+  document.getElementById('routeBox').innerHTML='<div class="empty">กำลังโหลด...</div>';
+  document.getElementById('monthBox').innerHTML='<div class="empty">กำลังโหลด...</div>';
   api('getDashboard', {year:c.year, term:c.term}).then(function(res){
     ccSet(dk, res);
     renderDash(res);
@@ -562,14 +572,25 @@ function loadDash(){
 }
 
 function renderDash(res){
-  if(!res.ok){ document.getElementById('dashBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>'; return; }
+  if(!res.ok){
+    document.getElementById('dashBox').innerHTML='<div class="empty">'+(res.error||'ผิดพลาด')+'</div>';
+    document.getElementById('routeBox').innerHTML='';
+    document.getElementById('monthBox').innerHTML='';
+    return;
+  }
   var t = res.totals;
   document.getElementById('dashStats').innerHTML =
     stat('คนนั่งรถ', t.riders + ' คน') +
     stat('จ่ายครบ', t.fullyPaid + ' คน') +
     stat('เก็บได้', money(t.collected)) +
     stat('ค้างชำระ', money(t.outstanding));
-  if(!res.grades.length){ document.getElementById('dashBox').innerHTML='<div class="empty">ยังไม่มีคนนั่งรถ</div>'; return; }
+  if(!res.grades.length){
+    document.getElementById('dashBox').innerHTML='<div class="empty">ยังไม่มีคนนั่งรถ</div>';
+    document.getElementById('routeBox').innerHTML='<div class="empty">ยังไม่มีคนนั่งรถ</div>';
+    document.getElementById('monthBox').innerHTML='<div class="empty">ยังไม่มีคนนั่งรถ</div>';
+    return;
+  }
+  // สรุปรายชั้น
   var h='<table><thead><tr><th>ชั้น</th><th class="c">คนนั่งรถ</th><th class="c">จ่ายครบ</th><th class="r">เก็บได้</th><th class="r">ค้าง</th><th class="c">ความคืบหน้า</th></tr></thead><tbody>';
   res.grades.forEach(function(g){
     var out = g.expected - g.collected;
@@ -580,8 +601,104 @@ function renderDash(res){
   });
   h+='</tbody></table>';
   document.getElementById('dashBox').innerHTML=h;
+  // สรุปสายรถ + สรุปรายเดือน
+  renderRoutes(res);
+  renderMonthSummary(res);
 }
 function stat(k,v){ return '<div class="stat"><div class="k">'+k+'</div><div class="v">'+v+'</div></div>'; }
+
+function gradeOrderVal(g){
+  var grades = (STATE.cfg && STATE.cfg.grades) || ['อ.2','อ.3','ป.1','ป.2','ป.3','ป.4','ป.5','ป.6'];
+  var i = grades.indexOf(g);
+  return i < 0 ? 99 : i;
+}
+
+function renderRoutes(res){
+  // รวมนักเรียนทุกชั้น จัดกลุ่มตามสายรถ
+  var routes = {};
+  res.grades.forEach(function(g){
+    g.students.forEach(function(s){
+      var r = (s.route||'').trim() || '(ไม่ระบุสาย)';
+      if(!routes[r]) routes[r] = [];
+      routes[r].push({name:s.name, grade:g.grade});
+    });
+  });
+  var keys = Object.keys(routes).sort(function(a,b){
+    if(a==='(ไม่ระบุสาย)') return 1;
+    if(b==='(ไม่ระบุสาย)') return -1;
+    return a.localeCompare(b,'th');
+  });
+  if(!keys.length){ document.getElementById('routeBox').innerHTML='<div class="empty">ไม่มีคนนั่งรถ</div>'; return; }
+  var h='';
+  keys.forEach(function(rname,ri){
+    var sts = routes[rname];
+    // จัดกลุ่มตามชั้น
+    var byGrade = {};
+    sts.forEach(function(s){
+      if(!byGrade[s.grade]) byGrade[s.grade] = [];
+      byGrade[s.grade].push(s.name);
+    });
+    var gradeKeys = Object.keys(byGrade).sort(function(a,b){ return gradeOrderVal(a)-gradeOrderVal(b); });
+    h+='<div style="padding:14px 18px'+(ri<keys.length-1?';border-bottom:1px solid var(--border-light)':'')+';">';
+    h+='<div style="font-weight:700;margin-bottom:8px">🚌 '+esc(rname)+' <span class="muted">'+sts.length+' คน</span></div>';
+    gradeKeys.forEach(function(g){
+      h+='<div style="font-size:14px;margin-bottom:4px;line-height:1.5">';
+      h+='<span style="font-weight:600;color:var(--primary);display:inline-block;min-width:38px">'+esc(g)+'</span> ';
+      h+=byGrade[g].map(esc).join('&ensp;·&ensp;');
+      h+='</div>';
+    });
+    h+='</div>';
+  });
+  document.getElementById('routeBox').innerHTML=h;
+}
+
+var _activeDashMonth = null;
+var _dashRes = null;
+
+function renderMonthSummary(res){
+  _dashRes = res;
+  if(!res.monthList||!res.monthList.length){ document.getElementById('monthBox').innerHTML='<div class="empty">ไม่มีข้อมูลเดือน</div>'; return; }
+  if(!_activeDashMonth || res.monthList.indexOf(_activeDashMonth)<0) _activeDashMonth = res.monthList[0];
+  var tabs='<div style="display:flex;gap:6px;padding:12px 18px;border-bottom:1px solid var(--border-light);flex-wrap:wrap">';
+  res.monthList.forEach(function(m,mi){
+    var active = m===_activeDashMonth;
+    tabs+='<button onclick="switchDashMonth('+mi+')" style="font-family:var(--font);font-size:13px;font-weight:600;padding:6px 16px;border-radius:20px;cursor:pointer;transition:.15s;border:1px solid '+(active?'var(--primary);background:var(--primary);color:#fff':'var(--border);background:var(--surface);color:var(--ink-muted)')+'">'+esc(m)+'</button>';
+  });
+  tabs+='</div>';
+  document.getElementById('monthBox').innerHTML=tabs+renderMonthContent(res,_activeDashMonth);
+}
+
+function switchDashMonth(mi){
+  if(!_dashRes||!_dashRes.monthList[mi]) return;
+  _activeDashMonth=_dashRes.monthList[mi];
+  renderMonthSummary(_dashRes);
+}
+
+function renderMonthContent(res,month){
+  var allPaid=0,allTotal=0;
+  res.grades.forEach(function(g){
+    allPaid  +=g.students.filter(function(s){return s.months&&s.months[month];}).length;
+    allTotal +=g.students.length;
+  });
+  var h='<div style="padding:14px 18px">';
+  h+='<div style="margin-bottom:12px"><span class="pill '+(allPaid===allTotal?'pill-green':'pill-amber')+'">รวมจ่าย '+allPaid+' / '+allTotal+' คน</span></div>';
+  res.grades.forEach(function(g){
+    if(!g.students.length) return;
+    var paid   =g.students.filter(function(s){return s.months&&s.months[month];});
+    var unpaid =g.students.filter(function(s){return !s.months||!s.months[month];});
+    h+='<div style="margin-bottom:10px;font-size:14px;line-height:1.6">';
+    h+='<span style="font-weight:600;color:var(--primary);display:inline-block;min-width:38px">'+esc(g.grade)+'</span> ';
+    h+='<span class="pill '+(unpaid.length===0?'pill-green':'pill-amber')+'" style="margin-right:6px">จ่าย '+paid.length+'/'+g.students.length+'</span>';
+    if(unpaid.length>0){
+      h+='<span style="color:var(--red);font-size:13px">ค้าง: '+unpaid.map(function(s){return esc(s.name);}).join(', ')+'</span>';
+    } else {
+      h+='<span style="color:var(--green);font-size:13px">✓ ครบทุกคน</span>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+  return h;
+}
 
 // ====== EXTERNAL ======
 function loadExternal(){

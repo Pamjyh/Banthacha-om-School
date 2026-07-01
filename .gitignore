@@ -1,2 +1,5 @@
 .DS_Store
 *.skill
+
+# Apps Script files — มี credentials จริง ห้าม commit
+ระบบสารบัญ/Code.gs

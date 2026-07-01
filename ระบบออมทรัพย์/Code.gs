@@ -394,13 +394,20 @@ function addTransaction(p, type) {
   const txSheet = ss.getSheetByName('ธุรกรรม');
   if (!txSheet) return { ok: false, error: 'ไม่พบ sheet "ธุรกรรม" — กรุณารัน initSheets ก่อน (SHEET_ID=' + SHEET_ID + ')' };
 
-  // หาชื่อและชั้นนักเรียน
-  const studData = ss.getSheetByName('นักเรียน').getDataRange().getValues();
+  // หาชื่อและชั้นนักเรียน — ใช้ dynamic header ป้องกัน column order เปลี่ยน
+  const studAllData = ss.getSheetByName('นักเรียน').getDataRange().getValues();
+  const studHeaders = studAllData[0].map(function(h) { return String(h).trim(); });
+  function findSColTx(names) {
+    for (var n of names) { var idx = studHeaders.indexOf(n); if (idx >= 0) return idx; }
+    return -1;
+  }
+  const siName  = findSColTx(['ชื่อ-สกุล', 'ชื่อ สกุล', 'ชื่อ']);
+  const siGrade = findSColTx(['ชั้นปัจจุบัน', 'ชั้น']);
   let studentName = '', studentGrade = '';
-  for (let i = 1; i < studData.length; i++) {
-    if (String(studData[i][0]) === String(p.studentId)) {
-      studentName = studData[i][1];
-      studentGrade = studData[i][2];
+  for (let i = 1; i < studAllData.length; i++) {
+    if (String(studAllData[i][0]) === String(p.studentId)) {
+      studentName  = siName  >= 0 ? String(studAllData[i][siName]  || '') : '';
+      studentGrade = siGrade >= 0 ? String(studAllData[i][siGrade] || '') : '';
       break;
     }
   }
@@ -617,20 +624,40 @@ function getHistory(p) {
 function getAllSummary(p) {
   if (p.password !== ADMIN_PASSWORD) return { ok: false, error: 'เฉพาะผู้ดูแล' };
   const ss = SpreadsheetApp.openById(SHEET_ID);
-  const studRows = ss.getSheetByName('นักเรียน').getDataRange().getValues().slice(1)
-    .filter(r => r[0] !== '');
+  const studAllData = ss.getSheetByName('นักเรียน').getDataRange().getValues();
+  // dynamic header lookup ป้องกัน column order เปลี่ยน
+  const sumHeaders = studAllData[0].map(function(h) { return String(h).trim(); });
+  function findSColSum(names) {
+    for (var n of names) { var idx = sumHeaders.indexOf(n); if (idx >= 0) return idx; }
+    return -1;
+  }
+  const ssId     = findSColSum(['id']);
+  const ssName   = findSColSum(['ชื่อ-สกุล', 'ชื่อ สกุล', 'ชื่อ']);
+  const ssGrade  = findSColSum(['ชั้นปัจจุบัน', 'ชั้น']);
+  const ssYear   = findSColSum(['ปีที่เข้า', 'ปีการศึกษา']);
+  const ssStatus = findSColSum(['สถานะ']);
+  const ssBank   = findSColSum(['เลขบัญชี_ธกส', 'เลขบัญชีธกส', 'เลขบัญชี']);
+
+  const studRows = studAllData.slice(1).filter(function(r) { return r[ssId >= 0 ? ssId : 0] !== ''; });
   const balances = calcAllBalances(ss);
   const grades = {};
   GRADES.forEach(g => grades[g] = { students:[], totalBalance:0 });
-  studRows.forEach(r => {
-    const grade = r[2], status = r[4];
+  studRows.forEach(function(r) {
+    const id     = String(r[ssId     >= 0 ? ssId     : 0] || '');
+    const name   = String(r[ssName   >= 0 ? ssName   : 1] || '');
+    const grade  = String(r[ssGrade  >= 0 ? ssGrade  : 2] || '');
+    const year   = String(r[ssYear   >= 0 ? ssYear   : 3] || '');
+    const status = String(r[ssStatus >= 0 ? ssStatus : 4] || '');
+    const bank   = String(r[ssBank   >= 0 ? ssBank   : 5] || '');
     if (status === 'จบการศึกษา' || !grades[grade]) return;
-    const bal = balances[r[0]] || 0;
-    grades[grade].students.push({ id:r[0], name:r[1], grade, entryYear:r[3], bankAccount:r[5]||'', balance:bal });
+    const bal = balances[id] || 0;
+    grades[grade].students.push({ id, name, grade, entryYear:year, bankAccount:bank, balance:bal });
     grades[grade].totalBalance += bal;
   });
   const grandTotal = Object.values(grades).reduce((s,g) => s+g.totalBalance, 0);
-  const totalStudents = studRows.filter(r => r[4] !== 'จบการศึกษา').length;
+  const totalStudents = studRows.filter(function(r) {
+    return String(r[ssStatus >= 0 ? ssStatus : 4] || '') !== 'จบการศึกษา';
+  }).length;
   return { ok: true, grades, grandTotal, totalStudents };
 }
 

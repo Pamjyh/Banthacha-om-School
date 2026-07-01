@@ -469,9 +469,12 @@ function getDashboard(p) {
     g.expected += termTotal;
     g.collected += amt;
     if (cnt === months.length && months.length > 0) g.fullyPaid++;
+    const pm = {};
+    months.forEach(m => { pm[m] = !!(paid[sid] && paid[sid][m]); });
     g.students.push({
       id: sid, name: s.name, route: riders[sid].route,
-      paidCount: cnt, paidAmount: amt, complete: cnt === months.length
+      paidCount: cnt, paidAmount: amt, complete: cnt === months.length,
+      months: pm
     });
   });
 
