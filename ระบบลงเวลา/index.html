@@ -836,6 +836,10 @@ function loadSettingsUI(){
   const extras=s.extra_workdays||[];
   const body=document.getElementById('adminBody');if(!body)return;
   body.innerHTML=`<div class="sec-head">ตั้งค่าระบบ</div>
+  <div class="card" id="lineQuotaCard">
+    <div class="card-title">💬 LINE เครดิตข้อความ (ระบบลงเวลา)</div>
+    <div id="lineQuotaBody" style="display:flex;align-items:center;gap:10px;padding:4px 0;"><div class="spinner spinner-sm"></div><span style="font-size:13px;color:var(--muted);">กำลังโหลด…</span></div>
+  </div>
   <div class="card"><div class="card-title">🏫 ชื่อหน่วยงาน</div>
     <div class="ff"><label>ชื่อโรงเรียน</label><input id="sName" value="${s.school_name||''}"></div>
   </div>
@@ -865,6 +869,35 @@ function loadSettingsUI(){
     <div id="extraList">${renderHolidayList(extras,'extra')}</div>
   </div>
   <button class="btn-blue" onclick="saveSettings()" style="padding:12px 32px;">บันทึกการตั้งค่า</button>`;
+  loadLineBadge();
+}
+
+async function loadLineBadge(){
+  const el=document.getElementById('lineQuotaBody');
+  if(!el)return;
+  try{
+    const {data,error}=await sb.rpc('get_line_quota_info');
+    if(error||!data){el.innerHTML=`<span style="font-size:13px;color:var(--red);">❌ โหลดไม่ได้: ${error?.message||'unknown'}</span>`;return;}
+    if(data.error){el.innerHTML=`<span style="font-size:13px;color:var(--red);">❌ ${data.error}</span>`;return;}
+    const used=data.usage||0;
+    const lim=data.limit;
+    const rem=data.remaining!=null?data.remaining:(lim!=null?lim-used:null);
+    const pct=lim?Math.min(100,Math.round(used/lim*100)):0;
+    const barColor=rem==null?'var(--primary)':rem>50?'var(--green)':rem>10?'#ff9500':'var(--red)';
+    el.innerHTML=`
+      <div style="width:100%;">
+        <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+          <span style="font-size:28px;font-weight:700;color:${barColor};">${rem!=null?rem:'∞'}</span>
+          <span style="font-size:13px;color:var(--muted);">เครดิตคงเหลือ</span>
+          ${lim!=null?`<span style="font-size:12px;color:var(--faint);margin-left:auto;">ใช้ ${used}/${lim} (${pct}%)</span>`:'<span style="font-size:12px;color:var(--faint);margin-left:auto;">ไม่จำกัด</span>'}
+          <button onclick="loadLineBadge()" style="background:none;border:none;color:var(--primary);font-size:14px;cursor:pointer;padding:2px 6px;" title="รีเฟรช">↻</button>
+        </div>
+        ${lim!=null?`<div style="background:var(--hairline);border-radius:9999px;height:6px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:9999px;transition:width 0.4s;"></div>
+        </div>
+        <div style="font-size:11px;color:var(--faint);margin-top:6px;">รีเซ็ตทุกต้นเดือน · <a href="https://manager.line.biz" target="_blank" style="color:var(--primary);text-decoration:none;">ดูใน LINE OA Manager →</a></div>`:''}
+      </div>`;
+  }catch(e){el.innerHTML=`<span style="font-size:13px;color:var(--red);">❌ ${e.message}</span>`;}
 }
 
 function renderHolidayList(arr, type){

@@ -1524,6 +1524,12 @@ function loadMonthSummary() {
 function doLoadMonthData() {
   var mEl = document.getElementById('month-table');
   var sEl = document.getElementById('month-summary-card');
+  // guard: ถ้า allStus ยังไม่โหลด (race condition) ให้รอแล้วลองใหม่
+  if (!allStus.length) {
+    if (mEl) mEl.innerHTML = '<div class="load">⏳ กำลังโหลดรายชื่อ...</div>';
+    setTimeout(doLoadMonthData, 500);
+    return;
+  }
   if (mEl) mEl.innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
 
   apiCall({action:'getHistory', grade:curGrade, limit:1000}, function(r) {
@@ -1624,6 +1630,12 @@ function doLoadMonthData() {
 
 function loadTodaySummary() {
   var el=document.getElementById('today-content');
+  // guard: ถ้า allStus ยังไม่โหลด (race condition) ให้รอแล้วลองใหม่
+  if (!allStus.length) {
+    el.innerHTML='<div class="load">⏳ กำลังโหลดรายชื่อ...</div>';
+    setTimeout(loadTodaySummary, 500);
+    return;
+  }
   el.innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
   // ใช้ UTC+7 fixed เสมอ ป้องกัน timezone client ผิด
   var now=new Date(Date.now() + 7*60*60*1000);
@@ -1831,6 +1843,9 @@ function confirmTx() {
     if(s){s.balance=r.newBalance; selStu.balance=r.newBalance;}
     ccDel('stus_'+curGrade); // ล้าง client cache เพราะยอดเงินเปลี่ยน
     renderStus(); renderStats(); loadGradeTx();
+    // refresh today/month tab ถ้าผู้ใช้อยู่ที่ tab นั้น ป้องกันข้อมูลค้าง
+    if (curStudentTab === 'today') loadTodaySummary();
+    if (curStudentTab === 'month') loadMonthSummary();
     setTimeout(function(){
       closeMo('tx');
       document.getElementById('tx-amt').disabled=false;
