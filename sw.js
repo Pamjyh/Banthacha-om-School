@@ -29,8 +29,16 @@ const NO_CACHE_HOSTS = [
   'cdn.jsdelivr.net',
 ];
 
+// ไฟล์ในโดเมนตัวเองที่ต้องโหลดสดเสมอ ห้าม cache แม้จะ same-origin
+// (system-status.js: ต้องเห็นผลทันทีตอน admin เปลี่ยนสถานะเปิด/ปิดระบบ)
+const NO_CACHE_PATHS = [
+  'system-status.js',
+];
+
 function isApiCall(url) {
-  return NO_CACHE_HOSTS.some(h => url.hostname.includes(h));
+  if (NO_CACHE_HOSTS.some(h => url.hostname.includes(h))) return true;
+  if (NO_CACHE_PATHS.some(p => url.pathname.endsWith(p))) return true;
+  return false;
 }
 
 // ─── INSTALL ─────────────────────────────────────────────────────────
