@@ -446,6 +446,22 @@ a { color: inherit; text-decoration: none; }
   </div>
 </div>
 
+<!-- Admin modal — ปิด/เปิดระบบชั่วคราว (เข้าถึงผ่านคลิกลับที่ชื่อโรงเรียนในท้ายหน้า 5 ครั้งติดกันเท่านั้น) -->
+<div id="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-modal-title"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:var(--canvas); border-radius:var(--radius-lg); padding:24px; max-width:380px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,.25);">
+    <h2 id="admin-modal-title" style="font-size:18px; font-weight:700; margin-bottom:14px; color:var(--ink);">🔧 จัดการสถานะระบบ</h2>
+    <input type="password" id="admin-pw-input" placeholder="รหัสผ่าน admin"
+           style="width:100%; padding:10px 12px; border:1px solid var(--hairline); border-radius:8px; font-size:15px; font-family:'Sarabun',sans-serif; margin-bottom:14px; box-sizing:border-box;">
+    <div id="admin-sys-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;"></div>
+    <div id="admin-msg" style="font-size:13px; color:var(--ink-muted); min-height:18px; margin-bottom:10px;"></div>
+    <button id="admin-close-btn" type="button"
+            style="width:100%; padding:10px; border-radius:var(--radius-full); border:1px solid var(--hairline); background:var(--canvas-soft); font-family:'Sarabun',sans-serif; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer;">
+      ปิดหน้าต่างนี้
+    </button>
+  </div>
+</div>
+
 <!-- Portal page -->
 <div id="page-wrapper">
 
@@ -701,56 +717,162 @@ function closeSystem() {
 }
 
 /* ─────────────────────────────────────────────
-   SYSTEM STATUS (เปิด/ปิดชั่วคราว) + CARD HANDLERS
-   ต้องรู้สถานะก่อน ค่อยผูกปุ่มกด — กันปุ่มกดใช้ได้ทั้งที่ badge บอกว่าปิด
+   SYSTEM STATUS (เปิด/ปิดชั่วคราว) — เก็บใน Supabase
+   อ่านได้สาธารณะ (ไม่ต้อง login) เขียนได้เฉพาะผ่าน RPC ที่เช็ครหัสผ่านฝั่ง server
 ───────────────────────────────────────────── */
-function applyCardStatus(card) {
-  var id     = card.dataset.sysId;
-  // fail-open: ไม่มีไฟล์สถานะ / ไม่มี id นี้ / พิมพ์ผิด → ถือว่า "on" เสมอ กันพลาดล็อกทุกระบบ
-  var status = (window.SYSTEM_STATUS && id && window.SYSTEM_STATUS[id]) || 'on';
-  if (status !== 'off') return;
+var SUPABASE_URL      = 'https://cgwtgqyllalaogdgyxlo.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd3RncXlsbGFsYW9nZGd5eGxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDc2MDYsImV4cCI6MjA5NTc4MzYwNn0.hDZPSLM8SVsTDwjpT3-yAhxgBc6b1sX3Tay_HRfyf78';
+var SYSTEM_LABELS = {
+  finance:    'การเงินและพัสดุ',
+  savings:    'ออมทรัพย์นักเรียน',
+  attendance: 'ลงเวลาปฏิบัติงาน',
+  sarabun:    'ระบบสารบัญ',
+  karod:      'เก็บค่ารถ',
+};
+var _statusMap = {}; // { system_id: 'on'|'off' } — ว่างเปล่า = ทุกระบบถือว่า on (fail-open)
 
-  card.classList.add('sys-card--inactive');
+function loadSystemStatus() {
+  return fetch(SUPABASE_URL + '/rest/v1/portal_system_status?select=system_id,status', {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(rows) {
+      _statusMap = {};
+      (rows || []).forEach(function(row) { _statusMap[row.system_id] = row.status; });
+    })
+    .catch(function() { _statusMap = {}; }); // เน็ตมีปัญหา/query พัง → ถือว่าทุกระบบ on
+}
+
+// เติม/ล้างสถานะ "ปิด" ให้การ์ด — เรียกซ้ำได้เรื่อยๆ ไม่ทำให้พัง (idempotent ทั้งสองทิศทาง)
+function applyCardStatus(card) {
+  if (!card.dataset.origLabel) card.dataset.origLabel = card.getAttribute('aria-label') || card.dataset.title || '';
+  var id     = card.dataset.sysId;
+  var status = (id && _statusMap[id]) || 'on'; // fail-open: ไม่มี id นี้ / พิมพ์ผิด / ยังไม่โหลด → on เสมอ
+  var isOff  = status === 'off';
+
+  card.classList.toggle('sys-card--inactive', isOff);
 
   var badge = card.querySelector('.badge');
   if (badge) {
-    badge.className   = 'badge badge-off';
-    badge.textContent = 'ปิดปรับปรุงชั่วคราว';
+    badge.className   = isOff ? 'badge badge-off' : 'badge badge-active';
+    badge.textContent = isOff ? 'ปิดปรับปรุงชั่วคราว' : 'ใช้งานได้';
   }
-  var btn = card.querySelector('.card-btn');
+  var btn = card.querySelector('.card-btn, .card-btn-inactive');
   if (btn) {
-    btn.className   = 'card-btn-inactive';
-    btn.textContent = 'ปิดชั่วคราว';
+    btn.className   = isOff ? 'card-btn-inactive' : 'card-btn';
+    btn.textContent = isOff ? 'ปิดชั่วคราว' : 'เปิดระบบ →';
   }
-  var baseLabel = card.getAttribute('aria-label') || card.dataset.title || '';
-  card.setAttribute('aria-label', baseLabel + ' — ปิดปรับปรุงชั่วคราว ยังกดเข้าไม่ได้ตอนนี้');
+  card.setAttribute('aria-label', card.dataset.origLabel + (isOff ? ' — ปิดปรับปรุงชั่วคราว ยังกดเข้าไม่ได้ตอนนี้' : ''));
 }
 
 function initCards() {
   document.querySelectorAll('.sys-card').forEach(applyCardStatus);
+}
 
-  // ผูก click/keydown เฉพาะการ์ดที่ยัง active (เช็คหลังรู้สถานะแล้วเท่านั้น)
-  document.querySelectorAll('.sys-card:not(.sys-card--inactive)').forEach(card => {
-    const handler = () => {
-      const url   = card.dataset.url;
-      const title = card.dataset.title;
+// ผูก click/keydown "ครั้งเดียว" ตอนโหลดหน้า — handler เช็คสถานะปัจจุบันตอนกดจริงเสมอ
+// (ไม่ใช่ตอน bind) กันบั๊กปุ่มกดใช้ได้ทั้งที่ badge บอกว่าปิด ไม่ว่าสถานะจะเปลี่ยนกี่ครั้งก็ตาม
+function initCardHandlers() {
+  document.querySelectorAll('.sys-card').forEach(function(card) {
+    var handler = function() {
+      if (card.classList.contains('sys-card--inactive')) return;
+      var url   = card.dataset.url;
+      var title = card.dataset.title;
       if (url) openSystem(url, title);
     };
     card.addEventListener('click', handler);
-    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } });
+    card.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } });
   });
 }
 
-function loadSystemStatusThenInitCards() {
-  var s = document.createElement('script');
-  // cache-bust: URL ไม่ซ้ำทุกครั้งที่โหลด กัน browser/Service Worker cache ค่าเก่าไว้
-  s.src = 'system-status.js?t=' + Date.now();
-  s.onload  = initCards;
-  s.onerror = initCards; // โหลดไม่ได้ก็ยัง init การ์ดต่อ (SYSTEM_STATUS ว่าง → ทุกระบบถือว่า on)
-  document.head.appendChild(s);
+initCardHandlers();
+loadSystemStatus().then(initCards);
+
+/* ─────────────────────────────────────────────
+   ADMIN PANEL — เข้าถึงผ่านคลิกชื่อโรงเรียนท้ายหน้า 5 ครั้งติดกัน
+───────────────────────────────────────────── */
+var _adminClicks = 0, _adminClickTimer = null;
+var footerSchoolEl = document.querySelector('.footer-school');
+if (footerSchoolEl) {
+  footerSchoolEl.style.cursor = 'default';
+  footerSchoolEl.addEventListener('click', function() {
+    _adminClicks++;
+    clearTimeout(_adminClickTimer);
+    _adminClickTimer = setTimeout(function() { _adminClicks = 0; }, 3000);
+    if (_adminClicks >= 5) {
+      _adminClicks = 0;
+      openAdminModal();
+    }
+  });
 }
 
-loadSystemStatusThenInitCards();
+function openAdminModal() {
+  document.getElementById('admin-msg').textContent = '';
+  document.getElementById('admin-pw-input').value = '';
+  renderAdminList(); // โชว์ค่าที่มีอยู่ก่อน (เผื่อเน็ตช้า) แล้วค่อย refresh ให้ล่าสุดด้านล่าง
+  document.getElementById('admin-modal').style.display = 'flex';
+  document.getElementById('admin-pw-input').focus();
+  loadSystemStatus().then(renderAdminList); // ดึงค่าล่าสุดอีกที เผื่อมีคนแก้จากที่อื่นระหว่างที่หน้านี้เปิดค้างไว้
+}
+function closeAdminModal() {
+  document.getElementById('admin-modal').style.display = 'none';
+}
+document.getElementById('admin-close-btn').addEventListener('click', closeAdminModal);
+document.getElementById('admin-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeAdminModal();
+});
+
+function renderAdminList() {
+  var el = document.getElementById('admin-sys-list');
+  el.innerHTML = Object.keys(SYSTEM_LABELS).map(function(id) {
+    var isOn = (_statusMap[id] || 'on') === 'on';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border:1px solid var(--hairline);border-radius:8px">' +
+      '<span style="font-size:14px;color:var(--ink)">' + SYSTEM_LABELS[id] + '</span>' +
+      '<button type="button" class="admin-toggle-btn" data-id="' + id + '" data-status="' + (isOn ? 'on' : 'off') + '" ' +
+        'style="padding:6px 14px;border-radius:999px;border:none;font-family:\'Sarabun\',sans-serif;font-size:13px;font-weight:600;cursor:pointer;' +
+        'background:' + (isOn ? 'var(--green-bg)' : 'var(--orange-bg)') + ';color:' + (isOn ? '#0e6124' : '#a84100') + '">' +
+        (isOn ? 'ใช้งานได้' : 'ปิดอยู่') +
+      '</button>' +
+    '</div>';
+  }).join('');
+  el.querySelectorAll('.admin-toggle-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { handleAdminToggle(btn); });
+  });
+}
+
+function handleAdminToggle(btn) {
+  var id        = btn.dataset.id;
+  var newStatus = btn.dataset.status === 'on' ? 'off' : 'on';
+  var pw        = document.getElementById('admin-pw-input').value;
+  var msg       = document.getElementById('admin-msg');
+
+  if (!pw) { msg.textContent = '⚠️ กรอกรหัสผ่านก่อนครับ'; return; }
+
+  msg.textContent = 'กำลังบันทึก...';
+  btn.disabled = true;
+
+  fetch(SUPABASE_URL + '/rest/v1/rpc/portal_toggle_status', {
+    method: 'POST',
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_password: pw, p_system_id: id, p_status: newStatus })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      btn.disabled = false;
+      if (!res || res.ok !== true) {
+        msg.textContent = (res && res.error === 'wrong password') ? '❌ รหัสผ่านผิด' : '❌ เกิดข้อผิดพลาด ลองใหม่อีกครั้ง';
+        return;
+      }
+      msg.textContent = '✅ บันทึกแล้ว';
+      return loadSystemStatus().then(function() {
+        initCards();       // อัปเดตการ์ดจริงบนหน้า Portal ทันที ไม่ต้อง reload
+        renderAdminList(); // อัปเดตรายการในหน้าต่าง admin ให้ตรงกัน
+      });
+    })
+    .catch(function() {
+      btn.disabled = false;
+      msg.textContent = '❌ เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่';
+    });
+}
 
 /* ─────────────────────────────────────────────
    ERROR MODAL
@@ -772,6 +894,7 @@ document.getElementById('error-modal-ok').addEventListener('click', closeErrorMo
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   if (document.getElementById('error-modal').classList.contains('show')) closeErrorModal();
+  else if (document.getElementById('admin-modal').style.display === 'flex') closeAdminModal();
   else if (document.getElementById('system-overlay').classList.contains('active')) closeSystem();
 });
 
