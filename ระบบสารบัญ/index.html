@@ -435,6 +435,16 @@
       </div>
     </div>
     <input type="file" id="fileInput" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg" class="hidden">
+
+    <!-- ไฟล์แนบ (ถ้ามี) — โผล่มาหลังเลือกไฟล์หลักแล้วเท่านั้น -->
+    <div id="attachSection" class="hidden" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--hairline)">
+      <div class="dz-text" style="margin-bottom:8px;font-weight:600">📎 ไฟล์แนบ (ถ้ามี)</div>
+      <div id="attachList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+      <div id="attachDropZone" style="border:2px dashed var(--hairline);border-radius:var(--r-lg);padding:14px;text-align:center;cursor:pointer;color:var(--ink-muted);font-size:13px">
+        ➕ เพิ่มไฟล์แนบ (ลากมาวาง หรือคลิกเลือก — ได้มากกว่า 1 ไฟล์)
+      </div>
+      <input type="file" id="attachInput" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.xlsx,.xls" class="hidden" multiple>
+    </div>
   </div>
 
   <!-- Step 2: Form -->
@@ -501,7 +511,7 @@
 // ============================================================
 //  CONFIG — แก้ตรงนี้หลัง deploy Apps Script
 // ============================================================
-var API = 'https://script.google.com/macros/s/AKfycbwO_gCkXYAjBKGwEbXTuEg-mKbK8lv_Po5csUnU7VzjZ7a-It22LyD6HOiYI1BdNh1V3A/exec';
+var API = 'https://script.google.com/macros/s/AKfycbwqAcQz_P7zk8ytoYM12R97R2kELQsnfmiDIrzPcM7Uzl-Ki6CeM92ox9GxJDTMT3OY3Q/exec';
 // ตัวอย่าง: 'https://script.google.com/macros/s/AKfy.../exec'
 
 // ============================================================
@@ -523,6 +533,7 @@ window.addEventListener('DOMContentLoaded', function() {
   }
 
   setupDrop();
+  setupAttachDrop();
   populateYears();
   loadTeachers();
   loadLineQuota();
@@ -730,6 +741,7 @@ function setupDrop() {
 var FILE_ICONS = {
   pdf: '📕', docx: '📘', doc: '📘',
   png: '🖼️', jpg: '🖼️', jpeg: '🖼️',
+  xlsx: '📊', xls: '📊',
 };
 var MAX_SIZE = 20 * 1024 * 1024; // 20 MB
 
@@ -747,6 +759,7 @@ function handleFile(f) {
   document.getElementById('dzEmpty').classList.add('hidden');
   document.getElementById('dzFilled').classList.remove('hidden');
   document.getElementById('dropZone').classList.add('filled');
+  document.getElementById('attachSection').classList.remove('hidden');
 
   // Reset title
   document.getElementById('docTitle').value = '';
@@ -774,7 +787,71 @@ function clearFile() {
   document.getElementById('docTitle').value = '';
   setNote('', '');
   clearResult();
+  // เปลี่ยนไฟล์หลัก = เอกสารใหม่ทั้งชุด เคลียร์ไฟล์แนบ + สถานะ pending upload เดิมทิ้งด้วย
+  _attachments = [];
+  renderAttachList();
+  document.getElementById('attachSection').classList.add('hidden');
+  _pendingFolderId = null;
+  _pendingUrl = null;
   refreshSubmit();
+}
+
+// ============================================================
+//  ไฟล์แนบ (หลายไฟล์)
+// ============================================================
+var _attachments = []; // [{file, id}]
+var _attachIdSeq = 0;
+
+function setupAttachDrop() {
+  var zone = document.getElementById('attachDropZone');
+  var input = document.getElementById('attachInput');
+
+  zone.addEventListener('click', function() { input.click(); });
+  input.addEventListener('change', function() {
+    Array.prototype.forEach.call(input.files, addAttachment);
+    input.value = '';
+  });
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.style.borderColor = 'var(--primary)';
+  });
+  zone.addEventListener('dragleave', function(e) {
+    if (!zone.contains(e.relatedTarget)) zone.style.borderColor = 'var(--hairline)';
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.style.borderColor = 'var(--hairline)';
+    Array.prototype.forEach.call(e.dataTransfer.files, addAttachment);
+  });
+}
+
+function addAttachment(f) {
+  if (f.size > MAX_SIZE) {
+    alert('ไฟล์แนบใหญ่เกินไป (ขนาดสูงสุด 20 MB)\n"' + f.name + '" มีขนาด ' + fmtSize(f.size));
+    return;
+  }
+  _attachments.push({ file: f, id: ++_attachIdSeq });
+  renderAttachList();
+}
+
+function removeAttachment(id) {
+  _attachments = _attachments.filter(function(a) { return a.id !== id; });
+  renderAttachList();
+}
+
+function renderAttachList() {
+  var el = document.getElementById('attachList');
+  el.innerHTML = _attachments.map(function(a) {
+    var ext = getExt(a.file.name);
+    return '<div class="file-row" style="border:1px solid var(--hairline);border-radius:var(--r-lg);padding:8px 12px">' +
+      '<span class="file-ico" style="font-size:22px">' + (FILE_ICONS[ext] || '📄') + '</span>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div class="file-name" style="font-size:13px">' + esc(a.file.name) + '</div>' +
+        '<div class="file-meta">' + fmtSize(a.file.size) + '</div>' +
+      '</div>' +
+      '<span onclick="removeAttachment(' + a.id + ')" style="cursor:pointer;color:var(--ink-faint);font-size:18px;padding:0 4px" title="ลบไฟล์แนบ">✕</span>' +
+    '</div>';
+  }).join('');
 }
 
 function getExt(name) {
@@ -874,6 +951,10 @@ function clearResult() {
   document.getElementById('resultArea').innerHTML = '';
 }
 
+// ถ้าไม่ null = ไฟล์หลักอัปโหลดสำเร็จแล้ว (รอบก่อนไฟล์แนบพลาดบางไฟล์) — retry ต้องใช้ folder เดิม ห้ามอัปโหลดไฟล์หลักซ้ำ
+var _pendingFolderId = null;
+var _pendingUrl = null;
+
 async function submitDoc() {
   var title   = document.getElementById('docTitle').value.trim();
   var note    = document.getElementById('noteField').value.trim();
@@ -882,35 +963,93 @@ async function submitDoc() {
 
   var btn = document.getElementById('submitBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spin-ring"></span>กำลังอัปโหลด...';
   clearResult();
 
   try {
-    var b64      = await toBase64(_file);
-    var ext      = getExt(_file.name);
-    var safeName = title.replace(/[/\\?%*:|"<>\r\n]/g, '_') + (ext ? '.' + ext : '');
+    var hasAttachments = _attachments.length > 0;
+    var folderId, driveUrl;
 
-    // ส่งครั้งเดียว — backend จัดการ mention ทุกคนในข้อความเดียว
-    var data = await fetch(API, {
+    if (_pendingFolderId) {
+      // resume: ไฟล์หลักอัปโหลดสำเร็จแล้วจากรอบก่อน แค่ไฟล์แนบบางไฟล์พลาด
+      folderId = _pendingFolderId;
+      driveUrl = _pendingUrl;
+    } else {
+      btn.innerHTML = '<span class="spin-ring"></span>กำลังอัปโหลด...';
+      var b64      = await toBase64(_file);
+      var ext      = getExt(_file.name);
+      var safeName = title.replace(/[/\\?%*:|"<>\r\n]/g, '_') + (ext ? '.' + ext : '');
+
+      var data = await fetch(API, {
+        method: 'POST',
+        body: JSON.stringify({
+          action:         'uploadDoc',
+          fileBase64:     b64,
+          fileName:       safeName,
+          mimeType:       _file.type || 'application/octet-stream',
+          docTitle:       title,
+          teacherNames:   teachers,
+          mentionAll:     _mentionAll,
+          note:           note,
+          yearType:       getYearType(),
+          year:           getYear(),
+          hasAttachments: hasAttachments,
+        })
+      }).then(function(r) { return r.json(); });
+
+      if (!data.ok) {
+        showError(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่');
+        btn.disabled = false; btn.innerHTML = 'ส่งเอกสาร &amp; แจ้ง LINE';
+        return;
+      }
+
+      if (!hasAttachments) {
+        // ไม่มีไฟล์แนบ — พฤติกรรมเดิม 100% (uploadDoc ส่ง LINE ให้แล้วในคราวเดียว)
+        showSuccess(teachers, data.url, data.lineOk !== false);
+        setTimeout(loadLineQuota, 3000);
+        btn.disabled = false; btn.innerHTML = 'ส่งเอกสาร &amp; แจ้ง LINE'; refreshSubmit();
+        return;
+      }
+
+      folderId = data.folderId;
+      driveUrl = data.url;
+      _pendingFolderId = folderId;
+      _pendingUrl = driveUrl;
+    }
+
+    // มีไฟล์แนบ — อัปโหลดทีละไฟล์ก่อน (ยังไม่แจ้ง LINE จนกว่าจะครบ กันครูเห็นโฟลเดอร์ที่ไฟล์แนบยังมาไม่ครบ)
+    for (var i = 0; i < _attachments.length; i++) {
+      btn.innerHTML = '<span class="spin-ring"></span>กำลังแนบไฟล์ (' + (i + 1) + '/' + _attachments.length + ')...';
+      var att = _attachments[i];
+      var attOk = await uploadOneAttachment(att, folderId);
+      if (!attOk) {
+        _attachments = _attachments.slice(i); // เหลือแต่ไฟล์ที่ยังไม่สำเร็จ กันอัปโหลดซ้ำตอนกดใหม่
+        renderAttachList();
+        showError('แนบไฟล์ "' + att.file.name + '" ไม่สำเร็จ — ไฟล์หลักอัปโหลดสำเร็จแล้ว กด "ส่งเอกสาร" อีกครั้งเพื่อลองไฟล์แนบที่เหลือ (ไม่ต้องเลือกไฟล์หลักใหม่)');
+        btn.disabled = false; btn.innerHTML = 'ส่งเอกสาร &amp; แจ้ง LINE';
+        return;
+      }
+    }
+
+    // ไฟล์แนบครบทุกไฟล์แล้ว — ค่อยแจ้ง LINE
+    btn.innerHTML = '<span class="spin-ring"></span>กำลังแจ้ง LINE...';
+    var notifyRes = await fetch(API, {
       method: 'POST',
       body: JSON.stringify({
-        action:       'uploadDoc',
-        fileBase64:   b64,
-        fileName:     safeName,
-        mimeType:     _file.type || 'application/octet-stream',
+        action:       'notifyTeachers',
         docTitle:     title,
+        url:          driveUrl,
         teacherNames: teachers,
         mentionAll:   _mentionAll,
         note:         note,
-        yearType:     getYearType(),
-        year:         getYear(),
       })
     }).then(function(r) { return r.json(); });
 
-    if (!data.ok) { showError(data.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่'); return; }
-
-    showSuccess(teachers, data.url, data.lineOk !== false);
-    setTimeout(loadLineQuota, 3000); // รอ LINE API update quota แล้ว refresh badge
+    showSuccess(teachers, driveUrl, notifyRes.ok && notifyRes.lineOk !== false, true);
+    setTimeout(loadLineQuota, 3000);
+    _attachments = [];
+    renderAttachList();
+    _pendingFolderId = null;
+    _pendingUrl = null;
   } catch (err) {
     showError('ไม่สามารถเชื่อมต่อได้: ' + err.message);
   }
@@ -918,6 +1057,21 @@ async function submitDoc() {
   btn.disabled = false;
   btn.innerHTML = 'ส่งเอกสาร &amp; แจ้ง LINE';
   refreshSubmit();
+}
+
+function uploadOneAttachment(att, folderId) {
+  return toBase64(att.file).then(function(b64) {
+    return fetch(API, {
+      method: 'POST',
+      body: JSON.stringify({
+        action:     'uploadAttachment',
+        folderId:   folderId,
+        fileBase64: b64,
+        fileName:   att.file.name,
+        mimeType:   att.file.type || 'application/octet-stream',
+      })
+    }).then(function(r) { return r.json(); }).then(function(r) { return !!r.ok; });
+  }).catch(function() { return false; });
 }
 
 function toBase64(f) {
@@ -933,7 +1087,7 @@ function toBase64(f) {
   });
 }
 
-function showSuccess(teachers, url, lineOk) {
+function showSuccess(teachers, url, lineOk, isFolder) {
   var nameStr = teachers.length === 1
     ? teachers[0]
     : teachers.slice(0, -1).join(', ') + ' และ ' + teachers[teachers.length - 1];
@@ -942,11 +1096,12 @@ function showSuccess(teachers, url, lineOk) {
   var title = lineOk
     ? 'อัปโหลดสำเร็จ — แจ้ง ' + esc(nameStr) + ' ทาง LINE แล้ว'
     : 'อัปโหลดไฟล์สำเร็จ แต่ส่ง LINE ไม่สำเร็จ — กรุณาแจ้งครูด้วยตนเอง';
+  var linkText = isFolder ? '🔗 เปิดโฟลเดอร์บน Google Drive' : '🔗 เปิดไฟล์บน Google Drive';
   document.getElementById('resultArea').innerHTML =
     '<div class="result ' + cls + '">' +
       '<div class="r-icon">' + icon + '</div>' +
       '<div class="r-title">' + esc(title) + '</div>' +
-      '<a class="r-link" href="' + esc(url) + '" target="_blank">🔗 เปิดไฟล์บน Google Drive</a>' +
+      '<a class="r-link" href="' + esc(url) + '" target="_blank">' + linkText + '</a>' +
       '<br><button class="btn-reset" id="btnReset">ส่งเอกสารอีกชิ้น</button>' +
     '</div>';
   document.getElementById('btnReset').addEventListener('click', function() {
