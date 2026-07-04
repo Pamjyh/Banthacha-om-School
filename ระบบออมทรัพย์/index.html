@@ -961,6 +961,10 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
         <div class="st">
           <span>ประวัติทั้งหมด <span id="tx-grade-cnt" style="font-size:12px;color:var(--ts);font-weight:400"></span></span>
         </div>
+        <select id="tx-grade-datefilter" onchange="renderFilteredGradeTx()"
+          style="width:100%;padding:9px 10px;margin-bottom:8px;border-radius:var(--br);border:1px solid var(--ibdr);font-family:'Sarabun',sans-serif;font-size:13px;color:var(--td);background:var(--white)">
+          <option value="">ทุกวัน</option>
+        </select>
         <div style="max-height:55vh;overflow-y:auto;border-radius:var(--cr);-webkit-overflow-scrolling:touch">
           <div class="txl" id="tx-grade"></div>
         </div>
@@ -1294,6 +1298,11 @@ function bootstrapTeacher() {
         : 'ยังไม่มีนักเรียน';
     });
   });
+
+  // เปิดมาแล้วพาไปชั้นล่าสุดที่เคยเลือกไว้อัตโนมัติ (soft default — ยังกด ← กลับมาเลือกชั้นอื่นได้เสมอ)
+  var lastGrade = null;
+  try { lastGrade = localStorage.getItem('sv_teacherLastGrade'); } catch(e) {}
+  if (lastGrade && GRADES.indexOf(lastGrade) >= 0) { pickGrade(lastGrade); }
 }
 
 // ===== GRADE SELECT =====
@@ -1329,6 +1338,8 @@ function renderGrades() {
 function pickGrade(g) {
   curGrade=g; selStu=null; stuPage=0; curStudentTab='list';
   stuMonthSel=null; stuYearSel=null;
+  // จำชั้นล่าสุดไว้ในเครื่องนี้ (soft default — ไม่ล็อก แค่เปิดมาแล้วสะดวก ไม่ต้องเลือกซ้ำทุกครั้ง)
+  try { localStorage.setItem('sv_teacherLastGrade', g); } catch(e) {}
   document.getElementById('stu-title').textContent=ICONS[g]+' ชั้น'+g;
   document.getElementById('bulk-title').textContent='📋 ฝากรวม ชั้น'+g;
   go('students');
@@ -1435,16 +1446,66 @@ function pickStu(id) {
   renderStus();
 }
 
+// เก็บ full list ของธุรกรรมชั้นปัจจุบันไว้ filter เฉพาะ "วันที่" (ตัดเวลาออก) ฝั่ง client
+// — ไม่แตะ/ไม่เปลี่ยนข้อมูลจริงในชีตเลย แค่กรองตอนแสดงผลเท่านั้น
+var gradeTxAll = [];
+
+// date จาก backend เป็น string รูปแบบ "3 มิ.ย. 2569 13:00" — ตัด 3 ส่วนแรก (วัน เดือน ปี) ทิ้งเวลา
+function dateOnly(dateStr) {
+  return String(dateStr||'').split(' ').slice(0,3).join(' ');
+}
+
 function loadGradeTx() {
   var el=document.getElementById('tx-grade');
   el.innerHTML='<div class="load">⏳...</div>';
   apiCall({action:'getHistory',grade:curGrade,limit:1000},function(r){
     if (r.ok) {
-      var cnt=document.getElementById('tx-grade-cnt');
-      if(cnt) cnt.textContent=r.transactions.length?'('+r.transactions.length+' รายการ)':'';
-      renderTxList('tx-grade',r.transactions);
+      gradeTxAll = r.transactions || [];
+      buildGradeTxDateFilter();
+      renderFilteredGradeTx();
     }
   });
+}
+
+// การ์ดสรุปแบบเดียวกับ .txi (ใช้ในหน้าประวัติอยู่แล้ว) — แทนตาราง <table> เดิมที่อ่านยากบนมือถือ
+// rows: [{name, sub, value, valueColor, value2, value2Color}]
+function cardRowsHtml(rows) {
+  if (!rows || !rows.length) return '';
+  return '<div class="txl">' + rows.map(function(r){
+    return '<div class="txi">' +
+      '<div class="txi-info">' +
+        '<div class="txn">'+esc(r.name)+'</div>' +
+        (r.sub ? '<div class="txd">'+r.sub+'</div>' : '') +
+      '</div>' +
+      '<div style="text-align:right;flex-shrink:0">' +
+        '<div class="txa" style="color:'+(r.valueColor||'var(--sbux)')+'">'+r.value+'</div>' +
+        (r.value2 ? '<div style="font-size:11px;color:'+(r.value2Color||'var(--ts)')+';margin-top:2px">'+r.value2+'</div>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+function buildGradeTxDateFilter() {
+  var sel = document.getElementById('tx-grade-datefilter');
+  if (!sel) return;
+  var seen = {}, dates = [];
+  // gradeTxAll มาจาก backend reverse แล้ว (รายการใหม่สุดอยู่หน้า) เรียงวันที่ใหม่→เก่าอยู่แล้วโดยอัตโนมัติ
+  gradeTxAll.forEach(function(t){
+    var d = dateOnly(t.date);
+    if (d && !seen[d]) { seen[d]=true; dates.push(d); }
+  });
+  sel.innerHTML = '<option value="">ทุกวัน</option>' +
+    dates.map(function(d){ return '<option value="'+esc(d)+'">'+esc(d)+'</option>'; }).join('');
+  sel.value = '';
+}
+
+function renderFilteredGradeTx() {
+  var sel = document.getElementById('tx-grade-datefilter');
+  var picked = sel ? sel.value : '';
+  var list = picked ? gradeTxAll.filter(function(t){ return dateOnly(t.date)===picked; }) : gradeTxAll;
+  var cnt=document.getElementById('tx-grade-cnt');
+  if(cnt) cnt.textContent = list.length ? '('+list.length+' รายการ)' : '';
+  renderTxList('tx-grade', list);
 }
 
 function renderTxList(id,txs) {
@@ -1588,24 +1649,16 @@ function doLoadMonthData() {
     var html =
       '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px">'+
       'รายชื่อที่มีธุรกรรม ('+rows.length+' คน)</div>'+
-      '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--gl);box-shadow:var(--cs)">'+
-      '<table style="width:100%;border-collapse:collapse">'+
-      '<thead><tr style="background:var(--hg)">'+
-      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:left">ชื่อ-สกุล</th>'+
-      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:center">ครั้ง</th>'+
-      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ฝากรวม</th>'+
-      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ถอนรวม</th>'+
-      '</tr></thead><tbody>';
-
-    rows.forEach(function(p,i){
-      html += '<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
-        '<td style="padding:9px 12px;font-size:13px;color:var(--td)">'+esc(p.name)+'</td>'+
-        '<td style="padding:9px 12px;font-size:13px;color:var(--ts);text-align:center">'+p.count+'</td>'+
-        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;font-weight:700;color:var(--ga);text-align:right">'+(p.dep>0?'+'+fmt(p.dep)+' ฿':'-')+'</td>'+
-        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--red);text-align:right">'+(p.wit>0?'-'+fmt(p.wit)+' ฿':'-')+'</td>'+
-        '</tr>';
-    });
-    html += '</tbody></table></div>';
+      cardRowsHtml(rows.map(function(p){
+        return {
+          name: p.name,
+          sub: p.count+' ครั้ง',
+          value: (p.dep>0?'+'+fmt(p.dep)+' ฿':'-'),
+          valueColor: 'var(--ga)',
+          value2: (p.wit>0?'-'+fmt(p.wit)+' ฿':null),
+          value2Color: 'var(--red)'
+        };
+      }));
 
     // แสดงคนที่ไม่มีธุรกรรมเดือนนี้
     var hadTx = {};
@@ -1613,15 +1666,9 @@ function doLoadMonthData() {
     var noTx = allStus.filter(function(s){ return !hadTx[s.id]; });
     if (noTx.length > 0) {
       html += '<div style="font-family:\'Mitr\',sans-serif;font-size:13px;font-weight:600;color:var(--ts);margin:12px 0 8px">⏳ ยังไม่มีธุรกรรมเดือนนี้ ('+noTx.length+' คน)</div>'+
-        '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--ceramic);box-shadow:var(--cs)">'+
-        '<table style="width:100%;border-collapse:collapse"><tbody>';
-      noTx.forEach(function(s,i){
-        html += '<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
-          '<td style="padding:8px 12px;font-size:13px;color:var(--ts)">'+esc(s.name)+'</td>'+
-          '<td style="padding:8px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
-          '</tr>';
-      });
-      html += '</tbody></table></div>';
+        cardRowsHtml(noTx.map(function(s){
+          return { name: s.name, value: fmt(s.balance)+' ฿', valueColor:'var(--sbux)' };
+        }));
     }
 
     if(mEl) mEl.innerHTML = html;
@@ -1689,35 +1736,16 @@ function loadTodaySummary() {
       '</div></div></div>'+
 
       '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px">✅ ฝากแล้ว ('+deposited.length+' คน)</div>'+
-      '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--gl);box-shadow:var(--cs);margin-bottom:16px">'+
-      '<table style="width:100%;border-collapse:collapse">'+
-      '<thead><tr style="background:var(--hg)">'+
-      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:left">ชื่อ-สกุล</th>'+
-      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ฝากวันนี้</th>'+
-      '<th style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:12px;color:#fff;text-align:right">ยอดสะสม</th>'+
-      '</tr></thead><tbody>';
-
-    deposited.forEach(function(s,i){
-      var d=stuMap[s.id]||{dep:0};
-      html+='<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
-        '<td style="padding:9px 12px;font-size:14px;color:var(--td)">'+esc(s.name)+'</td>'+
-        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:700;color:var(--ga);text-align:right">+'+fmt(d.dep)+' ฿</td>'+
-        '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
-        '</tr>';
-    });
-    html+='</tbody></table></div>';
+      cardRowsHtml(deposited.map(function(s){
+        var d=stuMap[s.id]||{dep:0};
+        return { name: s.name, sub: 'ยอดสะสม '+fmt(s.balance)+' ฿', value: '+'+fmt(d.dep)+' ฿', valueColor:'var(--ga)' };
+      }))+'<div style="margin-bottom:16px"></div>';
 
     if (notDeposited.length>0) {
       html+='<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--ts);margin-bottom:8px">⏳ ยังไม่ได้ฝากวันนี้ ('+notDeposited.length+' คน)</div>'+
-        '<div style="background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--ceramic);box-shadow:var(--cs)">'+
-        '<table style="width:100%;border-collapse:collapse"><tbody>';
-      notDeposited.forEach(function(s,i){
-        html+='<tr style="'+(i%2===0?'':'background:var(--warm)')+'">'+
-          '<td style="padding:9px 12px;font-size:14px;color:var(--ts)">'+esc(s.name)+'</td>'+
-          '<td style="padding:9px 12px;font-family:\'Mitr\',sans-serif;font-size:13px;color:var(--sbux);text-align:right">'+fmt(s.balance)+' ฿</td>'+
-          '</tr>';
-      });
-      html+='</tbody></table></div>';
+        cardRowsHtml(notDeposited.map(function(s){
+          return { name: s.name, value: fmt(s.balance)+' ฿', valueColor:'var(--sbux)' };
+        }));
     }
     el.innerHTML=html;
   });
