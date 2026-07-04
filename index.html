@@ -322,6 +322,12 @@ a { color: inherit; text-decoration: none; }
   100% { box-shadow: 0 0 0 0   rgba(26,174,57,.0); }
 }
 .badge-soon { background: var(--purple-bg); color: #5b2fc3; }
+.badge-off  { background: var(--orange-bg); color: #a84100; }
+.badge-off::before {
+  content: '';
+  display: inline-block; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--orange);
+}
 
 .card-btn         { font-size: 13px; font-weight: 600; color: var(--primary); white-space: nowrap; }
 .card-btn-inactive{ font-size: 13px; font-weight: 600; color: var(--ink-faint); white-space: nowrap; }
@@ -478,6 +484,7 @@ a { color: inherit; text-decoration: none; }
            role="button" tabindex="0"
            data-url="ระบบบริหารงาน/"
            data-title="ระบบการเงินและพัสดุ"
+           data-sys-id="finance"
            aria-label="ระบบการเงินและพัสดุ">
         <div class="card-icon-band band-teal" aria-hidden="true">🏫</div>
         <div class="card-body">
@@ -495,6 +502,7 @@ a { color: inherit; text-decoration: none; }
            role="button" tabindex="0"
            data-url="ระบบออมทรัพย์/"
            data-title="ระบบออมทรัพย์นักเรียน"
+           data-sys-id="savings"
            aria-label="ระบบออมทรัพย์นักเรียน">
         <div class="card-icon-band band-green" aria-hidden="true">🐖</div>
         <div class="card-body">
@@ -512,6 +520,7 @@ a { color: inherit; text-decoration: none; }
            role="button" tabindex="0"
            data-url="ระบบลงเวลา/"
            data-title="ระบบลงเวลาปฏิบัติงาน"
+           data-sys-id="attendance"
            aria-label="ระบบลงเวลาปฏิบัติงาน">
         <div class="card-icon-band band-orange" aria-hidden="true">🕐</div>
         <div class="card-body">
@@ -529,6 +538,7 @@ a { color: inherit; text-decoration: none; }
            role="button" tabindex="0"
            data-url="ระบบสารบัญ/index.html"
            data-title="ระบบสารบัญ"
+           data-sys-id="sarabun"
            aria-label="ระบบสารบัญ — อัปโหลดไฟล์ ส่ง LINE มอบหมายงาน">
         <div class="card-icon-band band-purple" aria-hidden="true">📁</div>
         <div class="card-body">
@@ -546,6 +556,7 @@ a { color: inherit; text-decoration: none; }
            role="button" tabindex="0"
            data-url="ระบบค่ารถ/index.html"
            data-title="ระบบเก็บค่ารถ"
+           data-sys-id="karod"
            aria-label="ระบบเก็บค่ารถนักเรียน">
         <div class="card-icon-band band-blue" aria-hidden="true">🚌</div>
         <div class="card-body">
@@ -689,16 +700,57 @@ function closeSystem() {
   if (_lastFocused) { _lastFocused.focus(); _lastFocused = null; }
 }
 
-/* Card click & keyboard handlers */
-document.querySelectorAll('.sys-card:not(.sys-card--inactive)').forEach(card => {
-  const handler = () => {
-    const url   = card.dataset.url;
-    const title = card.dataset.title;
-    if (url) openSystem(url, title);
-  };
-  card.addEventListener('click', handler);
-  card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } });
-});
+/* ─────────────────────────────────────────────
+   SYSTEM STATUS (เปิด/ปิดชั่วคราว) + CARD HANDLERS
+   ต้องรู้สถานะก่อน ค่อยผูกปุ่มกด — กันปุ่มกดใช้ได้ทั้งที่ badge บอกว่าปิด
+───────────────────────────────────────────── */
+function applyCardStatus(card) {
+  var id     = card.dataset.sysId;
+  // fail-open: ไม่มีไฟล์สถานะ / ไม่มี id นี้ / พิมพ์ผิด → ถือว่า "on" เสมอ กันพลาดล็อกทุกระบบ
+  var status = (window.SYSTEM_STATUS && id && window.SYSTEM_STATUS[id]) || 'on';
+  if (status !== 'off') return;
+
+  card.classList.add('sys-card--inactive');
+
+  var badge = card.querySelector('.badge');
+  if (badge) {
+    badge.className   = 'badge badge-off';
+    badge.textContent = 'ปิดปรับปรุงชั่วคราว';
+  }
+  var btn = card.querySelector('.card-btn');
+  if (btn) {
+    btn.className   = 'card-btn-inactive';
+    btn.textContent = 'ปิดชั่วคราว';
+  }
+  var baseLabel = card.getAttribute('aria-label') || card.dataset.title || '';
+  card.setAttribute('aria-label', baseLabel + ' — ปิดปรับปรุงชั่วคราว ยังกดเข้าไม่ได้ตอนนี้');
+}
+
+function initCards() {
+  document.querySelectorAll('.sys-card').forEach(applyCardStatus);
+
+  // ผูก click/keydown เฉพาะการ์ดที่ยัง active (เช็คหลังรู้สถานะแล้วเท่านั้น)
+  document.querySelectorAll('.sys-card:not(.sys-card--inactive)').forEach(card => {
+    const handler = () => {
+      const url   = card.dataset.url;
+      const title = card.dataset.title;
+      if (url) openSystem(url, title);
+    };
+    card.addEventListener('click', handler);
+    card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handler(); } });
+  });
+}
+
+function loadSystemStatusThenInitCards() {
+  var s = document.createElement('script');
+  // cache-bust: URL ไม่ซ้ำทุกครั้งที่โหลด กัน browser/Service Worker cache ค่าเก่าไว้
+  s.src = 'system-status.js?t=' + Date.now();
+  s.onload  = initCards;
+  s.onerror = initCards; // โหลดไม่ได้ก็ยัง init การ์ดต่อ (SYSTEM_STATUS ว่าง → ทุกระบบถือว่า on)
+  document.head.appendChild(s);
+}
+
+loadSystemStatusThenInitCards();
 
 /* ─────────────────────────────────────────────
    ERROR MODAL
