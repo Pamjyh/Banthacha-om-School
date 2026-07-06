@@ -77,6 +77,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
         <button class="nav-tab" data-page="procurement">พัสดุ</button>
         <button class="nav-tab" data-page="finance">การเงิน</button>
         <button class="nav-tab" data-page="external">เงินนอก</button>
+        <button class="nav-tab admin-only" data-page="manage">⚙️ จัดการข้อมูล</button>
       </div>
       <div class="nav-right">
         <select class="year-sel" id="yearSel" onchange="switchYear()"></select>
@@ -560,6 +561,37 @@ body:not(.is-admin) .admin-only { display: none !important; }
     </div>
   </div>
 
+  <!-- ======= จัดการข้อมูล (Stage 11: บุคลากร) ======= -->
+  <div class="page admin-only" id="page-manage">
+    <div class="page-header">
+      <div>
+        <div class="eyebrow"><span class="eyebrow-dot"></span>ตั้งค่าระบบ</div>
+        <h2 class="page-title">จัดการข้อมูล</h2>
+        <p class="page-sub">บุคลากร ร้านค้า และข้อมูลอ้างอิงอื่นๆ ของระบบ</p>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-sm admin-only" onclick="openStaffForm()">+ เพิ่มบุคลากร</button>
+      </div>
+    </div>
+
+    <div class="tab-bar">
+      <button class="tab-btn active" data-mtab="staff">บุคลากร</button>
+    </div>
+
+    <div id="manage-tab-staff">
+      <div class="table-card">
+        <table>
+          <thead><tr>
+            <th>คำนำหน้า</th><th>ชื่อ</th><th>ตำแหน่ง</th><th>สถานะ</th><th></th>
+          </tr></thead>
+          <tbody id="staff-tbody">
+            <tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </div><!-- end .app -->
 
 <!-- ======= FINANCE FORM MODAL ======= -->
@@ -892,6 +924,42 @@ body:not(.is-admin) .admin-only { display: none !important; }
   </div>
 </div>
 
+<!-- ======= STAFF FORM MODAL (Stage 11) ======= -->
+<div class="overlay" id="staffOverlay">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head">
+      <h2 id="staffFormTitle">เพิ่มบุคลากร</h2>
+      <button class="modal-x" onclick="closeStaffForm()">✕</button>
+    </div>
+    <input type="hidden" id="staffEditId">
+    <div class="form-grid">
+      <div class="fg" style="flex:1">
+        <label>คำนำหน้า <span style="color:var(--arc)">*</span></label>
+        <select class="fc" id="staffPrefix">
+          <option value="นาย">นาย</option>
+          <option value="นาง">นาง</option>
+          <option value="นางสาว">นางสาว</option>
+          <option value="ว่าที่ร้อยตรี">ว่าที่ร้อยตรี</option>
+        </select>
+      </div>
+      <div class="fg" style="flex:2">
+        <label>ชื่อ-สกุล <span style="color:var(--arc)">*</span></label>
+        <input class="fc" type="text" id="staffName" placeholder="ชื่อ นามสกุล">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="fg" style="flex:1">
+        <label>ตำแหน่ง <span style="color:var(--arc)">*</span></label>
+        <input class="fc" type="text" id="staffPosition" placeholder="เช่น ผู้อำนวยการ, ครูชำนาญการพิเศษ">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeStaffForm()">ยกเลิก</button>
+      <button class="btn-sm" style="padding:10px 24px" onclick="saveStaffItem()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======= LOGIN MODAL ======= -->
 <div class="overlay" id="loginOverlay">
   <div class="modal" style="max-width:360px">
@@ -958,7 +1026,10 @@ body:not(.is-admin) .admin-only { display: none !important; }
 <script src="./js/dashboard.js"></script>
 <script src="./js/projects.js"></script>
 <script src="./js/procurement.js"></script>
+<script src="./js/procurement-docgen.js"></script>
 <script src="./js/finance.js"></script>
+<script src="./js/finance-calc.js"></script>
+<script src="./js/staff.js"></script>
 <script src="./js/delete.js"></script>
 <script src="./js/navigation.js"></script>
 <script src="./js/export.js"></script>
@@ -966,6 +1037,10 @@ body:not(.is-admin) .admin-only { display: none !important; }
 <script src="./js/external.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="./js/pdf-font.js"></script>
+<script src="./js/pdf-engine.js"></script>
 <script src="./js/auth.js"></script>
 <script src="./js/init.js"></script>
 <script src="./js/events.js"></script>

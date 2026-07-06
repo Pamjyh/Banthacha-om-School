@@ -31,3 +31,6 @@ let PROC_YEAR_VAL  = 0;    // BE year number
 
 // Auth
 let IS_ADMIN = false;
+
+// Staff (บุคลากร) — Stage 11
+let STAFF_LIST = [];

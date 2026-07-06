@@ -32,9 +32,11 @@ git push --force origin main
 >
 > ⚠️ **Cowork sandbox commit ได้แต่ push ไม่ได้** (`fatal: could not read Username for 'https://github.com'` — ไม่มี credentials) — ทุกครั้งที่ Claude commit ให้ใน session ต้องให้ Pam รัน `git push --force origin main` เองใน Terminal เครื่องจริงเสมอ ไม่ต้อง commit ซ้ำ
 
-### ✅ Push ล่าสุดสำเร็จแล้ว (2026-07-01 คืน)
-commit `2352462` (รวมงาน: ระบบลงเวลา LINE bot ใหม่, ระบบออมทรัพย์ dynamic header fix, ระบบค่ารถ dashboard ใหม่) push ขึ้น `origin/main` เรียบร้อย ยืนยันด้วย `git fetch` แล้ว branch up to date
-(ไม่ได้ commit ไฟล์ `DESIGN-notion.md`, โฟลเดอร์ `ระบบบริหารงาน/โครงการ/`, ไฟล์ `.xlsb` จัดซื้อจัดจ้าง — Pam เลือกข้ามเพราะเป็นเอกสารภายในไม่ใช่โค้ดเว็บ ยังอยู่ใน working directory เป็น untracked เฉยๆ ไม่ได้หาย)
+### ✅ Push ล่าสุดสำเร็จแล้ว (2026-07-04)
+commit `76b8abc` (School Portal: ปุ่มปิด/เปิดระบบชั่วคราวผ่าน Supabase) push ขึ้น `origin/main` เรียบร้อย ยืนยันด้วย `git fetch` แล้ว branch up to date + Pam ทดสอบใช้งานจริงบนเว็บแล้วปกติดี
+(ไม่ได้ commit ไฟล์ `DESIGN-notion.md`, โฟลเดอร์ `ระบบบริหารงาน/โครงการ/`, ไฟล์ `.xlsb` จัดซื้อจัดจ้าง, `ระบบบริหารงาน/index.html` ที่แก้ค้างอยู่ — เป็นงานของอีก session ที่กำลังทำ PDF generation แยกต่างหาก ไม่ใช่โค้ดของงานนี้ ยังอยู่ใน working directory เป็น uncommitted เฉยๆ ไม่ได้หาย)
+
+> 🔴 **git lock file เป็นปัญหาเรื้อรังรอบนี้**: ทั้ง Cowork sandbox และเครื่อง Pam เจอ `.git/index.lock`/`HEAD.lock` ค้างไม่หายซ้ำหลายรอบระหว่างทำงานนี้ (`unable to unlink ... Operation not permitted`) ต้องสงสัยว่ามาจาก iCloud Drive sync บน `~/Documents` (ที่เก็บ repo นี้อยู่) — ถ้าเกิดอีกให้ลองเช็ค System Settings → Apple ID → iCloud → iCloud Drive → Desktop & Documents Folders และพิจารณาปิดหรือย้าย repo ออกจาก path นี้
 
 ---
 

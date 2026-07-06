@@ -60,18 +60,20 @@ async function loadYears(){
 async function loadAll(){
   show('loadingOverlay','flex');
   try{
-    var [proj, proc, fund, finBal] = await Promise.all([
+    var [proj, proc, fund, finBal, staff] = await Promise.all([
       GET('projects',`select=*,procurement_items(id,amount,withdraw_status)&year_id=eq.${CY}&order=sort_order`),
       GET('procurement_items',`select=*,projects(name)&year_id=eq.${CY}&order=type,seq`),
       FUND_CATEGORIES.length ? Promise.resolve(FUND_CATEGORIES) : GET('fund_categories','select=*&order=sort_order'),
-      GET('finance_fund_balances',`select=*&year_id=eq.${CY}&order=fund_name`).catch(()=>[])
+      GET('finance_fund_balances',`select=*&year_id=eq.${CY}&order=fund_name`).catch(()=>[]),
+      GET('staff','select=*&order=prefix,name').catch(()=>[])
     ]);
-    PROJECTS = proj||[]; PROC = proc||[]; FUND_CATEGORIES = fund||[]; FINANCE_BALANCES = finBal||[];
+    PROJECTS = proj||[]; PROC = proc||[]; FUND_CATEGORIES = fund||[]; FINANCE_BALANCES = finBal||[]; STAFF_LIST = staff||[];
     hide('loadingOverlay');
     renderDashboard();
     renderProjGrid();
     renderProc();
     fillProjSelects();
+    renderStaffTable();
   }catch(e){
     hide('loadingOverlay');
     alert('โหลดข้อมูลไม่ได้: '+e.message);
