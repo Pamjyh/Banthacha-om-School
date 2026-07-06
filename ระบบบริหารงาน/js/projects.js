@@ -22,8 +22,10 @@ function renderProjGrid(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div class="proj-name">${p.name}</div>
         <div style="display:flex;gap:4px;flex-shrink:0">
+          ${canEdit(p.teacher_name) ? `
           <button class="act-btn admin-only" onclick="event.stopPropagation();editProj('${p.id}')" title="แก้ไข">✏️</button>
           <button class="act-btn del admin-only" onclick="event.stopPropagation();askDel('project','${p.id}','${escHtml(p.name)}')" title="ลบ">🗑️</button>
+          ` : ''}
         </div>
       </div>
       <div class="proj-teacher">${p.teacher_name||'—'}</div>
@@ -116,6 +118,10 @@ async function saveProjItem(){
   const name=document.getElementById('projName').value.trim();
   if(!name){alert('กรุณาระบุชื่อโครงการ');return}
   const eid=document.getElementById('projEditId').value;
+  if(eid){
+    const existing = PROJECTS.find(x=>x.id===eid);
+    if(existing && !canEdit(existing.teacher_name)){ alert('คุณไม่มีสิทธิ์แก้ไขโครงการนี้'); return; }
+  }
   const body={year_id:CY,name,teacher_name:document.getElementById('projTeacher').value.trim(),budget_amount:parseFloat(document.getElementById('projBudget').value)||0};
   show('loadingOverlay','flex');
   try{

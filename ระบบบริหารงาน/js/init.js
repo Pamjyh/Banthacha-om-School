@@ -15,6 +15,8 @@ async function init(){
     document.querySelector('.app').classList.add('show');
     checkAdminSession();
     await loadAll();
+    updateStaffHeaderDisplay();
+    if(IS_ADMIN && !sessionStorage.getItem('current_staff_id')) openTeacherSelector();
   }catch(e){
     hide('loadingOverlay');
     show('setupScreen','block');
@@ -37,6 +39,8 @@ async function connectSupabase(){
     document.querySelector('.app').classList.add('show');
     checkAdminSession();
     await loadAll();
+    updateStaffHeaderDisplay();
+    if(IS_ADMIN && !sessionStorage.getItem('current_staff_id')) openTeacherSelector();
   }catch(e){
     hide('loadingOverlay');
     show('setupScreen','block');

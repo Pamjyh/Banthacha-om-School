@@ -80,6 +80,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
         <button class="nav-tab admin-only" data-page="manage">⚙️ จัดการข้อมูล</button>
       </div>
       <div class="nav-right">
+        <span class="admin-only" id="current-staff-label" style="font-size:12px;color:var(--slate);white-space:nowrap"></span>
         <select class="year-sel" id="yearSel" onchange="switchYear()"></select>
         <button class="btn-sm admin-only" onclick="openYearModal()">+ ปี</button>
         <button class="btn-outline-sm" id="nav-lock-btn" onclick="openLoginModal()">🔒 เข้าระบบ</button>
@@ -1065,6 +1066,27 @@ body:not(.is-admin) .admin-only { display: none !important; }
     <div class="modal-foot">
       <button class="btn-cancel" onclick="closeVendorForm()">ยกเลิก</button>
       <button class="btn-sm" style="padding:10px 24px" onclick="saveVendorItem()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======= TEACHER SELECTOR MODAL (Stage 13) ======= -->
+<div class="overlay" id="teacherSelectOverlay">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-head">
+      <h2>คุณคือใคร?</h2>
+    </div>
+    <div class="form-grid">
+      <div class="fg form-full">
+        <label>เลือกชื่อของท่าน <span style="color:var(--arc)">*</span></label>
+        <select class="fc" id="teacherSelectDropdown">
+          <option value="">— เลือก —</option>
+          <option value="ADMIN">ผู้ดูแลระบบ (แก้ไขได้ทุกอย่าง)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-sm" style="padding:10px 24px;width:100%" onclick="confirmTeacherSelection()">ยืนยัน</button>
     </div>
   </div>
 </div>

@@ -14,7 +14,11 @@ async function confirmDel(){
       await DEL('procurement_items',`id=eq.${id}`);
       FINANCE_LOADED=false;
     }
-    else if(type==='project'){       await DEL('projects',`id=eq.${id}`); FINANCE_LOADED=false; }
+    else if(type==='project'){
+      const proj = PROJECTS.find(function(x){ return x.id===id; });
+      if(proj && !canEdit(proj.teacher_name)){ hide('loadingOverlay'); alert('คุณไม่มีสิทธิ์ลบโครงการนี้'); closeConfirm(); return; }
+      await DEL('projects',`id=eq.${id}`); FINANCE_LOADED=false;
+    }
     else if(type==='finance_transaction'){
       // ถ้า transaction ผูกกับ procurement_item → revert สถานะพัสดุก่อน DEL
       // (ป้องกันพัสดุแสดง "เบิกแล้ว" ทั้งที่ไม่มี finance record รองรับแล้ว)

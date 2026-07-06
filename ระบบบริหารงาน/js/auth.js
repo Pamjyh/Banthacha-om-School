@@ -98,6 +98,7 @@ async function loginAdmin(){
     setAdminMode(true);
     closeLoginModal();
     showToast('เข้าสู่ระบบสำเร็จ ✓');
+    openTeacherSelector();
   } else {
     recordFailedAttempt();
     var s = getLockState();
@@ -114,8 +115,61 @@ async function loginAdmin(){
 
 function logoutAdmin(){
   sessionStorage.removeItem(ADMIN_SES_KEY);
+  sessionStorage.removeItem(CURRENT_STAFF_KEY);
   setAdminMode(false);
+  updateStaffHeaderDisplay();
   showToast('ออกจากระบบแล้ว');
+}
+
+// ---------- TEACHER SELECTOR (Stage 13 — Multi-User Soft Protection) ----------
+// หลัง login สำเร็จ → เลือกว่า "คุณคือใคร?" เก็บใน sessionStorage (หมดเมื่อปิด tab)
+// ใช้กำหนดว่าใครแก้ไข/ลบโครงการของใครได้บ้าง ผ่าน canEdit() ด้านล่าง
+const CURRENT_STAFF_KEY = 'current_staff_id'; // sessionStorage: uuid ของ staff หรือ 'ADMIN'
+
+function openTeacherSelector(){
+  const sel = document.getElementById('teacherSelectDropdown');
+  if(!sel) return;
+  const activeStaff = (STAFF_LIST||[]).filter(s => s.is_active !== false);
+  sel.innerHTML = '<option value="">— เลือก —</option>' +
+    '<option value="ADMIN">ผู้ดูแลระบบ (แก้ไขได้ทุกอย่าง)</option>' +
+    activeStaff.map(s => '<option value="'+s.id+'">'+escHtml((s.prefix||'')+(s.name||''))+'</option>').join('');
+  const currentId = sessionStorage.getItem(CURRENT_STAFF_KEY);
+  if(currentId) sel.value = currentId;
+  document.getElementById('teacherSelectOverlay').classList.add('open');
+}
+
+function confirmTeacherSelection(){
+  const sel = document.getElementById('teacherSelectDropdown');
+  const val = sel ? sel.value : '';
+  if(!val){ showToast('กรุณาเลือกชื่อของท่านก่อน'); return; }
+  sessionStorage.setItem(CURRENT_STAFF_KEY, val);
+  document.getElementById('teacherSelectOverlay').classList.remove('open');
+  updateStaffHeaderDisplay();
+  // renderProjGrid() ใช้ canEdit() ตัดสินว่าปุ่มแก้ไข/ลบไหนแสดง — ต้อง re-render ทันที
+  // ไม่งั้นปุ่มของคนอื่นจะยังค้างอยู่จนกว่าจะมี re-render รอบถัดไป (สลับปี/หน้า)
+  if(typeof renderProjGrid === 'function') renderProjGrid();
+}
+
+function updateStaffHeaderDisplay(){
+  const el = document.getElementById('current-staff-label');
+  if(!el) return;
+  const currentId = sessionStorage.getItem(CURRENT_STAFF_KEY);
+  if(!currentId){ el.textContent = ''; return; }
+  if(currentId === 'ADMIN'){ el.textContent = 'เข้าสู่ระบบในฐานะ: ผู้ดูแลระบบ'; return; }
+  const staff = (STAFF_LIST||[]).find(s => s.id === currentId);
+  el.textContent = staff ? ('เข้าสู่ระบบในฐานะ: '+staff.prefix+staff.name) : '';
+}
+
+// canEdit() — BLUEPRINT §7.2 (แก้ไขแล้ว 2026-07-02: normalize whitespace ทั้งสองฝั่งก่อนเทียบ
+// เพราะ teacher_name จริงใน DB ไม่มี space คั่นระหว่าง prefix กับชื่อ เช่น "นางกาญจนา บุญเกตุ"
+// ในขณะที่ staff.prefix/staff.name เป็นคนละ field — ต่อแบบ prefix+' '+name เดิมจะไม่ match เลยสักคน)
+function canEdit(projectTeacherName){
+  const currentId = sessionStorage.getItem(CURRENT_STAFF_KEY);
+  if(!currentId || currentId === 'ADMIN') return true;
+  const staff = (STAFF_LIST||[]).find(s => s.id === currentId);
+  if(!staff) return false;
+  const norm = s => (s||'').replace(/\s+/g,'');
+  return norm(staff.prefix + staff.name) === norm(projectTeacherName);
 }
 
 // ---------- SET PASSWORD MODAL ----------
@@ -143,6 +197,7 @@ async function saveAdminPassword(){
   setAdminMode(true);
   closeSetPasswordModal();
   showToast('ตั้งรหัสผ่านสำเร็จ ✓');
+  openTeacherSelector();
 }
 
 // ---------- TOAST ----------
