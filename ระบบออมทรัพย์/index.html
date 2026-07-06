@@ -1132,7 +1132,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbx2DQJl0MDfFoMs3yx-d9gnNy5eunAk58nEABD7dHwAfww_vSoFFwr8RJMkzqfr4ifY4Q/exec';
+var API = 'https://script.google.com/macros/s/AKfycbzScb5FNx-5hkGjGyI25JP72AYSB_v6Ol2nw-hIh7sP9FOIxH7V2yvqrFqM8GcUotGiTQ/exec';
 // รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
 var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
@@ -1560,6 +1560,7 @@ function renderTxList(id,txs) {
 // ===== DAILY SUMMARY =====
 var stuMonthSel = null; // เดือนที่เลือกในโหมดครู
 var stuYearSel  = null;
+var _monthWaitCount = 0; // นับรอบที่ doLoadMonthData รอ allStus โหลด — กันวนไม่รู้จบถ้า loadStus() ล้มเหลวจริง
 
 function switchStudentTab(tab) {
   curStudentTab = tab;
@@ -1613,12 +1614,27 @@ function loadMonthSummary() {
 function doLoadMonthData() {
   var mEl = document.getElementById('month-table');
   var sEl = document.getElementById('month-summary-card');
-  // guard: ถ้า allStus ยังไม่โหลด (race condition) ให้รอแล้วลองใหม่
+  // guard: ถ้า allStus ยังไม่โหลด (race condition ตอนสลับแท็บเร็วเกินไป) ให้รอแล้วลองใหม่
+  // แต่ถ้ารอเกิน 10 ครั้ง (~5 วิ) แปลว่า loadStus() ที่แท็บ "รายชื่อ" ล้มเหลวจริง (error โชว์อยู่คนละแท็บ มองไม่เห็น)
+  // เดิมวนซ้ำไม่มีเพดาน ทำให้ดูเหมือน "โหลดค้างตลอดไป" โดยไม่มี error ให้เห็นเลย
   if (!allStus.length) {
+    _monthWaitCount++;
+    if (_monthWaitCount > 10) {
+      _monthWaitCount = 0;
+      if (mEl) mEl.innerHTML =
+        '<div style="text-align:center;padding:2rem;color:#c0392b">'+
+        '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'+
+        '<div style="font-weight:600;margin-bottom:4px">โหลดรายชื่อไม่สำเร็จ</div>'+
+        '<div style="font-size:12px;color:#666">ลองกดปุ่มด้านล่าง หรือดูข้อความ error ที่แท็บ "รายชื่อ"</div>'+
+        '<button onclick="loadStus(true);doLoadMonthData();" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button>'+
+        '</div>';
+      return;
+    }
     if (mEl) mEl.innerHTML = '<div class="load">⏳ กำลังโหลดรายชื่อ...</div>';
     setTimeout(doLoadMonthData, 500);
     return;
   }
+  _monthWaitCount = 0;
   if (mEl) mEl.innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
 
   apiCall({action:'getHistory', grade:curGrade, limit:1000}, function(r) {
@@ -1727,14 +1743,28 @@ function ensureTodayDepCache(cb) {
   });
 }
 
+var _todayWaitCount = 0; // นับรอบที่ loadTodaySummary รอ allStus โหลด — กันวนไม่รู้จบเหมือน _monthWaitCount
 function loadTodaySummary() {
   var el=document.getElementById('today-content');
-  // guard: ถ้า allStus ยังไม่โหลด (race condition) ให้รอแล้วลองใหม่
+  // guard: ถ้า allStus ยังไม่โหลด (race condition) ให้รอแล้วลองใหม่ — ไม่เกิน 10 ครั้ง (~5 วิ) กันวนไม่รู้จบ
   if (!allStus.length) {
+    _todayWaitCount++;
+    if (_todayWaitCount > 10) {
+      _todayWaitCount = 0;
+      el.innerHTML =
+        '<div style="text-align:center;padding:2rem;color:#c0392b">'+
+        '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'+
+        '<div style="font-weight:600;margin-bottom:4px">โหลดรายชื่อไม่สำเร็จ</div>'+
+        '<div style="font-size:12px;color:#666">ลองกดปุ่มด้านล่าง หรือดูข้อความ error ที่แท็บ "รายชื่อ"</div>'+
+        '<button onclick="loadStus(true);loadTodaySummary();" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button>'+
+        '</div>';
+      return;
+    }
     el.innerHTML='<div class="load">⏳ กำลังโหลดรายชื่อ...</div>';
     setTimeout(loadTodaySummary, 500);
     return;
   }
+  _todayWaitCount = 0;
   el.innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
   // ใช้ UTC+7 fixed เสมอ ป้องกัน timezone client ผิด
   var now=new Date(Date.now() + 7*60*60*1000);
