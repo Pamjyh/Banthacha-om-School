@@ -72,6 +72,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .ab-wit{background:transparent;color:var(--red);border-color:var(--red)}.ab-wit:hover{background:var(--red);color:#fff}
 .ab-bulk{background:transparent;color:var(--ga);border-color:var(--ga)}.ab-bulk:hover{background:var(--ga);color:#fff}
 .ab-add{background:var(--hg);color:#fff;border-color:var(--hg)}.ab-add:hover{opacity:.88}
+.ab-roll{background:transparent;color:var(--gu);border-color:var(--gu)}.ab-roll:hover{background:var(--gu);color:#fff}
 
 .st{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;letter-spacing:-0.01em}
 
@@ -923,10 +924,11 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
       <button class="ab ab-wit" onclick="openTx('wit')">💸 ถอน</button>
       <button class="ab ab-bulk" onclick="goBulk()">📋 ฝากรวม</button>
       <button class="ab ab-add" onclick="openAdd()">➕ เพิ่ม</button>
+      <button class="ab ab-roll" onclick="goBulkRoll()">🔢 เลขที่</button>
     </div>
     <!-- ช่องค้นหา -->
     <div style="position:relative;margin-bottom:10px">
-      <input id="stu-search" type="text" placeholder="🔍 ค้นหาชื่อนักเรียน..."
+      <input id="stu-search" type="text" placeholder="🔍 ค้นหาชื่อ หรือเลขที่นักเรียน..."
         oninput="filterStus(this.value)"
         style="width:100%;padding:10px 14px;border-radius:var(--br);border:1.5px solid var(--gl);font-size:14px;font-family:'Sarabun',sans-serif;outline:none;background:var(--white);transition:border-color 0.2s;letter-spacing:-0.01em">
     </div>
@@ -1004,6 +1006,26 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
   </div>
 </div>
 
+<!-- BULK ROLL NO -->
+<div id="pg-bulkroll" class="page">
+  <div class="nav">
+    <button class="nav-back" onclick="go('students')">←</button>
+    <div class="nav-info">
+      <div class="nav-sub">กรอกเลขที่ทีเดียวหลายคน</div>
+      <div class="nav-title" id="bulkroll-title">🔢 กรอกเลขที่</div>
+    </div>
+  </div>
+  <div class="body">
+    <div class="bsum" id="brsum"></div>
+    <p style="font-size:13px;color:var(--ts);margin-bottom:10px">กรอกเฉพาะคนที่ต้องการแก้ไข/เพิ่มเลขที่ ช่องไหนไม่แก้จะไม่ถูกบันทึกทับ</p>
+    <table class="btbl">
+      <thead><tr><th>ชื่อ-สกุล</th><th>เลขที่</th></tr></thead>
+      <tbody id="bulkroll-body"></tbody>
+    </table>
+    <button class="bsave" id="brsave-btn" onclick="submitBulkRoll()">💾 บันทึกทั้งหมด</button>
+  </div>
+</div>
+
 <!-- ADMIN -->
 <div id="pg-admin" class="page">
   <div class="nav">
@@ -1044,10 +1066,11 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <div class="mok" id="add-ok"></div>
     <div class="merr" id="add-err"></div>
     <textarea class="minp" id="add-names" rows="4"
-      placeholder="พิมพ์ชื่อ-สกุล ทีละบรรทัด (เพิ่มทีละหลายคน)"
+      placeholder="พิมพ์ชื่อ-สกุล ทีละบรรทัด (เพิ่มทีละหลายคน)&#10;ใส่เลขที่นำหน้าได้ เช่น 1 สมชาย ใจดี"
       style="resize:vertical;line-height:1.7;font-size:14px"></textarea>
-    <div style="font-size:12px;color:var(--ts);margin-bottom:10px">— หรือเพิ่มทีละคนพร้อมเลขบัญชี —</div>
+    <div style="font-size:12px;color:var(--ts);margin-bottom:10px">— หรือเพิ่มทีละคนพร้อมเลขที่/เลขบัญชี —</div>
     <input class="minp" id="add-one" placeholder="ชื่อ-สกุล (ทีละคน)">
+    <input class="minp" type="text" inputmode="numeric" pattern="[0-9]*" id="add-rollno" placeholder="เลขที่ (ถ้ามี)" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
     <input class="minp" id="add-bank" placeholder="เลขบัญชี ธกส. (ถ้ามี)">
     <div class="mbtns">
       <button class="mbtn mbtn-c" onclick="closeMo('add')">ยกเลิก</button>
@@ -1061,6 +1084,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <div class="mt">✏️ แก้ไขข้อมูลนักเรียน</div>
     <div class="merr" id="edit-err"></div>
     <input class="minp" id="edit-name" placeholder="ชื่อ-สกุล">
+    <input class="minp" type="text" inputmode="numeric" pattern="[0-9]*" id="edit-rollno" placeholder="เลขที่ (ถ้ามี)" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
     <input class="minp" id="edit-bank" placeholder="เลขบัญชี ธกส. (ถ้ามี)">
     <div class="mbtns">
       <button class="mbtn mbtn-c" onclick="closeMo('edit')">ยกเลิก</button>
@@ -1108,7 +1132,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbwN6Xbb0fHDvvoSBYs3QRqbxz_Hm9Xh1r60yWEM7H37t4uQrr5MR1-hymHGRU4bQGoYow/exec';
+var API = 'https://script.google.com/macros/s/AKfycbx2DQJl0MDfFoMs3yx-d9gnNy5eunAk58nEABD7dHwAfww_vSoFFwr8RJMkzqfr4ifY4Q/exec';
 // รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
 var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
@@ -1128,6 +1152,7 @@ var adData = null, curAdTab = 'ov', pendPr = null;
 var stuPage = 0, PAGE_SIZE = 20;
 var allStus = [], filteredStus = [];
 var curStudentTab = 'list';
+var _todayDepIds = null, _todayDepGrade = null, _todayDepDateStr = null; // cache เช็คว่าใครฝากไปแล้ววันนี้ (กันฝากซ้ำโดยไม่ตั้งใจ)
 
 // ===== UTILS =====
 function fmtDate(v) {
@@ -1383,7 +1408,9 @@ function loadStus(forceRefresh) {
 
 function filterStus(kw) {
   var q=kw.trim().toLowerCase();
-  filteredStus=q ? allStus.filter(function(s){return s.name.toLowerCase().indexOf(q)>=0;}) : allStus;
+  filteredStus=q ? allStus.filter(function(s){
+    return s.name.toLowerCase().indexOf(q)>=0 || (s.rollNo && String(s.rollNo).toLowerCase().indexOf(q)>=0);
+  }) : allStus;
   stus=filteredStus;
   stuPage=0;
   renderStus();
@@ -1405,13 +1432,14 @@ function renderStus() {
   el.innerHTML=pageStus.map(function(s){
     var sel=selStu&&selStu.id===s.id?' sel':'';
     var bc=s.balance>=0?'var(--ga)':'var(--red)';
+    var rollPrefix = s.rollNo ? '<b>'+esc(s.rollNo)+'.</b> ' : '';
     return '<div class="scard'+sel+'" onclick="pickStu(\''+s.id+'\')">'+
       '<div class="savt">'+(ICONS[s.grade]||'👦')+'</div>'+
-      '<div style="flex:1;min-width:0"><div class="sname">'+esc(s.name)+'</div>'+
+      '<div style="flex:1;min-width:0"><div class="sname">'+rollPrefix+esc(s.name)+'</div>'+
       '<div class="smeta">เข้าปี '+(s.entryYear||'-')+(s.bankAccount?' · '+esc(s.bankAccount):'')+'</div></div>'+
       '<div class="sbal"><div class="sbv" style="color:'+bc+'">'+fmt(s.balance)+' ฿</div>'+
       '<div class="sbl">สะสม</div></div>'+
-      '<button class="ebtn" onclick="event.stopPropagation();openEdit(\''+s.id+'\',\''+esc(s.name)+'\',\''+esc(s.bankAccount||'')+'\')">✏️</button>'+
+      '<button class="ebtn" onclick="event.stopPropagation();openEdit(\''+s.id+'\',\''+esc(s.name)+'\',\''+esc(s.bankAccount||'')+'\',\''+esc(s.rollNo||'')+'\')">✏️</button>'+
       (role==='admin'?'<button class="ebtn del" onclick="event.stopPropagation();askDelStu(\''+s.id+'\',\''+esc(s.name)+'\','+s.balance+')">🗑️</button>':'')+
       '</div>';
   }).join('');
@@ -1635,23 +1663,32 @@ function doLoadMonthData() {
       return;
     }
 
-    // รวมยอดต่อคน
+    // รวมยอดต่อคน — แนบเลขที่จาก allStus ไปด้วย (ธุรกรรมเองไม่มีเลขที่)
+    var rollMap = {};
+    allStus.forEach(function(s){ rollMap[s.id] = s.rollNo || ''; });
     var perPerson = {};
     txs.forEach(function(t){
-      if(!perPerson[t.studentId]) perPerson[t.studentId]={name:t.name,dep:0,wit:0,count:0};
+      if(!perPerson[t.studentId]) perPerson[t.studentId]={name:t.name,roll:rollMap[t.studentId]||'',dep:0,wit:0,count:0};
       if(t.type==='ฝาก'){perPerson[t.studentId].dep+=t.amount; perPerson[t.studentId].count++;}
       else perPerson[t.studentId].wit+=t.amount;
     });
 
-    // เรียงตามชื่อ
-    var rows = Object.values(perPerson).sort(function(a,b){return a.name.localeCompare(b.name,'th');});
+    // เรียงตามเลขที่ก่อน (แบบเดียวกับหน้ารายชื่อ) — คนไม่มีเลขที่ตกท้ายสุด เรียงตามชื่อแทน
+    var rows = Object.values(perPerson).sort(function(a,b){
+      var ra=parseInt(a.roll,10), rb=parseInt(b.roll,10);
+      var raOk=a.roll!==''&&!isNaN(ra), rbOk=b.roll!==''&&!isNaN(rb);
+      if (raOk&&rbOk) return ra-rb;
+      if (raOk&&!rbOk) return -1;
+      if (!raOk&&rbOk) return 1;
+      return a.name.localeCompare(b.name,'th');
+    });
 
     var html =
       '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px">'+
       'รายชื่อที่มีธุรกรรม ('+rows.length+' คน)</div>'+
       cardRowsHtml(rows.map(function(p){
         return {
-          name: p.name,
+          name: (p.roll ? p.roll+'. ' : '') + p.name,
           sub: p.count+' ครั้ง',
           value: (p.dep>0?'+'+fmt(p.dep)+' ฿':'-'),
           valueColor: 'var(--ga)',
@@ -1667,11 +1704,26 @@ function doLoadMonthData() {
     if (noTx.length > 0) {
       html += '<div style="font-family:\'Mitr\',sans-serif;font-size:13px;font-weight:600;color:var(--ts);margin:12px 0 8px">⏳ ยังไม่มีธุรกรรมเดือนนี้ ('+noTx.length+' คน)</div>'+
         cardRowsHtml(noTx.map(function(s){
-          return { name: s.name, value: fmt(s.balance)+' ฿', valueColor:'var(--sbux)' };
+          return { name: (s.rollNo?s.rollNo+'. ':'')+s.name, value: fmt(s.balance)+' ฿', valueColor:'var(--sbux)' };
         }));
     }
 
     if(mEl) mEl.innerHTML = html;
+  });
+}
+
+// เช็คว่าใครฝากไปแล้ว "วันนี้" ในชั้นปัจจุบัน — cache ต่อชั้น/วัน กันเรียก API ซ้ำทุกครั้งที่เปิด modal ฝาก
+// ใช้เตือนตอนฝากซ้ำโดยไม่ตั้งใจเท่านั้น (soft warning ไม่ block) — ถ้าโหลดไม่ทันก็ปล่อยผ่าน ไม่บังคับรอ
+function ensureTodayDepCache(cb) {
+  var now = new Date(Date.now() + 7*60*60*1000);
+  var todayStr = now.getUTCDate()+' '+MONTHS_SHORT[now.getUTCMonth()]+' '+(now.getUTCFullYear()+543);
+  if (_todayDepIds && _todayDepGrade===curGrade && _todayDepDateStr===todayStr) { if(cb) cb(); return; }
+  apiCall({action:'getHistory', grade:curGrade, date:todayStr, limit:500}, function(r){
+    if (!r.ok) return; // fail-open — ไม่เจอไม่เป็นไร แค่ไม่มีการเตือน
+    var ids={};
+    (r.transactions||[]).forEach(function(t){ if(t.type==='ฝาก') ids[t.studentId]=true; });
+    _todayDepIds=ids; _todayDepGrade=curGrade; _todayDepDateStr=todayStr;
+    if (cb) cb();
   });
 }
 
@@ -1738,13 +1790,13 @@ function loadTodaySummary() {
       '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px">✅ ฝากแล้ว ('+deposited.length+' คน)</div>'+
       cardRowsHtml(deposited.map(function(s){
         var d=stuMap[s.id]||{dep:0};
-        return { name: s.name, sub: 'ยอดสะสม '+fmt(s.balance)+' ฿', value: '+'+fmt(d.dep)+' ฿', valueColor:'var(--ga)' };
+        return { name: (s.rollNo?s.rollNo+'. ':'')+s.name, sub: 'ยอดสะสม '+fmt(s.balance)+' ฿', value: '+'+fmt(d.dep)+' ฿', valueColor:'var(--ga)' };
       }))+'<div style="margin-bottom:16px"></div>';
 
     if (notDeposited.length>0) {
       html+='<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--ts);margin-bottom:8px">⏳ ยังไม่ได้ฝากวันนี้ ('+notDeposited.length+' คน)</div>'+
         cardRowsHtml(notDeposited.map(function(s){
-          return { name: s.name, value: fmt(s.balance)+' ฿', valueColor:'var(--sbux)' };
+          return { name: (s.rollNo?s.rollNo+'. ':'')+s.name, value: fmt(s.balance)+' ฿', valueColor:'var(--sbux)' };
         }));
     }
     el.innerHTML=html;
@@ -1755,6 +1807,7 @@ function loadTodaySummary() {
 function goBulk() {
   if (!allStus.length) {toast('ยังไม่มีนักเรียน','err'); return;}
   renderBulk(); go('bulk');
+  ensureTodayDepCache(); // เตรียม cache ไว้เตือนตอนบันทึก เผื่อมีคนฝากไปแล้ววันนี้
 }
 function renderBulk() {
   document.getElementById('bsum').style.display='none';
@@ -1783,6 +1836,20 @@ function submitBulk() {
     return {s:s,amt:e?parseFloat(e.value)||0:0};
   }).filter(function(x){return x.amt>0;});
   if (!items.length) {toast('ยังไม่ได้กรอกยอดใดเลย','err'); return;}
+  // เตือนยอดสูงผิดปกติ (กันพิมพ์เลขศูนย์เกิน)
+  var highAmt=items.filter(function(x){return x.amt>1000;});
+  if (highAmt.length) {
+    var hd=highAmt.map(function(x){return x.s.name+': '+fmt(x.amt)+' บาท';}).join('\n');
+    if (!window.confirm('⚠️ ยอดต่อไปนี้สูงกว่าปกติมาก:\n'+hd+'\n\nต้องการบันทึกต่อไปใช่ไหม?')) return;
+  }
+  // เตือนคนที่ฝากไปแล้ววันนี้ (กันฝากซ้ำทั้งชั้นโดยไม่ตั้งใจ) — ถ้า cache ยังไม่พร้อมก็ปล่อยผ่าน
+  if (_todayDepIds) {
+    var already=items.filter(function(x){return _todayDepIds[x.s.id];});
+    if (already.length) {
+      var ad=already.map(function(x){return x.s.name;}).join(', ');
+      if (!window.confirm('⚠️ คนต่อไปนี้ดูเหมือนฝากไปแล้ววันนี้:\n'+ad+'\n\nต้องการบันทึกซ้ำต่อไปใช่ไหม?')) return;
+    }
+  }
   var btn=document.getElementById('bsave-btn');
   btn.disabled=true;
   var ok=0,fail=[];
@@ -1800,7 +1867,79 @@ function submitBulk() {
     }
     btn.textContent='⏳ '+(i+1)+'/'+items.length+'...';
     apiCall({action:'deposit',studentId:items[i].s.id,amount:items[i].amt,password:_pw,grade:items[i].s.grade||''},function(r){
-      if(r.ok) ok++; else fail.push(items[i].s.name);
+      if(r.ok) { ok++; if(!_todayDepIds) _todayDepIds={}; _todayDepIds[items[i].s.id]=true; }
+      else fail.push(items[i].s.name);
+      setTimeout(function(){sendNext(i+1);},200);
+    });
+  }
+  sendNext(0);
+}
+
+// ===== BULK เลขที่ =====
+function goBulkRoll() {
+  if (!allStus.length) {toast('ยังไม่มีนักเรียน','err'); return;}
+  renderBulkRoll(); go('bulkroll');
+}
+function renderBulkRoll() {
+  document.getElementById('brsum').style.display='none';
+  var btn=document.getElementById('brsave-btn');
+  btn.disabled=false; btn.textContent='💾 บันทึกทั้งหมด';
+  document.getElementById('bulkroll-body').innerHTML=allStus.map(function(s){
+    var orig=String(s.rollNo||'').replace(/"/g,'&quot;'); // esc() ไม่ escape " แต่ตรงนี้แทรกใน attribute แบบ double-quote ต้องกันเอง
+    return '<tr><td>'+esc(s.name)+'</td>'+
+      '<td><input class="binp" type="text" inputmode="numeric" pattern="[0-9]*" id="br-'+s.id+'" placeholder="เลขที่" value="'+esc(orig)+'"'+
+      ' data-orig="'+esc(orig)+'"'+
+      ' oninput="this.value=this.value.replace(/[^0-9]/g,\'\');this.classList.toggle(\'hv\',this.value!==this.dataset.orig);updBulkRoll()" onfocus="this.select()"></td></tr>';
+  }).join('');
+}
+function updBulkRoll() {
+  var cnt=0;
+  allStus.forEach(function(s){
+    var e=document.getElementById('br-'+s.id);
+    if (e && e.value.trim()!==e.dataset.orig) cnt++;
+  });
+  var el=document.getElementById('brsum');
+  if(cnt>0){el.textContent='แก้ไขแล้ว '+cnt+' คน';el.style.display='block';}
+  else el.style.display='none';
+}
+function submitBulkRoll() {
+  var items=allStus.map(function(s){
+    var e=document.getElementById('br-'+s.id);
+    var val=e?e.value.trim():'';
+    return {s:s,rollNo:val,changed:e&&val!==e.dataset.orig};
+  });
+  var changed=items.filter(function(x){return x.changed;});
+  if (!changed.length) {toast('ยังไม่ได้แก้ไขเลขที่ใดเลย','err'); return;}
+
+  // เตือนเลขที่ซ้ำ (คำนวณจากค่าที่จะเป็นจริงหลังบันทึก ทั้งที่แก้และที่ไม่แก้) — group ตามเลขที่
+  var effective=items.map(function(x){return {name:x.s.name,rollNo:x.rollNo};})
+    .filter(function(x){return x.rollNo!=='';});
+  var byRoll={};
+  effective.forEach(function(x){ (byRoll[x.rollNo]=byRoll[x.rollNo]||[]).push(x.name); });
+  var dupList=Object.keys(byRoll).filter(function(k){return byRoll[k].length>1;});
+  if (dupList.length) {
+    var detail=dupList.map(function(k){return 'เลขที่ '+k+': '+byRoll[k].join(', ');}).join('\n');
+    if (!window.confirm('⚠️ เลขที่ต่อไปนี้ซ้ำกัน:\n'+detail+'\n\nต้องการบันทึกต่อไปใช่ไหม?')) return;
+  }
+
+  var btn=document.getElementById('brsave-btn');
+  btn.disabled=true;
+  var ok=0,fail=[];
+  function sendNext(i) {
+    if (i>=changed.length) {
+      btn.disabled=false; btn.textContent='💾 บันทึกทั้งหมด';
+      if (!fail.length) {
+        toast('✓ บันทึกสำเร็จ '+ok+' คน','ok');
+        delete cache[curGrade]; ccDel('stus_'+curGrade);
+        loadStus(true); setTimeout(function(){go('students');},600);
+      } else {
+        toast('สำเร็จ '+ok+' · ล้มเหลว '+fail.length+' คน','err'); loadStus(true);
+      }
+      return;
+    }
+    btn.textContent='⏳ '+(i+1)+'/'+changed.length+'...';
+    apiCall({action:'editStudent',studentId:changed[i].s.id,name:changed[i].s.name,rollNo:changed[i].rollNo,password:_pw},function(r){
+      if(r.ok) ok++; else fail.push(changed[i].s.name);
       setTimeout(function(){sendNext(i+1);},200);
     });
   }
@@ -1826,6 +1965,7 @@ function openTx(mode) {
   btn.onclick=isD?confirmTx:previewWithdraw;
   openMo('tx');
   setTimeout(function(){amt.focus();},100);
+  if (isD) ensureTodayDepCache(); // เตรียม cache ไว้ล่วงหน้า เผื่อต้องเตือนตอนกดยืนยัน
 }
 function previewWithdraw() {
   var amt=parseFloat(document.getElementById('tx-amt').value);
@@ -1853,6 +1993,12 @@ function previewWithdraw() {
 function confirmTx() {
   var amt=parseFloat(document.getElementById('tx-amt').value);
   if (!amt||amt<=0) {showErr('tx','กรุณาใส่จำนวนเงิน'); return;}
+  if (txMode==='dep') {
+    // เตือนยอดสูงผิดปกติ (กันพิมพ์เลขศูนย์เกิน) — ไม่บังคับ แค่ให้ยืนยันซ้ำ
+    if (amt>1000 && !window.confirm('⚠️ ยอดฝาก '+fmt(amt)+' บาท สูงกว่าปกติมาก (เช่น พิมพ์เลขศูนย์เกิน) ยืนยันว่าถูกต้องใช่ไหม?')) return;
+    // เตือนถ้าคนนี้ฝากไปแล้ววันนี้ (กันฝากซ้ำโดยไม่ตั้งใจ) — ถ้า cache ยังโหลดไม่ทันก็ปล่อยผ่าน
+    if (_todayDepIds && _todayDepIds[selStu.id] && !window.confirm('⚠️ '+selStu.name+' ดูเหมือนฝากไปแล้ววันนี้ ยืนยันจะฝากซ้ำอีกครั้งใช่ไหม?')) return;
+  }
   var btn=document.getElementById('tx-confirm');
   var origText=btn.textContent;
   btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
@@ -1865,6 +2011,7 @@ function confirmTx() {
       var zone=document.getElementById('tx-confirm-zone'); if(zone) zone.style.display='none';
       showErr('tx',r.error||'เกิดข้อผิดพลาด'); return;
     }
+    if (txMode==='dep') { if(!_todayDepIds) _todayDepIds={}; _todayDepIds[selStu.id]=true; } // อัปเดต cache ทันที กันฝากซ้ำรอบถัดไปในเซสชันเดียวกัน
     var dbg = r.debug ? ' [debug: rows '+r.debug.rowsBefore+'→'+r.debug.rowsAfter+' wrote='+r.debug.wrote+']' : '';
     showOk('tx','✓ '+(txMode==='dep'?'ฝาก':'ถอน')+' '+fmt(amt)+' บาท · ยอดใหม่ '+fmt(r.newBalance)+' บาท'+dbg);
     var s=allStus.filter(function(x){return x.id===selStu.id;})[0];
@@ -1888,6 +2035,7 @@ function openAdd() {
   document.getElementById('add-sub').textContent='เพิ่มนักเรียนชั้น '+curGrade;
   document.getElementById('add-names').value='';
   document.getElementById('add-one').value='';
+  document.getElementById('add-rollno').value='';
   document.getElementById('add-bank').value='';
   hide('add-ok'); hide('add-err');
   openMo('add');
@@ -1896,15 +2044,33 @@ function openAdd() {
 function confirmAdd() {
   var oneName=document.getElementById('add-one').value.trim();
   var bank=document.getElementById('add-bank').value.trim();
+  var rollNo=document.getElementById('add-rollno').value.trim();
   var bulk=document.getElementById('add-names').value.split('\n')
     .map(function(n){return n.trim();})
     .filter(function(n){return n.replace(/\s/g,'').length>0;}); // กรองบรรทัดว่าง
-  var items=oneName?[{name:oneName,bank:bank}]:bulk.map(function(n){return{name:n,bank:''};});
+  // แต่ละบรรทัดใส่เลขที่นำหน้าได้ เช่น "1 สมชาย ใจดี" หรือ "1. สมชาย ใจดี" — ถ้าไม่มีเลขที่นำหน้า ทั้งบรรทัดคือชื่อ (เหมือนเดิม)
+  function parseBulkLine(line) {
+    var m = line.match(/^(\d+)[.)]?\s+(.+)$/);
+    return m ? {name:m[2].trim(),rollNo:m[1]} : {name:line,rollNo:''};
+  }
+  var items=oneName?[{name:oneName,bank:bank,rollNo:rollNo}]:bulk.map(function(n){
+    var p=parseBulkLine(n);
+    return{name:p.name,bank:'',rollNo:p.rollNo};
+  });
   if (!items.length) {showErr('add','กรุณาใส่ชื่ออย่างน้อย 1 คน'); return;}
   // ตรวจชื่อซ้ำกับที่มีอยู่แล้ว
   var existNames=allStus.map(function(s){return s.name.toLowerCase();});
   var dups=items.filter(function(x){return existNames.indexOf(x.name.toLowerCase())>=0;}).map(function(x){return x.name;});
   if (dups.length && !window.confirm('⚠️ ชื่อต่อไปนี้อาจซ้ำกับที่มีอยู่แล้ว:\n'+dups.join(', ')+'\n\nต้องการเพิ่มต่อไปใช่ไหม?')) return;
+  // ตรวจเลขที่ซ้ำ (กับนักเรียนที่มีอยู่แล้ว + ภายในชุดที่กำลังเพิ่ม)
+  var existRolls={};
+  allStus.forEach(function(s){ if(s.rollNo) (existRolls[s.rollNo]=existRolls[s.rollNo]||[]).push(s.name); });
+  items.forEach(function(x){ if(x.rollNo) (existRolls[x.rollNo]=existRolls[x.rollNo]||[]).push(x.name); });
+  var rollDups=Object.keys(existRolls).filter(function(k){return existRolls[k].length>1;});
+  if (rollDups.length) {
+    var rd=rollDups.map(function(k){return 'เลขที่ '+k+': '+existRolls[k].join(', ');}).join('\n');
+    if (!window.confirm('⚠️ เลขที่ต่อไปนี้ซ้ำกัน:\n'+rd+'\n\nต้องการเพิ่มต่อไปใช่ไหม?')) return;
+  }
   var btn=document.getElementById('add-btn');
   btn.disabled=true;
   var ok=0,fail=[];
@@ -1915,6 +2081,7 @@ function confirmAdd() {
         showOk('add','✓ เพิ่มสำเร็จ '+ok+' คน ตามลำดับที่พิมพ์');
         document.getElementById('add-names').value='';
         document.getElementById('add-one').value='';
+        document.getElementById('add-rollno').value='';
         document.getElementById('add-bank').value='';
         loadStus(true); setTimeout(function(){closeMo('add');},1500);
       } else {
@@ -1923,7 +2090,7 @@ function confirmAdd() {
       return;
     }
     btn.textContent='⏳ '+(i+1)+'/'+items.length+'...';
-    apiCall({action:'addStudent',name:items[i].name,bankAccount:items[i].bank,grade:curGrade,password:_pw},function(r){
+    apiCall({action:'addStudent',name:items[i].name,bankAccount:items[i].bank,rollNo:items[i].rollNo||'',grade:curGrade,password:_pw},function(r){
       if(r.ok) ok++; else fail.push(items[i].name);
       setTimeout(function(){sendNext(i+1);},300);
     });
@@ -1932,18 +2099,20 @@ function confirmAdd() {
 }
 
 // ===== EDIT STUDENT =====
-function openEdit(id,name,bank) {
+function openEdit(id,name,bank,rollNo) {
   editStuId=id;
   document.getElementById('edit-name').value=name;
   document.getElementById('edit-bank').value=bank||'';
+  document.getElementById('edit-rollno').value=rollNo||'';
   hide('edit-err'); openMo('edit');
   setTimeout(function(){var e=document.getElementById('edit-name');e.focus();e.select();},100);
 }
 function confirmEdit() {
   var name=document.getElementById('edit-name').value.trim();
   var bank=document.getElementById('edit-bank').value.trim();
+  var rollNo=document.getElementById('edit-rollno').value.trim();
   if (!name) {showErr('edit','กรุณาใส่ชื่อ'); return;}
-  apiCall({action:'editStudent',studentId:editStuId,name:name,bankAccount:bank,password:_pw},function(r){
+  apiCall({action:'editStudent',studentId:editStuId,name:name,bankAccount:bank,rollNo:rollNo,password:_pw},function(r){
     if (!r.ok) {showErr('edit',r.error); return;}
     toast('✓ แก้ไขสำเร็จ','ok'); closeMo('edit'); loadStus(true);
   });
