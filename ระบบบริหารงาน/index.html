@@ -569,16 +569,17 @@ body:not(.is-admin) .admin-only { display: none !important; }
         <h2 class="page-title">จัดการข้อมูล</h2>
         <p class="page-sub">บุคลากร ร้านค้า และข้อมูลอ้างอิงอื่นๆ ของระบบ</p>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button class="btn-sm admin-only" onclick="openStaffForm()">+ เพิ่มบุคลากร</button>
-      </div>
     </div>
 
     <div class="tab-bar">
       <button class="tab-btn active" data-mtab="staff">บุคลากร</button>
+      <button class="tab-btn" data-mtab="vendors">ร้านค้า/ผู้รับจ้าง</button>
     </div>
 
     <div id="manage-tab-staff">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn-sm admin-only" onclick="openStaffForm()">+ เพิ่มบุคลากร</button>
+      </div>
       <div class="table-card">
         <table>
           <thead><tr>
@@ -586,6 +587,24 @@ body:not(.is-admin) .admin-only { display: none !important; }
           </tr></thead>
           <tbody id="staff-tbody">
             <tr><td colspan="5" class="no-data">กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ======= ร้านค้า/ผู้รับจ้าง (Stage 12) ======= -->
+    <div id="manage-tab-vendors" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <input class="fc" type="text" id="vendorSearch" placeholder="🔍 ค้นหาชื่อ/ประเภท/จังหวัด" style="max-width:280px" oninput="filterVendors()">
+        <button class="btn-sm admin-only" onclick="openVendorForm()">+ เพิ่มร้านค้า</button>
+      </div>
+      <div class="table-card">
+        <table>
+          <thead><tr>
+            <th>ชื่อ</th><th>ประเภท</th><th>จังหวัด</th><th></th>
+          </tr></thead>
+          <tbody id="vendors-tbody">
+            <tr><td colspan="4" class="no-data">กำลังโหลด...</td></tr>
           </tbody>
         </table>
       </div>
@@ -960,6 +979,96 @@ body:not(.is-admin) .admin-only { display: none !important; }
   </div>
 </div>
 
+<!-- ======= VENDOR FORM MODAL (Stage 12) ======= -->
+<div class="overlay" id="vendorOverlay">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head">
+      <h2 id="vendorFormTitle">เพิ่มร้านค้า/ผู้รับจ้าง</h2>
+      <button class="modal-x" onclick="closeVendorForm()">✕</button>
+    </div>
+    <input type="hidden" id="vendorEditId">
+    <div class="form-grid">
+      <div class="fg form-full">
+        <label>ชื่อร้านค้า/ผู้รับจ้าง <span style="color:var(--arc)">*</span></label>
+        <input class="fc" type="text" id="vendorName" placeholder="ชื่อร้าน หรือ ชื่อ-นามสกุล">
+      </div>
+      <div class="fg">
+        <label>ชื่อผู้เสนอราคา/ผู้ติดต่อ</label>
+        <input class="fc" type="text" id="vendorContact">
+      </div>
+      <div class="fg">
+        <label>ประเภท</label>
+        <select class="fc" id="vendorType">
+          <option value="บุคคลธรรมดา">บุคคลธรรมดา</option>
+          <option value="หจก./บริษัท">หจก./บริษัท</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="fg">
+        <label>เลขผู้เสียภาษี/เลขบัตรประชาชน (13 หลัก)</label>
+        <input class="fc" type="text" id="vendorTaxId" maxlength="13">
+      </div>
+      <div class="fg">
+        <label>โทรศัพท์</label>
+        <input class="fc" type="text" id="vendorPhone">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="fg">
+        <label>เลขที่</label>
+        <input class="fc" type="text" id="vendorAddressNo">
+      </div>
+      <div class="fg">
+        <label>หมู่ที่</label>
+        <input class="fc" type="text" id="vendorMoo">
+      </div>
+      <div class="fg">
+        <label>ตำบล/แขวง</label>
+        <input class="fc" type="text" id="vendorTambon">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="fg">
+        <label>อำเภอ/เขต</label>
+        <input class="fc" type="text" id="vendorAmphoe">
+      </div>
+      <div class="fg">
+        <label>จังหวัด</label>
+        <input class="fc" type="text" id="vendorProvince">
+      </div>
+      <div class="fg">
+        <label>รหัสไปรษณีย์</label>
+        <input class="fc" type="text" id="vendorPostcode" maxlength="5">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="fg">
+        <label>เลขที่บัญชีธนาคาร</label>
+        <input class="fc" type="text" id="vendorBankAcctNo">
+      </div>
+      <div class="fg">
+        <label>ชื่อบัญชี</label>
+        <input class="fc" type="text" id="vendorBankAcctName">
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="fg">
+        <label>ธนาคาร</label>
+        <input class="fc" type="text" id="vendorBankName">
+      </div>
+      <div class="fg">
+        <label>สาขา</label>
+        <input class="fc" type="text" id="vendorBankBranch">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeVendorForm()">ยกเลิก</button>
+      <button class="btn-sm" style="padding:10px 24px" onclick="saveVendorItem()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======= LOGIN MODAL ======= -->
 <div class="overlay" id="loginOverlay">
   <div class="modal" style="max-width:360px">
@@ -1030,6 +1139,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
 <script src="./js/finance.js"></script>
 <script src="./js/finance-calc.js"></script>
 <script src="./js/staff.js"></script>
+<script src="./js/vendors.js"></script>
 <script src="./js/delete.js"></script>
 <script src="./js/navigation.js"></script>
 <script src="./js/export.js"></script>

@@ -34,3 +34,6 @@ let IS_ADMIN = false;
 
 // Staff (บุคลากร) — Stage 11
 let STAFF_LIST = [];
+
+// Vendors (ร้านค้า/ผู้รับจ้าง) — Stage 12
+let VENDORS_LIST = [];
