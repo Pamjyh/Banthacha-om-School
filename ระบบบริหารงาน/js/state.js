@@ -37,3 +37,9 @@ let STAFF_LIST = [];
 
 // Vendors (ร้านค้า/ผู้รับจ้าง) — Stage 12
 let VENDORS_LIST = [];
+
+// Procurement Detail Form (กรอกเอกสารพัสดุ) — Stage 14
+// CURRENT_PROC_ITEM = procurement_item ที่กำลังเปิดฟอร์มอยู่, CURRENT_DETAIL = แถว procurement_details
+// ที่โหลดมา (null ถ้ายังไม่เคยบันทึก = create mode) — Stage 15-16 จะต่อยอดจาก state นี้
+let CURRENT_PROC_ITEM = null;
+let CURRENT_DETAIL = null;

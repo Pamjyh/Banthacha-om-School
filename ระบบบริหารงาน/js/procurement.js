@@ -126,6 +126,7 @@ function renderProc(){
       <td><div class="act-group">
         <button class="act-btn admin-only" onclick="editProc('${i.id}')">✏️</button>
         <button class="act-btn del admin-only" onclick="askDel('proc','${i.id}','${escHtml(i.title)}')">🗑️</button>
+        ${canEdit(i.projects?.teacher_name) ? `<button class="act-btn admin-only" onclick="openDetailForm('${i.id}')" title="กรอกเอกสาร">📄</button>` : ''}
       </div></td>
     </tr>`;
   }).join('');

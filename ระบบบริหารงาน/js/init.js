@@ -66,7 +66,7 @@ async function loadAll(){
   try{
     var [proj, proc, fund, finBal, staff, vendors] = await Promise.all([
       GET('projects',`select=*,procurement_items(id,amount,withdraw_status)&year_id=eq.${CY}&order=sort_order`),
-      GET('procurement_items',`select=*,projects(name)&year_id=eq.${CY}&order=type,seq`),
+      GET('procurement_items',`select=*,projects(name,teacher_name)&year_id=eq.${CY}&order=type,seq`),
       FUND_CATEGORIES.length ? Promise.resolve(FUND_CATEGORIES) : GET('fund_categories','select=*&order=sort_order'),
       GET('finance_fund_balances',`select=*&year_id=eq.${CY}&order=fund_name`).catch(()=>[]),
       GET('staff','select=*&order=prefix,name').catch(()=>[]),

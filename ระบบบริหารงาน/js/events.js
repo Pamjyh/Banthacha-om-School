@@ -52,7 +52,7 @@ if(procYearEl) procYearEl.addEventListener('change', ()=>{
   PROC_YEAR_VAL = parseInt(procYearEl.value)||0;
   PROC_PAGE=1; renderProc();
 });
-['procOverlay','projOverlay','yearOverlay','confirmOverlay','finOverlay','importOverlay','importExcelOverlay','extOverlay','extCatOverlay','loginOverlay','setpwOverlay','staffOverlay','vendorOverlay'].forEach(id=>{
+['procOverlay','projOverlay','yearOverlay','confirmOverlay','finOverlay','importOverlay','importExcelOverlay','extOverlay','extCatOverlay','loginOverlay','setpwOverlay','staffOverlay','vendorOverlay','procDetailOverlay'].forEach(id=>{
   document.getElementById(id)?.addEventListener('click',function(e){
     if(e.target!==this)return;
     if(id==='confirmOverlay')          closeConfirm();
@@ -67,11 +67,12 @@ if(procYearEl) procYearEl.addEventListener('change', ()=>{
     else if(id==='setpwOverlay')       closeSetPasswordModal();
     else if(id==='staffOverlay')       closeStaffForm();
     else if(id==='vendorOverlay')      closeVendorForm();
+    else if(id==='procDetailOverlay')  closeDetailForm();
     else closeProcForm();
   });
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeProcForm();closeProjForm();closeYearModal();closeConfirm();closeFinanceForm();closeImportModal();closeImportExcelModal();closeExtForm();closeExtCatModal();closeLoginModal();closeSetPasswordModal();closeStaffForm();closeVendorForm();}
+  if(e.key==='Escape'){closeProcForm();closeProjForm();closeYearModal();closeConfirm();closeFinanceForm();closeImportModal();closeImportExcelModal();closeExtForm();closeExtCatModal();closeLoginModal();closeSetPasswordModal();closeStaffForm();closeVendorForm();closeDetailForm();}
   if(e.key==='Enter'&&document.getElementById('loginOverlay')?.classList.contains('open')) loginAdmin();
   if(e.key==='Enter'&&document.getElementById('setpwOverlay')?.classList.contains('open')) saveAdminPassword();
 });

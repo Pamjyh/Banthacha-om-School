@@ -1091,6 +1091,35 @@ body:not(.is-admin) .admin-only { display: none !important; }
   </div>
 </div>
 
+<!-- ======= PROCUREMENT DETAIL FORM MODAL (Stage 14 — Section A เท่านั้น) ======= -->
+<div class="overlay" id="procDetailOverlay">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head">
+      <h2>กรอกเอกสารพัสดุ</h2>
+      <button class="modal-x" onclick="closeDetailForm()">✕</button>
+    </div>
+
+    <div class="table-card" style="padding:16px 20px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:14px">
+        <div><span style="color:var(--muted)">ชื่อรายการ:</span> <strong id="pd-title"></strong></div>
+        <div><span style="color:var(--muted)">ประเภท:</span> <span id="pd-type"></span></div>
+        <div><span style="color:var(--muted)">โครงการ:</span> <span id="pd-project"></span></div>
+        <div><span style="color:var(--muted)">ปีงบประมาณ:</span> <span id="pd-year"></span></div>
+        <div><span style="color:var(--muted)">วงเงิน:</span> <strong id="pd-amount"></strong> บาท</div>
+        <div><span style="color:var(--muted)">เลขที่เอกสาร:</span> <strong id="pd-docnumber" style="font-family:var(--mono)"></strong> <span id="pd-docnumber-tag" style="font-size:11px;color:var(--muted)"></span></div>
+      </div>
+    </div>
+
+    <div class="no-data" style="text-align:center;padding:20px 0">
+      ส่วนอื่น (ร้านค้า / รายการย่อย / วันที่ / คณะกรรมการ / บันทึก) จะเปิดใช้งานใน Stage 15-16 ถัดไป
+    </div>
+
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeDetailForm()">ปิด</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======= LOGIN MODAL ======= -->
 <div class="overlay" id="loginOverlay">
   <div class="modal" style="max-width:360px">
@@ -1158,6 +1187,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
 <script src="./js/projects.js"></script>
 <script src="./js/procurement.js"></script>
 <script src="./js/procurement-docgen.js"></script>
+<script src="./js/procurement-detail.js"></script>
 <script src="./js/finance.js"></script>
 <script src="./js/finance-calc.js"></script>
 <script src="./js/staff.js"></script>
