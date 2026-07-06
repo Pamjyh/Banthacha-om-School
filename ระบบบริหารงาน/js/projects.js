@@ -3,15 +3,25 @@
 // =====================================================================
 function renderProjGrid(){
   const el = document.getElementById('proj-grid');
+  // Stage 13D: กรองเฉพาะโครงการที่มองเห็นได้ก่อน (canViewProject) — ทั้ง stat cards และการ์ดโครงการ
+  // เพื่อไม่ให้ครูที่ไม่มี module flag เห็นยอดรวมงบประมาณทั้งโรงเรียนผ่าน stat card
+  const visibleProjects = PROJECTS.filter(p => canViewProject(p.teacher_name));
   // คำนวณจาก PROC (อัปเดตใน memory เสมอ) — เฉพาะ เบิกแล้ว เท่านั้น
-  const totalBudget = PROJECTS.reduce((s,p)=>s+Number(p.budget_amount||0),0);
-  const totalSpent  = PROC.filter(i=>i.withdraw_status==='เบิกแล้ว').reduce((s,i)=>s+Number(i.amount||0),0);
-  document.getElementById('proj-stat-count').textContent  = PROJECTS.length;
+  const visibleIds = new Set(visibleProjects.map(p=>p.id));
+  const visibleProc = PROC.filter(i => visibleIds.has(i.project_id));
+  const totalBudget = visibleProjects.reduce((s,p)=>s+Number(p.budget_amount||0),0);
+  const totalSpent  = visibleProc.filter(i=>i.withdraw_status==='เบิกแล้ว').reduce((s,i)=>s+Number(i.amount||0),0);
+  document.getElementById('proj-stat-count').textContent  = visibleProjects.length;
   document.getElementById('proj-stat-budget').textContent = numFull(totalBudget);
   document.getElementById('proj-stat-spent').textContent  = numFull(totalSpent);
   document.getElementById('proj-stat-remain').textContent = numFull(totalBudget - totalSpent);
-  if(!PROJECTS.length){ el.innerHTML='<div class="no-data">ยังไม่มีโครงการ กด "+ เพิ่มโครงการ"</div>'; return; }
-  el.innerHTML = PROJECTS.map(p=>{
+  if(!visibleProjects.length){
+    el.innerHTML = PROJECTS.length
+      ? '<div class="no-data">ไม่มีโครงการที่คุณมีสิทธิ์เห็น</div>'
+      : '<div class="no-data">ยังไม่มีโครงการ กด "+ เพิ่มโครงการ"</div>';
+    return;
+  }
+  el.innerHTML = visibleProjects.map(p=>{
     // ใช้ PROC โดยตรง — อัปเดตทันทีเมื่อ toggle status
     const projItems = PROC.filter(i=>i.project_id===p.id);
     const spent  = projItems.filter(i=>i.withdraw_status==='เบิกแล้ว').reduce((a,i)=>a+Number(i.amount||0),0);

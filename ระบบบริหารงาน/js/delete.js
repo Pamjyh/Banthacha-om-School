@@ -10,6 +10,7 @@ async function confirmDel(){
   show('loadingOverlay','flex');
   try{
     if(type==='proc'){
+      if(!canEditModule('procurement')){ hide('loadingOverlay'); alert('คุณไม่มีสิทธิ์ลบรายการพัสดุนี้'); closeConfirm(); return; }
       await DEL('finance_transactions',`procurement_id=eq.${id}`);
       await DEL('procurement_items',`id=eq.${id}`);
       FINANCE_LOADED=false;
@@ -20,6 +21,7 @@ async function confirmDel(){
       await DEL('projects',`id=eq.${id}`); FINANCE_LOADED=false;
     }
     else if(type==='finance_transaction'){
+      if(!canEditModule('finance')){ hide('loadingOverlay'); alert('คุณไม่มีสิทธิ์ลบรายการการเงินนี้'); closeConfirm(); return; }
       // ถ้า transaction ผูกกับ procurement_item → revert สถานะพัสดุก่อน DEL
       // (ป้องกันพัสดุแสดง "เบิกแล้ว" ทั้งที่ไม่มี finance record รองรับแล้ว)
       var linkedTx = FINANCE_TRANSACTIONS.find(function(t){ return String(t.id)===String(id); });
@@ -31,7 +33,10 @@ async function confirmDel(){
       await DEL('finance_transactions',`id=eq.${id}`);
       FINANCE_LOADED=false;
     }
-    else if(type==='external_transaction'){ await DEL('external_transactions',`id=eq.${id}`); EXT_LOADED=false; }
+    else if(type==='external_transaction'){
+      if(!canEditModule('finance')){ hide('loadingOverlay'); alert('คุณไม่มีสิทธิ์ลบรายการเงินนอกนี้'); closeConfirm(); return; }
+      await DEL('external_transactions',`id=eq.${id}`); EXT_LOADED=false;
+    }
     if(type==='finance_transaction'){
       await loadFinanceData();
       if(FIN_TAB==='transactions') loadTransactions();

@@ -31,6 +31,8 @@ function openStaffForm(){
   document.getElementById('staffPrefix').value = 'นาย';
   document.getElementById('staffName').value = '';
   document.getElementById('staffPosition').value = '';
+  document.getElementById('staffCanProc').checked = false;
+  document.getElementById('staffCanFin').checked = false;
   document.getElementById('staffFormTitle').textContent = 'เพิ่มบุคลากร';
   document.getElementById('staffOverlay').classList.add('open');
 }
@@ -46,6 +48,8 @@ function editStaff(id){
   document.getElementById('staffPrefix').value = s.prefix || 'นาย';
   document.getElementById('staffName').value = s.name || '';
   document.getElementById('staffPosition').value = s.position || '';
+  document.getElementById('staffCanProc').checked = !!s.can_edit_procurement;
+  document.getElementById('staffCanFin').checked = !!s.can_edit_finance;
   document.getElementById('staffFormTitle').textContent = 'แก้ไขบุคลากร';
   document.getElementById('staffOverlay').classList.add('open');
 }
@@ -57,9 +61,11 @@ async function saveStaffItem(){
   const position = document.getElementById('staffPosition').value.trim();
   if(!name)     return alert('กรุณาระบุชื่อ-สกุล');
   if(!position) return alert('กรุณาระบุตำแหน่ง');
+  const canProc = document.getElementById('staffCanProc').checked;
+  const canFin  = document.getElementById('staffCanFin').checked;
 
   const editId = document.getElementById('staffEditId').value;
-  const body = { prefix, name, position };
+  const body = { prefix, name, position, can_edit_procurement: canProc, can_edit_finance: canFin };
 
   show('loadingOverlay','flex');
   try{
@@ -69,6 +75,9 @@ async function saveStaffItem(){
     hide('loadingOverlay');
     renderStaffTable();
     closeStaffForm();
+    // Stage 13D: ถ้าแก้ไข flag ของคนที่กำลังล็อกอินอยู่ตอนนี้เอง ต้อง refresh สรุป/เต็มทันที
+    if(typeof applyModulePermissionUI === 'function') applyModulePermissionUI();
+    if(typeof renderProjGrid === 'function') renderProjGrid();
     showToast(editId ? 'แก้ไขข้อมูลสำเร็จ ✓' : 'เพิ่มบุคลากรสำเร็จ ✓');
   }catch(e){
     hide('loadingOverlay');

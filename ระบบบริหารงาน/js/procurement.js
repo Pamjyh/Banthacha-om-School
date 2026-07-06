@@ -84,6 +84,9 @@ function renderProc(){
   document.getElementById('proc-stat-total').textContent = numFull(allSum(PROC));
   document.getElementById('proc-stat-done').textContent  = numFull(allSum(PROC.filter(i=>i.withdraw_status==='เบิกแล้ว')));
   document.getElementById('proc-stat-pend').textContent  = numFull(allSum(PROC.filter(i=>i.withdraw_status==='ยังไม่เบิก')));
+  // Stage 13D: สรุปวงเงินแยกจัดซื้อ/จัดจ้าง — สำหรับผู้ไม่มีสิทธิ์แก้ไขหน้าพัสดุ
+  document.getElementById('proc-stat-buy-total').textContent  = numFull(allSum(PROC.filter(i=>i.type==='จัดซื้อ')));
+  document.getElementById('proc-stat-hire-total').textContent = numFull(allSum(PROC.filter(i=>i.type==='จัดจ้าง')));
 
   const tbody=document.getElementById('proc-tbody');
   const tfoot=document.getElementById('proc-tfoot');
@@ -126,7 +129,7 @@ function renderProc(){
       <td><div class="act-group">
         <button class="act-btn admin-only" onclick="editProc('${i.id}')">✏️</button>
         <button class="act-btn del admin-only" onclick="askDel('proc','${i.id}','${escHtml(i.title)}')">🗑️</button>
-        ${canEdit(i.projects?.teacher_name) ? `<button class="act-btn admin-only" onclick="openDetailForm('${i.id}')" title="กรอกเอกสาร">📄</button>` : ''}
+        ${(canEdit(i.projects?.teacher_name) || canEditModule('procurement')) ? `<button class="act-btn admin-only" onclick="openDetailForm('${i.id}')" title="กรอกเอกสาร">📄</button>` : ''}
       </div></td>
     </tr>`;
   }).join('');
@@ -201,6 +204,7 @@ async function deleteWithdrawTransaction(procId){
 // status toggle
 async function toggleStatus(id, current){
   if(!adminGuard()) return;
+  if(!canEditModule('procurement')){ alert('คุณไม่มีสิทธิ์แก้ไขหน้าพัสดุ'); return; }
   const newStatus = current==='เบิกแล้ว'?'ยังไม่เบิก':'เบิกแล้ว';
   try{
     await PATCH('procurement_items',`id=eq.${id}`,{withdraw_status:newStatus});
@@ -256,6 +260,7 @@ function editProc(id){
 }
 async function saveProcItem(){
   if(!adminGuard()) return;
+  if(!canEditModule('procurement')){ alert('คุณไม่มีสิทธิ์แก้ไขหน้าพัสดุ'); return; }
   const title=document.getElementById('pTitle').value.trim();
   const seq=parseInt(document.getElementById('pSeq').value);
   if(!title){alert('กรุณาระบุชื่อรายการ');return}

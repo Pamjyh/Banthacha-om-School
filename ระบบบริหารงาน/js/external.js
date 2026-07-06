@@ -517,6 +517,7 @@ function setExtType(val){
 // ---------- SAVE ----------
 async function saveExtTransaction(){
   if(!adminGuard()) return;
+  if(!canEditModule('finance')){ alert('คุณไม่มีสิทธิ์แก้ไขหน้าเงินนอก'); return; }
   var editId = document.getElementById('extEditId').value;
   var date   = document.getElementById('extDate').value;
   var type   = document.getElementById('extTypeHidden').value;
@@ -611,6 +612,7 @@ function renderExtCatList(){
 
 async function saveExtCategory(){
   if(!adminGuard()) return;
+  if(!canEditModule('finance')){ alert('คุณไม่มีสิทธิ์จัดการหมวดเงินนอก'); return; }
   var name = document.getElementById('extCatName').value.trim();
   var type = document.getElementById('extCatType').value;
   if(!name) return alert('กรุณาใส่ชื่อหมวด');
@@ -630,6 +632,8 @@ async function saveExtCategory(){
 }
 
 async function deleteExtCategory(id){
+  if(!adminGuard()) return;
+  if(!canEditModule('finance')){ alert('คุณไม่มีสิทธิ์จัดการหมวดเงินนอก'); return; }
   if(!confirm('ต้องการลบหมวดนี้?\n(รายการที่อยู่ในหมวดนี้จะยังคงอยู่ แต่ไม่มีหมวด)')) return;
   show('loadingOverlay','flex');
   try{

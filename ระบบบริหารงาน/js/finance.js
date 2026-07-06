@@ -336,6 +336,7 @@ function closeFinanceForm(){
 // ---------- SAVE ----------
 async function saveFinanceTransaction(keepOpen){
   if(!adminGuard()) return;
+  if(!canEditModule('finance')){ alert('คุณไม่มีสิทธิ์แก้ไขหน้าการเงิน'); return; }
   var editId  = document.getElementById('finEditId').value;
   var date    = document.getElementById('finDate').value;
   var type    = document.getElementById('finType').value;

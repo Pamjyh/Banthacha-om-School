@@ -80,6 +80,8 @@ async function loadAll(){
     fillProjSelects();
     renderStaffTable();
     renderVendorsTable();
+    // Stage 13D: STAFF_LIST เพิ่งโหลดเสร็จ — สลับหน้าพัสดุ/การเงิน/เงินนอก เต็ม/สรุป ตาม module flag ปัจจุบัน
+    if(typeof applyModulePermissionUI === 'function') applyModulePermissionUI();
   }catch(e){
     hide('loadingOverlay');
     alert('โหลดข้อมูลไม่ได้: '+e.message);

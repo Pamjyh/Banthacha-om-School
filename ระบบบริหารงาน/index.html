@@ -217,8 +217,8 @@ body:not(.is-admin) .admin-only { display: none !important; }
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn-outline-sm" onclick="exportProcCSV()">↓ Export CSV</button>
-        <button class="btn-outline-sm admin-only" onclick="openImportModal()">↑ นำเข้า CSV</button>
-        <button class="btn-sm admin-only" onclick="openProcForm()">+ เพิ่มรายการ</button>
+        <button class="btn-outline-sm admin-only" id="proc-btn-import" onclick="openImportModal()">↑ นำเข้า CSV</button>
+        <button class="btn-sm admin-only" id="proc-btn-add" onclick="openProcForm()">+ เพิ่มรายการ</button>
       </div>
     </div>
 
@@ -245,57 +245,75 @@ body:not(.is-admin) .admin-only { display: none !important; }
       </div>
     </div>
 
-    <div class="toolbar">
-      <div class="search-pill">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" id="proc-search" placeholder="ค้นหารายการ...">
+    <!-- Stage 13D: สรุปแยกจัดซื้อ/จัดจ้าง — มองเห็นได้เสมอ แม้ไม่มีสิทธิ์แก้ไขหน้าพัสดุ -->
+    <div class="stat-row" id="proc-summary-row">
+      <div class="stat-card">
+        <div class="stat-ey"><div class="stat-dot" style="background:#9A3A0A"></div><div class="stat-ey-text">วงเงินจัดซื้อ</div></div>
+        <div class="stat-val" id="proc-stat-buy-total">0</div>
+        <div class="stat-sub">บาท</div>
       </div>
-      <select class="filter-sel" id="proc-ftype">
-        <option value="">ประเภททั้งหมด</option>
-        <option value="จัดซื้อ">จัดซื้อ</option>
-        <option value="จัดจ้าง">จัดจ้าง</option>
-      </select>
-      <select class="filter-sel" id="proc-fstatus">
-        <option value="">สถานะทั้งหมด</option>
-        <option value="เบิกแล้ว">เบิกแล้ว</option>
-        <option value="ยังไม่เบิก">รอดำเนินการเบิก</option>
-      </select>
-      <select class="filter-sel" id="proc-fproject">
-        <option value="">โครงการทั้งหมด</option>
-      </select>
-      <select class="filter-sel" id="proc-fyeartype">
-        <option value="">ปีทั้งหมด</option>
-        <option value="การศึกษา">ปีการศึกษา</option>
-        <option value="งบประมาณ">ปีงบประมาณ</option>
-        <option value="ปฏิทิน">ปีปฏิทิน</option>
-      </select>
-      <select class="filter-sel" id="proc-fyear" style="display:none"></select>
+      <div class="stat-card">
+        <div class="stat-ey"><div class="stat-dot" style="background:#9A3A0A"></div><div class="stat-ey-text">วงเงินจัดจ้าง</div></div>
+        <div class="stat-val" id="proc-stat-hire-total">0</div>
+        <div class="stat-sub">บาท</div>
+      </div>
     </div>
 
-    <div class="tab-bar">
-      <button class="tab-btn active" data-ptab2="all">ทั้งหมด</button>
-      <button class="tab-btn" data-ptab2="จัดซื้อ">จัดซื้อ</button>
-      <button class="tab-btn" data-ptab2="จัดจ้าง">จัดจ้าง</button>
-    </div>
-    <div class="table-card">
-      <div class="table-meta">
-        <span class="meta-txt" id="proc-info">—</span>
-        <div class="meta-pills">
-          <span class="mpill mp-g" id="proc-mg">—</span>
-          <span class="mpill mp-a" id="proc-ma">—</span>
+    <!-- Stage 13D: รายละเอียดเต็ม — เห็นเฉพาะผู้มีสิทธิ์แก้ไขหน้าพัสดุ (canEditModule('procurement')) -->
+    <div id="proc-detail-wrap">
+      <div class="toolbar">
+        <div class="search-pill">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="proc-search" placeholder="ค้นหารายการ...">
         </div>
+        <select class="filter-sel" id="proc-ftype">
+          <option value="">ประเภททั้งหมด</option>
+          <option value="จัดซื้อ">จัดซื้อ</option>
+          <option value="จัดจ้าง">จัดจ้าง</option>
+        </select>
+        <select class="filter-sel" id="proc-fstatus">
+          <option value="">สถานะทั้งหมด</option>
+          <option value="เบิกแล้ว">เบิกแล้ว</option>
+          <option value="ยังไม่เบิก">รอดำเนินการเบิก</option>
+        </select>
+        <select class="filter-sel" id="proc-fproject">
+          <option value="">โครงการทั้งหมด</option>
+        </select>
+        <select class="filter-sel" id="proc-fyeartype">
+          <option value="">ปีทั้งหมด</option>
+          <option value="การศึกษา">ปีการศึกษา</option>
+          <option value="งบประมาณ">ปีงบประมาณ</option>
+          <option value="ปฏิทิน">ปีปฏิทิน</option>
+        </select>
+        <select class="filter-sel" id="proc-fyear" style="display:none"></select>
       </div>
-      <table>
-        <thead><tr>
-          <th>ลำดับ</th><th>ประเภท</th><th>รายการ</th><th>โครงการ</th>
-          <th>ผู้รับผิดชอบ</th><th>งบประมาณ</th><th>วันที่รายงาน</th>
-          <th class="r">วงเงิน (บาท)</th><th>สถานะ</th><th>เลขใบเบิก</th><th></th>
-        </tr></thead>
-        <tbody id="proc-tbody"></tbody>
-        <tfoot id="proc-tfoot"></tfoot>
-      </table>
-      <div id="proc-pagination"></div>
+
+      <div class="tab-bar">
+        <button class="tab-btn active" data-ptab2="all">ทั้งหมด</button>
+        <button class="tab-btn" data-ptab2="จัดซื้อ">จัดซื้อ</button>
+        <button class="tab-btn" data-ptab2="จัดจ้าง">จัดจ้าง</button>
+      </div>
+      <div class="table-card">
+        <div class="table-meta">
+          <span class="meta-txt" id="proc-info">—</span>
+          <div class="meta-pills">
+            <span class="mpill mp-g" id="proc-mg">—</span>
+            <span class="mpill mp-a" id="proc-ma">—</span>
+          </div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>ลำดับ</th><th>ประเภท</th><th>รายการ</th><th>โครงการ</th>
+            <th>ผู้รับผิดชอบ</th><th>งบประมาณ</th><th>วันที่รายงาน</th>
+            <th class="r">วงเงิน (บาท)</th><th>สถานะ</th><th>เลขใบเบิก</th><th></th>
+          </tr></thead>
+          <tbody id="proc-tbody"></tbody>
+          <tfoot id="proc-tfoot"></tfoot>
+        </table>
+        <div id="proc-pagination"></div>
+      </div>
     </div>
+    <div class="no-data" id="proc-summary-only-note" style="display:none">คุณเห็นเฉพาะหน้าสรุปพัสดุ — ติดต่อผู้ดูแลระบบหากต้องการสิทธิ์แก้ไข</div>
   </div>
 
   <!-- ======= PAGE: FINANCE ======= -->
@@ -308,8 +326,8 @@ body:not(.is-admin) .admin-only { display: none !important; }
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn-outline-sm" onclick="loadFinanceData()">รีเฟรช</button>
-        <button class="btn-outline-sm admin-only" onclick="openImportExcelModal()">↑ นำเข้า Excel</button>
-        <button class="btn-sm admin-only" onclick="openFinanceForm()">+ เพิ่มรายการ</button>
+        <button class="btn-outline-sm admin-only" id="fin-btn-import" onclick="openImportExcelModal()">↑ นำเข้า Excel</button>
+        <button class="btn-sm admin-only" id="fin-btn-add" onclick="openFinanceForm()">+ เพิ่มรายการ</button>
       </div>
     </div>
 
@@ -341,8 +359,8 @@ body:not(.is-admin) .admin-only { display: none !important; }
     <!-- Finance Tabs -->
     <div class="tab-bar">
       <button class="tab-btn active" data-ftab="balance">เงินคงเหลือแยกหมวด</button>
-      <button class="tab-btn" data-ftab="daily">รายงานประจำวัน</button>
-      <button class="tab-btn" data-ftab="transactions">รายการรับ-จ่าย</button>
+      <button class="tab-btn" data-ftab="daily" id="fin-tab-daily-btn">รายงานประจำวัน</button>
+      <button class="tab-btn" data-ftab="transactions" id="fin-tab-transactions-btn">รายการรับ-จ่าย</button>
     </div>
 
     <!-- Tab: Balance -->
@@ -426,8 +444,8 @@ body:not(.is-admin) .admin-only { display: none !important; }
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <button class="btn-outline-sm" onclick="exportExtCSV()">↓ Export CSV</button>
-        <button class="btn-outline-sm admin-only" onclick="openExtCatModal()">⚙ จัดการหมวด</button>
-        <button class="btn-sm admin-only" onclick="openExtForm()">+ เพิ่มรายการ</button>
+        <button class="btn-outline-sm admin-only" id="ext-btn-cat" onclick="openExtCatModal()">⚙ จัดการหมวด</button>
+        <button class="btn-sm admin-only" id="ext-btn-add" onclick="openExtForm()">+ เพิ่มรายการ</button>
       </div>
     </div>
 
@@ -488,8 +506,8 @@ body:not(.is-admin) .admin-only { display: none !important; }
 
     <!-- Tabs -->
     <div class="tab-bar">
-      <button class="tab-btn active" data-etab="list">รายการทั้งหมด</button>
-      <button class="tab-btn" data-etab="monthly">สรุปรายเดือน</button>
+      <button class="tab-btn active" data-etab="list" id="ext-tab-list-btn">รายการทั้งหมด</button>
+      <button class="tab-btn" data-etab="monthly" id="ext-tab-monthly-btn">สรุปรายเดือน</button>
       <button class="tab-btn" data-etab="charts">กราฟ</button>
     </div>
 
@@ -973,6 +991,17 @@ body:not(.is-admin) .admin-only { display: none !important; }
         <input class="fc" type="text" id="staffPosition" placeholder="เช่น ผู้อำนวยการ, ครูชำนาญการพิเศษ">
       </div>
     </div>
+    <div class="form-grid">
+      <div class="fg form-full">
+        <label>สิทธิ์แก้ไขหน้า (Stage 13C — นอกเหนือจากโครงการตัวเอง)</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin-top:6px">
+          <input type="checkbox" id="staffCanProc"> แก้ไขหน้าพัสดุ (ทุกโครงการ)
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin-top:6px">
+          <input type="checkbox" id="staffCanFin"> แก้ไขหน้าการเงิน + เงินนอก
+        </label>
+      </div>
+    </div>
     <div class="modal-foot">
       <button class="btn-cancel" onclick="closeStaffForm()">ยกเลิก</button>
       <button class="btn-sm" style="padding:10px 24px" onclick="saveStaffItem()">บันทึก</button>
@@ -1079,14 +1108,46 @@ body:not(.is-admin) .admin-only { display: none !important; }
     <div class="form-grid">
       <div class="fg form-full">
         <label>เลือกชื่อของท่าน <span style="color:var(--arc)">*</span></label>
-        <select class="fc" id="teacherSelectDropdown">
+        <select class="fc" id="teacherSelectDropdown" onchange="toggleTeacherAdminPin()">
           <option value="">— เลือก —</option>
           <option value="ADMIN">ผู้ดูแลระบบ (แก้ไขได้ทุกอย่าง)</option>
         </select>
       </div>
+      <div class="fg form-full" id="teacherAdminPinRow" style="display:none">
+        <label id="teacherAdminPinLabel">รหัสผู้ดูแลระบบ</label>
+        <input class="fc" type="password" id="teacherAdminPin" placeholder="กรอกรหัส PIN">
+        <div id="teacherAdminPinError" style="color:var(--arc);font-size:12px;margin-top:4px"></div>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn-sm" style="padding:10px 24px;width:100%" onclick="confirmTeacherSelection()">ยืนยัน</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======= ADMIN PIN SETUP MODAL (Stage 13C — ครั้งแรกที่เลือก "ผู้ดูแลระบบ") ======= -->
+<div class="overlay" id="adminPin2Overlay">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-head">
+      <h2>ตั้งรหัสผู้ดูแลระบบ</h2>
+      <button class="modal-x" onclick="closeAdminPinSetupModal()">✕</button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 14px">
+      รหัสนี้แยกจากรหัส login ทั่วไป — ใช้เฉพาะตอนเลือก "ผู้ดูแลระบบ" ใน Teacher Selector เท่านั้น
+    </p>
+    <div class="form-grid">
+      <div class="fg form-full">
+        <label>รหัสผู้ดูแลระบบ <span style="color:var(--arc)">*</span></label>
+        <input class="fc" type="password" id="adminPin2-input">
+      </div>
+      <div class="fg form-full">
+        <label>ยืนยันรหัสอีกครั้ง <span style="color:var(--arc)">*</span></label>
+        <input class="fc" type="password" id="adminPin2-confirm">
+      </div>
+      <div class="fg form-full" id="adminPin2-error" style="color:var(--arc);font-size:12px"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-sm" style="padding:10px 24px;width:100%" onclick="saveAdminPin()">ตั้งรหัสและเข้าสู่ระบบ</button>
     </div>
   </div>
 </div>
