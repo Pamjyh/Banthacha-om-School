@@ -50,8 +50,13 @@ function setAdminMode(on){
 function checkAdminSession(){
   var stored = localStorage.getItem(ADMIN_PW_KEY);
   if(!stored){
-    // ยังไม่เคยตั้งรหัส → admin mode โดยอัตโนมัติ (ครั้งแรก)
-    setAdminMode(true);
+    // แก้บั๊ก 2026-07-07 (พบจาก Pam ทดสอบ + scrutinize): เดิม auto-grant IS_ADMIN=true ตรงนี้
+    // ทำให้เบราว์เซอร์/อุปกรณ์ใดก็ตามที่ยังไม่เคยตั้งรหัสในเครื่องนั้น ได้สิทธิ์ผู้ดูแลระบบทันที
+    // โดยไม่ต้อง login เลย (zero-auth) — ไม่ใช่แค่ตอน deploy ครั้งแรก แต่เกิดซ้ำได้ทุกเบราว์เซอร์ใหม่
+    // ตอนนี้ไม่ auto-grant แล้ว ผู้ใช้ต้องกดปุ่ม "เข้าระบบ" เอง ซึ่ง openLoginModal() จะพาไปตั้งรหัส
+    // ผ่าน openSetPasswordModal() ตามปกติถ้ายังไม่เคยตั้ง (ยังรองรับ first-time setup เหมือนเดิม
+    // แค่ต้องกดปุ่มเอง ไม่ auto-grant แบบเงียบๆ ตอนโหลดหน้า)
+    setAdminMode(false);
     return;
   }
   var ses = sessionStorage.getItem(ADMIN_SES_KEY);
@@ -118,6 +123,10 @@ function logoutAdmin(){
   sessionStorage.removeItem(CURRENT_STAFF_KEY);
   setAdminMode(false);
   updateStaffHeaderDisplay();
+  // Stage 13D scrutinize fix (2026-07-07): เดิมไม่เปลี่ยนหน้าเลย ค้างอยู่หน้าที่เปิดไว้ตอน logout
+  // (รวมถึงหน้า "⚙️ จัดการข้อมูล" ที่ admin-only — พอ logout แล้ว CSS จะซ่อนหน้านั้นทันทีจน nav ดูค้าง)
+  // ย้ายกลับไปหน้าแดชบอร์ดให้ชัดเจนว่าออกจากระบบแล้วจริง
+  if(typeof goPage === 'function') goPage('dashboard');
   showToast('ออกจากระบบแล้ว');
 }
 
