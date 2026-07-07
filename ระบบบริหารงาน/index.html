@@ -1267,6 +1267,30 @@ body:not(.is-admin) .admin-only { display: none !important; }
       </div>
     </div>
 
+    <!-- Section I: พิมพ์เอกสาร PDF 16 ชุด — Stage 17 (HIGH RISK, สร้างทีละชุด) -->
+    <div class="table-card" style="padding:16px 20px;margin-bottom:16px">
+      <strong style="font-size:14px;display:block;margin-bottom:4px">🖨️ พิมพ์เอกสาร</strong>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">ต้องกด "บันทึก" ให้เรียบร้อยก่อน — เอกสารดึงข้อมูลจากที่บันทึกไว้ล่าสุดใน DB เท่านั้น ตอนนี้พร้อมใช้งานเฉพาะเอกสาร #1 ชุดอื่นกำลังทยอยสร้าง</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        <button class="btn-outline-sm" onclick="printDoc(1)">1. ขอดำเนิน</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(2)">2. แนบขอดำเนิน</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(3)">3. ขออนุมัติ TOR</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(4)">4. คำสั่ง TOR</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(5)">5. เห็นชอบ TOR</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(6)">6. ขอบเขตงาน</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(7)">7. แนบ TOR</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(8)">8. ขอซื้อจ้าง</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(9)">9. แนบท้าย</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(10)">10. พิจารณา</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(11)">11. คำสั่งตรวจรับ</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(12)">12. ประกาศผู้ชนะ</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(13)">13. สั่งซื้อจ้าง</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(14)">14. แนบซื้อ</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(15)">15. ตรวจรับ</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(16)">16. เบิก</button>
+      </div>
+    </div>
+
     <div class="modal-foot">
       <button class="btn-cancel" onclick="closeDetailForm()">ปิด</button>
       <button class="btn-sm" style="padding:10px 24px;font-size:13px" onclick="saveDetailForm()">💾 บันทึก</button>
@@ -1313,6 +1337,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="./js/pdf-font.js"></script>
 <script src="./js/pdf-engine.js"></script>
+<script src="./js/pdf-templates.js"></script>
 <script src="./js/auth.js"></script>
 <script src="./js/init.js"></script>
 <script src="./js/events.js"></script>
