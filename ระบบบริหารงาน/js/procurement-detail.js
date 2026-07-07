@@ -1,14 +1,42 @@
 // =====================================================================
-// PROCUREMENT DETAIL FORM (กรอกเอกสารพัสดุ) — banthacha-v2 Stage 14-15
+// PROCUREMENT DETAIL FORM (กรอกเอกสารพัสดุ) — banthacha-v2 Stage 14-16
 // SECTION A: ข้อมูลหลัก auto-fill จาก procurement_item (read-only)
 //            + preview เลขที่เอกสาร (create mode) หรือโหลดเลขที่ที่บันทึกแล้ว (edit mode)
-// SECTION C (Stage 15): ตารางรายการย่อย (procurement_sub_items) — เพิ่ม/ลบ/แก้แถวได้ใน memory
-//            (CURRENT_SUB_ITEMS) ยังไม่บันทึกลง DB จริงจนกว่าจะมีปุ่ม "บันทึก" ใน Stage 16
-// SECTION B,D-I (ร้านค้า, วันที่, คณะกรรมการ, บันทึก, PDF) คือ Stage 16-17 ถัดไป
-// ยังไม่สร้างตอนนี้ตามกฎ "ห้าม build ข้าม stage"
-//
-// CURRENT_PROC_ITEM / CURRENT_DETAIL / CURRENT_SUB_ITEMS (js/state.js) เก็บ state ไว้ให้ Stage 16 ต่อยอด
+// SECTION C: ตารางรายการย่อย (procurement_sub_items) — เพิ่ม/ลบ/แก้แถวได้ใน memory (CURRENT_SUB_ITEMS)
+// SECTION B: ร้านค้า/ผู้รับจ้าง (dropdown จาก VENDORS_LIST)
+// SECTION D: วันที่ดำเนินการ 10 รายการ
+// SECTION E+F: คณะกรรมการกำหนด TOR (3 คน) / ตรวจรับพัสดุ (3 คน) — dropdown จาก STAFF_LIST
+// SECTION G+H: วัตถุประสงค์/คุณสมบัติ TOR, แหล่งงบประมาณ, VAT, ภาษีหัก ณ ที่จ่าย
+// ปุ่ม "บันทึก" → UPSERT procurement_details + replace procurement_sub_items ทั้งหมด
+// SECTION I (พิมพ์เอกสาร PDF 16 ชุด) คือ Stage 17 ถัดไป — ยังไม่สร้างตอนนี้ตามกฎ "ห้าม build ข้าม stage"
 // =====================================================================
+
+// รายชื่อวันที่ตามลำดับ workflow จริง (BLUEPRINT §2.6 L312) ใช้ทั้งตอน populate ฟอร์มและเช็คลำดับตอน save
+const PD_DATE_SEQUENCE = [
+  ['pd-date-request',      'date_request',      'ขอดำเนินการ'],
+  ['pd-date-approve-tor',  'date_approve_tor',  'ขออนุมัติแต่งตั้งกรรมการ TOR'],
+  ['pd-date-order-tor',    'date_order_tor',    'คำสั่งแต่งตั้งกรรมการ TOR'],
+  ['pd-date-agree-tor',    'date_agree_tor',    'เห็นชอบ TOR'],
+  ['pd-date-request-buy',  'date_request_buy',  'ขอซื้อ/จ้าง'],
+  ['pd-date-announce',     'date_announce',     'ประกาศผู้ชนะการเสนอราคา'],
+  ['pd-date-order',        'date_order',        'สั่งซื้อ/จ้าง'],
+  ['pd-date-due',          'date_due',          'ครบกำหนดส่งมอบ']
+];
+// วันที่ 2 รายการนอกลำดับหลัก (เช็คแยกกับ date_due แทน) — date_withdraw ไม่มีเงื่อนไขลำดับใน BLUEPRINT
+const PD_DATE_EXTRA = [
+  ['pd-date-deliver',  'date_deliver',  'ส่งมอบ/ตรวจรับจริง'],
+  ['pd-date-withdraw', 'date_withdraw', 'เบิกจ่าย']
+];
+
+// bug-fixer (2026-07-07): ปุ่ม "📄 กรอกเอกสาร" ที่เปิด modal นี้ (procurement.js) มองเห็นได้ด้วยเงื่อนไข
+// canEdit(เจ้าของโครงการ) || canEditModule('procurement') — คือครูที่ "แก้เฉพาะโครงการตัวเอง" (ไม่มี flag
+// can_edit_procurement) ก็เปิดฟอร์มกรอกเอกสารของโครงการตัวเองได้ แต่ guard เดิมในฟังก์ชัน mutate (Stage 15)
+// เช็คแค่ canEditModule('procurement') อย่างเดียว — ทำให้ครูกลุ่มนี้เปิดฟอร์มได้แต่กด "+เพิ่มรายการ"/บันทึกไม่ได้
+// เพราะ guard เข้มกว่าเงื่อนไขที่ปล่อยให้เข้ามาตั้งแต่แรก ต้องใช้เงื่อนไขเดียวกันทั้งสองจุด
+function canEditCurrentProcItem(){
+  if(!CURRENT_PROC_ITEM) return false;
+  return canEdit(CURRENT_PROC_ITEM.projects?.teacher_name) || canEditModule('procurement');
+}
 
 async function openDetailForm(procItemId){
   const item = PROC.find(x => x.id === procItemId);
@@ -16,6 +44,7 @@ async function openDetailForm(procItemId){
   CURRENT_PROC_ITEM = item;
   CURRENT_DETAIL = null;
   CURRENT_SUB_ITEMS = [];
+  CURRENT_SUB_ITEMS_ORIGINAL_IDS = [];
   SUBITEMS_LOAD_ERROR = null;
 
   document.getElementById('pd-title').textContent   = item.title || '—';
@@ -26,6 +55,9 @@ async function openDetailForm(procItemId){
   document.getElementById('pd-docnumber').textContent = 'กำลังโหลด...';
   document.getElementById('pd-docnumber-tag').textContent = '';
   renderSubItemsTable(); // เคลียร์ตารางก่อนโหลดใหม่ กันข้อมูลของ item ก่อนหน้าค้าง
+  populateVendorSelect(null);
+  populateStaffSelects(null, null);
+  populateDetailFields(null); // เคลียร์ Section D-H ก่อน กันข้อมูลของ item ก่อนหน้าค้าง (เหมือน sub-items table)
   document.getElementById('procDetailOverlay').classList.add('open');
 
   try{
@@ -35,28 +67,38 @@ async function openDetailForm(procItemId){
       CURRENT_DETAIL = rows[0];
       document.getElementById('pd-docnumber').textContent = CURRENT_DETAIL.doc_number || '—';
       document.getElementById('pd-docnumber-tag').textContent = '(บันทึกแล้ว)';
+      populateDetailFields(CURRENT_DETAIL);
+      populateVendorSelect(CURRENT_DETAIL.vendor_id);
+      populateStaffSelects(CURRENT_DETAIL.committee_tor, CURRENT_DETAIL.committee_inspect);
     } else {
       // create mode — ยังไม่เคยกรอก แสดง preview เลขที่จะได้ ถ้ากด "บันทึก" ใน Stage 16
       const next = await getNextDocNumber(CY, item.type);
       document.getElementById('pd-docnumber').textContent = next.preview;
       document.getElementById('pd-docnumber-tag').textContent = '(preview — ยังไม่บันทึก)';
+      populateVendorSelect(null);
+      populateStaffSelects(null, null);
     }
   }catch(e){
     document.getElementById('pd-docnumber').textContent = '(โหลดไม่สำเร็จ: '+e.message+')';
+    populateVendorSelect(null);
+    populateStaffSelects(null, null);
   }
 
-  // Stage 15: โหลดรายการย่อยที่เคยบันทึกไว้ (ถ้ามี) — ตาม CONSTRUCTION_PLAN Stage 15 BUILD spec
+  // โหลดรายการย่อยที่เคยบันทึกไว้ (ถ้ามี) — ตาม CONSTRUCTION_PLAN Stage 15 BUILD spec
   try{
     const subRows = await GET('procurement_sub_items', 'procurement_item_id=eq.'+procItemId+'&select=*&order=seq');
     CURRENT_SUB_ITEMS = (subRows||[]).map(function(r){
       return {id:r.id, seq:r.seq, description:r.description, unit:r.unit, quantity:Number(r.quantity), unit_price:Number(r.unit_price), amount:Number(r.amount)};
     });
+    // snapshot id เดิมไว้ตอนโหลด — ใช้ตอน save (Stage 16) ลบชุดเดิมหลัง insert ชุดใหม่สำเร็จ (ดู saveDetailForm)
+    CURRENT_SUB_ITEMS_ORIGINAL_IDS = CURRENT_SUB_ITEMS.map(function(r){ return r.id; }).filter(Boolean);
   }catch(e){
     // scrutinize finding (2026-07-07, MAJOR): ห้าม swallow error เงียบๆ — ถ้า fetch ล้มเหลว (network/RLS/schema)
     // สำหรับ item ที่เคยมีรายการย่อยบันทึกไว้จริง ตารางจะโชว์ "ว่างเปล่า" เหมือนไม่เคยมีอะไร
-    // ถ้า Stage 16 กด "บันทึก" ทับตอนนั้น จะเขียนทับข้อมูลเดิมด้วยค่าว่างแบบเงียบๆ (data loss)
-    // ต้องเก็บ error ไว้เตือนเด่นชัดใน updateSubItemsFooter() แทน
+    // ถ้ากด "บันทึก" ทับตอนนั้น จะเขียนทับข้อมูลเดิมด้วยค่าว่างแบบเงียบๆ (data loss)
+    // ต้องเก็บ error ไว้เตือนเด่นชัดใน updateSubItemsFooter() + block saveDetailForm() แทน
     CURRENT_SUB_ITEMS = [];
+    CURRENT_SUB_ITEMS_ORIGINAL_IDS = [];
     SUBITEMS_LOAD_ERROR = e.message || 'ไม่ทราบสาเหตุ';
   }
   renderSubItemsTable();
@@ -66,18 +108,165 @@ function closeDetailForm(){
   document.getElementById('procDetailOverlay').classList.remove('open');
 }
 
+// ---------- SECTION B/D-H: populate dropdown + field ตอนเปิดฟอร์ม ----------
+function populateVendorSelect(selectedId){
+  const sel = document.getElementById('pd-vendor');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— ไม่ระบุ —</option>' +
+    (VENDORS_LIST||[]).map(function(v){ return '<option value="'+v.id+'">'+escHtml(v.name)+'</option>'; }).join('');
+  sel.value = selectedId || '';
+}
+
+// เติม dropdown กรรมการ 6 ช่อง (TOR 3 + ตรวจรับ 3) จาก STAFF_LIST (active เท่านั้น — ตาม pattern เดียวกับ
+// openTeacherSelector) แล้วเลือกค่าเดิมถ้ามี (edit mode) — torArr/inspArr คือ committee_tor/committee_inspect
+// jsonb array จริงจาก DB รูปแบบ [{staff_id,role}, ...] ตามลำดับ index ตรงกับตำแหน่ง fixed role ในฟอร์ม
+function populateStaffSelects(torArr, inspArr){
+  const activeStaff = (STAFF_LIST||[]).filter(function(s){ return s.is_active !== false; });
+  const opts = '<option value="">— เลือก —</option>' +
+    activeStaff.map(function(s){ return '<option value="'+s.id+'">'+escHtml((s.prefix||'')+(s.name||''))+'</option>'; }).join('');
+  ['pd-tor-0','pd-tor-1','pd-tor-2','pd-insp-0','pd-insp-1','pd-insp-2'].forEach(function(id){
+    const sel = document.getElementById(id);
+    if(sel) sel.innerHTML = opts;
+  });
+  (torArr||[]).forEach(function(c, i){
+    const sel = document.getElementById('pd-tor-'+i);
+    if(sel) sel.value = c.staff_id || '';
+  });
+  (inspArr||[]).forEach(function(c, i){
+    const sel = document.getElementById('pd-insp-'+i);
+    if(sel) sel.value = c.staff_id || '';
+  });
+}
+
+// เติม/เคลียร์ Section D (วันที่), G (TOR text), H (งบประมาณ/ภาษี) จาก procurement_details row
+// (detail=null → เคลียร์ทุกช่องกลับค่าว่าง/default ใช้ตอนเปิดฟอร์ม item ใหม่กัน state ของ item ก่อนหน้าค้าง)
+function populateDetailFields(detail){
+  PD_DATE_SEQUENCE.concat(PD_DATE_EXTRA).forEach(function(row){
+    const el = document.getElementById(row[0]);
+    if(el) el.value = (detail && detail[row[1]]) ? detail[row[1]] : '';
+  });
+  const objEl = document.getElementById('pd-tor-objective');
+  const qualEl = document.getElementById('pd-tor-qualification');
+  const budgetEl = document.getElementById('pd-budget-source');
+  const vatEl = document.getElementById('pd-vat');
+  const whtEl = document.getElementById('pd-wht');
+  if(objEl)    objEl.value    = (detail && detail.tor_objective) || '';
+  if(qualEl)   qualEl.value   = (detail && detail.tor_qualification) || '';
+  if(budgetEl) budgetEl.value = (detail && detail.budget_source) || '';
+  if(vatEl)    vatEl.checked  = !!(detail && detail.vat_applicable);
+  if(whtEl)    whtEl.value    = (detail && detail.withholding_tax != null) ? detail.withholding_tax : 0;
+  const warnEl = document.getElementById('pd-date-warning');
+  if(warnEl){ warnEl.style.display = 'none'; warnEl.textContent = ''; }
+}
+
+// เช็คลำดับวันที่ตาม BLUEPRINT §2.6 (L312) — เตือนแต่ไม่บล็อกการบันทึก (ผู้ใช้อาจกรอกไม่ครบระหว่างทำงานจริง)
+// ข้ามช่องว่าง (ยังไม่กรอก) ไม่เช็ค เทียบเฉพาะคู่ที่กรอกแล้วทั้งคู่
+function checkDateSequence(){
+  let prev = null;
+  for(const [elId, key, label] of PD_DATE_SEQUENCE){
+    const v = document.getElementById(elId)?.value;
+    if(v){
+      if(prev && prev.v > v) return '⚠️ ลำดับวันที่ไม่ถูกต้อง: "'+prev.label+'" ('+prev.v+') ควรอยู่ก่อน "'+label+'" ('+v+')';
+      prev = {v, label};
+    }
+  }
+  const due = document.getElementById('pd-date-due')?.value;
+  const deliver = document.getElementById('pd-date-deliver')?.value;
+  if(due && deliver && deliver > due) return '⚠️ วันที่ส่งมอบจริง ('+deliver+') อยู่หลังวันครบกำหนดส่งมอบ ('+due+')';
+  return null;
+}
+
+// ---------- ปุ่ม "บันทึก" (Stage 16) ----------
+// UPSERT procurement_details (PATCH ถ้ามีอยู่แล้ว / POST + ออก doc_number จริงถ้า create mode)
+// แล้ว replace procurement_sub_items ทั้งหมด: insert ชุดใหม่ก่อน สำเร็จแล้วค่อยลบชุดเดิม (ตาม
+// CURRENT_SUB_ITEMS_ORIGINAL_IDS) — ไม่ใช่ delete-then-insert กัน data loss ถ้า insert พังกลางทาง
+async function saveDetailForm(){
+  if(!CURRENT_PROC_ITEM) return;
+  if(!canEditCurrentProcItem()){ alert('คุณไม่มีสิทธิ์แก้ไขเอกสารพัสดุนี้'); return; }
+  // ต่อเนื่องจาก scrutinize finding MAJOR ของ Stage 15: ถ้าโหลดรายการย่อยเดิมไม่สำเร็จ ห้าม save ทับ
+  // เด็ดขาด เพราะ CURRENT_SUB_ITEMS ตอนนี้อาจไม่ตรงกับของจริงใน DB (เสี่ยงเขียนทับ/ลบของจริงทิ้ง)
+  if(SUBITEMS_LOAD_ERROR){
+    alert('โหลดรายการย่อยเดิมไม่สำเร็จ ('+SUBITEMS_LOAD_ERROR+')\nกรุณาปิดฟอร์มแล้วเปิดใหม่ก่อนบันทึก มิฉะนั้นข้อมูลเดิมอาจถูกเขียนทับ');
+    return;
+  }
+
+  const dateWarn = checkDateSequence();
+  const warnEl = document.getElementById('pd-date-warning');
+  if(dateWarn){
+    if(warnEl){ warnEl.style.display=''; warnEl.textContent = dateWarn; }
+    if(!confirm(dateWarn + '\n\nยืนยันบันทึกต่อหรือไม่?')) return;
+  } else if(warnEl){
+    warnEl.style.display = 'none'; warnEl.textContent = '';
+  }
+
+  const detailBody = {
+    procurement_item_id: CURRENT_PROC_ITEM.id,
+    vendor_id: document.getElementById('pd-vendor').value || null,
+    committee_tor: [
+      {staff_id: document.getElementById('pd-tor-0').value || null, role: 'ผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ'},
+      {staff_id: document.getElementById('pd-tor-1').value || null, role: 'กรรมการ'},
+      {staff_id: document.getElementById('pd-tor-2').value || null, role: 'กรรมการ'}
+    ],
+    committee_inspect: [
+      {staff_id: document.getElementById('pd-insp-0').value || null, role: 'ผู้ตรวจรับพัสดุ'},
+      {staff_id: document.getElementById('pd-insp-1').value || null, role: 'กรรมการ'},
+      {staff_id: document.getElementById('pd-insp-2').value || null, role: 'กรรมการ'}
+    ],
+    tor_objective: document.getElementById('pd-tor-objective').value.trim() || null,
+    tor_qualification: document.getElementById('pd-tor-qualification').value.trim() || null,
+    budget_source: document.getElementById('pd-budget-source').value || null,
+    vat_applicable: document.getElementById('pd-vat').checked,
+    withholding_tax: parseFloat(document.getElementById('pd-wht').value) || 0
+  };
+  PD_DATE_SEQUENCE.concat(PD_DATE_EXTRA).forEach(function(row){
+    detailBody[row[1]] = document.getElementById(row[0]).value || null;
+  });
+
+  show('loadingOverlay','flex');
+  try{
+    if(CURRENT_DETAIL && CURRENT_DETAIL.id){
+      await PATCH('procurement_details', 'id=eq.'+CURRENT_DETAIL.id, detailBody);
+    } else {
+      // create mode — ออกเลขที่เอกสารจริงตอนนี้ (ไม่ใช่ตอนเปิดฟอร์ม) กัน race condition ถ้ามีคนเปิดฟอร์ม
+      // ค้างไว้นานแล้วคนอื่นออกเลขไปก่อน — ดึงเลขถัดไปสดๆ ตอน save เท่านั้น
+      const next = await getNextDocNumber(CY, CURRENT_PROC_ITEM.type);
+      detailBody.doc_number = next.preview;
+      const rows = await POST('procurement_details', detailBody);
+      CURRENT_DETAIL = (rows && rows[0]) || detailBody;
+    }
+
+    const insertPayload = CURRENT_SUB_ITEMS.map(function(r, i){
+      return {
+        procurement_item_id: CURRENT_PROC_ITEM.id, seq: i+1,
+        description: r.description||'', unit: r.unit||'',
+        quantity: Number(r.quantity)||0, unit_price: Number(r.unit_price)||0, amount: Number(r.amount)||0
+      };
+    });
+    if(insertPayload.length) await POST('procurement_sub_items', insertPayload);
+    if(CURRENT_SUB_ITEMS_ORIGINAL_IDS.length) await DEL('procurement_sub_items', 'id=in.('+CURRENT_SUB_ITEMS_ORIGINAL_IDS.join(',')+')');
+
+    hide('loadingOverlay');
+    showToast('บันทึกเอกสารพัสดุสำเร็จ ✓');
+    await openDetailForm(CURRENT_PROC_ITEM.id); // reload จาก DB จริง — doc_number ล็อค, sub-items ได้ id ใหม่
+  }catch(e){
+    hide('loadingOverlay');
+    alert('บันทึกไม่สำเร็จ: '+e.message);
+  }
+}
+
 // ---------- SECTION C: รายการย่อย (Stage 15) ----------
-// scrutinize finding (2026-07-07, NIT): เพิ่ม canEditModule('procurement') เป็น defense-in-depth
-// ตาม pattern เดิมของ Stage 13D (ต่อให้ยังไม่บันทึกลง DB จริงใน Stage 15 การกด "📄" เอง
-// ก็ถูกซ่อนด้วย canEdit()/canEditModule() อยู่แล้ว แต่ฟังก์ชันที่ mutate state ควรมี guard ของตัวเองด้วย)
+// scrutinize finding (2026-07-07, NIT) + bug-fixer follow-up (Stage 16): เพิ่ม guard เป็น defense-in-depth
+// ใช้ canEditCurrentProcItem() (ไม่ใช่ canEditModule() เฉยๆ) ให้ตรงกับเงื่อนไขที่ปล่อยให้เปิดฟอร์มนี้ได้
+// ตั้งแต่แรก (ปุ่ม "📄" ใน procurement.js) มิฉะนั้นครูที่แก้ได้แค่โครงการตัวเองจะเปิดฟอร์มได้แต่กด
+// "+เพิ่มรายการ"/บันทึกไม่ได้เลย เพราะ guard เข้มกว่าเงื่อนไขที่ยอมให้เข้ามา
 function addSubItemRow(){
-  if(!canEditModule('procurement')){ alert('คุณไม่มีสิทธิ์แก้ไขหน้าพัสดุ'); return; }
+  if(!canEditCurrentProcItem()){ alert('คุณไม่มีสิทธิ์แก้ไขเอกสารพัสดุนี้'); return; }
   CURRENT_SUB_ITEMS.push({seq: CURRENT_SUB_ITEMS.length+1, description:'', unit:'', quantity:1, unit_price:0, amount:0});
   renderSubItemsTable();
 }
 
 function removeSubItemRow(idx){
-  if(!canEditModule('procurement')){ alert('คุณไม่มีสิทธิ์แก้ไขหน้าพัสดุ'); return; }
+  if(!canEditCurrentProcItem()){ alert('คุณไม่มีสิทธิ์แก้ไขเอกสารพัสดุนี้'); return; }
   CURRENT_SUB_ITEMS.splice(idx,1);
   CURRENT_SUB_ITEMS.forEach(function(r,i){ r.seq = i+1; });
   renderSubItemsTable();
@@ -92,7 +281,7 @@ function removeSubItemRow(idx){
 // เก็บค่าดิบ (อาจติดลบชั่วคราว) ไว้ใน state ปกติ แต่คำนวณ amount/ยอดรวมด้วย max(0,...) เสมอ กันยอดติดลบ
 // ระหว่างพิมพ์ ส่วนการ clamp ค่าจริงถาวร (เขียนทับ input ที่ผู้ใช้เห็น) ทำตอน blur เท่านั้น (ดู clampSubItemField)
 function updateSubItemAmount(idx, field, value){
-  if(!canEditModule('procurement')){ alert('คุณไม่มีสิทธิ์แก้ไขหน้าพัสดุ'); return; }
+  if(!canEditCurrentProcItem()){ alert('คุณไม่มีสิทธิ์แก้ไขเอกสารพัสดุนี้'); return; }
   const row = CURRENT_SUB_ITEMS[idx];
   if(!row) return;
   row[field] = parseFloat(value) || 0;

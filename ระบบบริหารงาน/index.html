@@ -1153,7 +1153,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
   </div>
 </div>
 
-<!-- ======= PROCUREMENT DETAIL FORM MODAL (Stage 14-15 — Section A + C) ======= -->
+<!-- ======= PROCUREMENT DETAIL FORM MODAL (Stage 14-16 — Section A-H) ======= -->
 <div class="overlay" id="procDetailOverlay">
   <div class="modal" style="width:920px;max-width:100%">
     <div class="modal-head">
@@ -1196,12 +1196,76 @@ body:not(.is-admin) .admin-only { display: none !important; }
       <div id="pd-subitems-warning" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:#fff3cd;color:#856404;font-size:13px"></div>
     </div>
 
-    <div class="no-data" style="text-align:center;padding:20px 0">
-      ส่วนอื่น (ร้านค้า / วันที่ / คณะกรรมการ / บันทึก) จะเปิดใช้งานใน Stage 16 ถัดไป
+    <!-- Section B: ร้านค้า/ผู้รับจ้าง -->
+    <div class="table-card" style="padding:16px 20px;margin-bottom:16px">
+      <div class="fg">
+        <label>ร้านค้า/ผู้รับจ้าง</label>
+        <select class="fc" id="pd-vendor"><option value="">— ไม่ระบุ —</option></select>
+      </div>
+    </div>
+
+    <!-- Section D: วันที่ดำเนินการ (10 รายการ) -->
+    <div class="table-card" style="padding:16px 20px;margin-bottom:16px">
+      <strong style="font-size:14px;display:block;margin-bottom:10px">วันที่ดำเนินการ</strong>
+      <div class="form-grid">
+        <div class="fg"><label>วันที่ขอดำเนินการ</label><input class="fc" type="date" id="pd-date-request"></div>
+        <div class="fg"><label>วันที่ขออนุมัติแต่งตั้งกรรมการ TOR</label><input class="fc" type="date" id="pd-date-approve-tor"></div>
+        <div class="fg"><label>วันที่คำสั่งแต่งตั้งกรรมการ TOR</label><input class="fc" type="date" id="pd-date-order-tor"></div>
+        <div class="fg"><label>วันที่เห็นชอบ TOR</label><input class="fc" type="date" id="pd-date-agree-tor"></div>
+        <div class="fg"><label>วันที่ขอซื้อ/จ้าง</label><input class="fc" type="date" id="pd-date-request-buy"></div>
+        <div class="fg"><label>วันที่ประกาศผู้ชนะการเสนอราคา</label><input class="fc" type="date" id="pd-date-announce"></div>
+        <div class="fg"><label>วันที่สั่งซื้อ/จ้าง</label><input class="fc" type="date" id="pd-date-order"></div>
+        <div class="fg"><label>วันครบกำหนดส่งมอบ</label><input class="fc" type="date" id="pd-date-due"></div>
+        <div class="fg"><label>วันที่ส่งมอบ/ตรวจรับจริง</label><input class="fc" type="date" id="pd-date-deliver"></div>
+        <div class="fg"><label>วันที่เบิกจ่าย</label><input class="fc" type="date" id="pd-date-withdraw"></div>
+      </div>
+      <div id="pd-date-warning" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:#fff3cd;color:#856404;font-size:13px"></div>
+    </div>
+
+    <!-- Section E+F: คณะกรรมการกำหนด TOR / ตรวจรับพัสดุ -->
+    <div class="table-card" style="padding:16px 20px;margin-bottom:16px">
+      <strong style="font-size:14px;display:block;margin-bottom:10px">คณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะ (TOR)</strong>
+      <div class="form-grid">
+        <div class="fg"><label>ผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ</label><select class="fc" id="pd-tor-0"><option value="">— เลือก —</option></select></div>
+        <div class="fg"><label>กรรมการ (คนที่ 2)</label><select class="fc" id="pd-tor-1"><option value="">— เลือก —</option></select></div>
+        <div class="fg"><label>กรรมการ (คนที่ 3)</label><select class="fc" id="pd-tor-2"><option value="">— เลือก —</option></select></div>
+      </div>
+      <strong style="font-size:14px;display:block;margin:16px 0 10px">คณะกรรมการตรวจรับพัสดุ</strong>
+      <div class="form-grid">
+        <div class="fg"><label>ผู้ตรวจรับพัสดุ</label><select class="fc" id="pd-insp-0"><option value="">— เลือก —</option></select></div>
+        <div class="fg"><label>กรรมการ (คนที่ 2)</label><select class="fc" id="pd-insp-1"><option value="">— เลือก —</option></select></div>
+        <div class="fg"><label>กรรมการ (คนที่ 3)</label><select class="fc" id="pd-insp-2"><option value="">— เลือก —</option></select></div>
+      </div>
+    </div>
+
+    <!-- Section G+H: TOR (วัตถุประสงค์/คุณสมบัติ) + งบประมาณ/ภาษี -->
+    <div class="table-card" style="padding:16px 20px;margin-bottom:16px">
+      <div class="form-grid">
+        <div class="fg form-full"><label>วัตถุประสงค์ (TOR)</label><textarea class="fc" id="pd-tor-objective" rows="2"></textarea></div>
+        <div class="fg form-full"><label>คุณสมบัติผู้ยื่นข้อเสนอ</label><textarea class="fc" id="pd-tor-qualification" rows="2"></textarea></div>
+        <div class="fg">
+          <label>แหล่งงบประมาณ</label>
+          <select class="fc" id="pd-budget-source">
+            <option value="">— เลือก —</option>
+            <option value="เงินอุดหนุน">เงินอุดหนุน</option>
+            <option value="เงินรายได้">เงินรายได้</option>
+            <option value="เงินบริจาค">เงินบริจาค</option>
+            <option value="อาหารกลางวัน">อาหารกลางวัน</option>
+            <option value="กสศ.">กสศ.</option>
+          </select>
+        </div>
+        <div class="fg"><label>ภาษีหัก ณ ที่จ่าย (บาท)</label><input class="fc" type="number" step="0.01" min="0" id="pd-wht" value="0"></div>
+        <div class="fg form-full">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin-top:6px;text-transform:none;font-size:13px">
+            <input type="checkbox" id="pd-vat"> มีภาษีมูลค่าเพิ่ม (VAT 7%)
+          </label>
+        </div>
+      </div>
     </div>
 
     <div class="modal-foot">
       <button class="btn-cancel" onclick="closeDetailForm()">ปิด</button>
+      <button class="btn-sm" style="padding:10px 24px;font-size:13px" onclick="saveDetailForm()">💾 บันทึก</button>
     </div>
   </div>
 </div>

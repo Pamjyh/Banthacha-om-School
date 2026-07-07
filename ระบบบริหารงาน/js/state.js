@@ -49,3 +49,7 @@ let CURRENT_SUB_ITEMS = [];
 // SUBITEMS_LOAD_ERROR (Stage 15, bug-fixer 2026-07-07) — error message ถ้าโหลด procurement_sub_items เดิมล้มเหลว
 // (null = โหลดสำเร็จ/ยังไม่โหลด) ใช้เตือนผู้ใช้ไม่ให้กด "บันทึก" ทับข้อมูลเดิมตอนโหลดพัง — ดู updateSubItemsFooter()
 let SUBITEMS_LOAD_ERROR = null;
+// CURRENT_SUB_ITEMS_ORIGINAL_IDS (Stage 16) — id ของแถว procurement_sub_items ที่มีอยู่แล้วใน DB ตอนเปิดฟอร์ม
+// (snapshot ตอนโหลด) ใช้ตอนกด "บันทึก": insert ชุดใหม่ทั้งหมดก่อน แล้วค่อยลบชุดเดิมตาม id พวกนี้
+// (ไม่ใช่ delete-then-insert) กัน data loss ถ้า insert ชุดใหม่ล้มเหลวกลางทาง
+let CURRENT_SUB_ITEMS_ORIGINAL_IDS = [];
