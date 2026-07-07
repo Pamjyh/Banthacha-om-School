@@ -120,10 +120,21 @@ function populateVendorSelect(selectedId){
 // เติม dropdown กรรมการ 6 ช่อง (TOR 3 + ตรวจรับ 3) จาก STAFF_LIST (active เท่านั้น — ตาม pattern เดียวกับ
 // openTeacherSelector) แล้วเลือกค่าเดิมถ้ามี (edit mode) — torArr/inspArr คือ committee_tor/committee_inspect
 // jsonb array จริงจาก DB รูปแบบ [{staff_id,role}, ...] ตามลำดับ index ตรงกับตำแหน่ง fixed role ในฟอร์ม
+//
+// scrutinize finding (2026-07-07, MAJOR): staff.js ไม่ลบ record จริง แค่ปิดใช้งาน (is_active=false) เพื่อ
+// "เก็บประวัติไว้" (staff.js header) แต่ dropdown นี้เดิมกรอง active อย่างเดียว — ถ้าคนที่เคยเป็นกรรมการถูกปิด
+// ใช้งานไปแล้ว แล้วมีคนเปิดฟอร์มเก่ากลับมาแก้/บันทึกซ้ำ ช่องนั้นจะไม่มี option ให้เลือกค่าเดิม (เงียบๆ ไม่ error)
+// พอกด "บันทึก" จะเขียน staff_id: null ทับ ลบชื่อกรรมการจริงออกจากประวัติถาวร ต้องเติม option ของคนที่เคย
+// ถูกอ้างถึงไว้ด้วยแม้จะปิดใช้งานแล้ว เพื่อรักษาค่าเดิมไว้ได้
 function populateStaffSelects(torArr, inspArr){
   const activeStaff = (STAFF_LIST||[]).filter(function(s){ return s.is_active !== false; });
+  const activeIds = new Set(activeStaff.map(function(s){ return s.id; }));
+  const referencedIds = [].concat(torArr||[], inspArr||[]).map(function(c){ return c.staff_id; }).filter(Boolean);
+  const inactiveButReferenced = (STAFF_LIST||[]).filter(function(s){ return !activeIds.has(s.id) && referencedIds.indexOf(s.id) >= 0; });
+
   const opts = '<option value="">— เลือก —</option>' +
-    activeStaff.map(function(s){ return '<option value="'+s.id+'">'+escHtml((s.prefix||'')+(s.name||''))+'</option>'; }).join('');
+    activeStaff.map(function(s){ return '<option value="'+s.id+'">'+escHtml((s.prefix||'')+(s.name||''))+'</option>'; }).join('') +
+    inactiveButReferenced.map(function(s){ return '<option value="'+s.id+'">'+escHtml((s.prefix||'')+(s.name||''))+' (ปิดใช้งาน)</option>'; }).join('');
   ['pd-tor-0','pd-tor-1','pd-tor-2','pd-insp-0','pd-insp-1','pd-insp-2'].forEach(function(id){
     const sel = document.getElementById(id);
     if(sel) sel.innerHTML = opts;
@@ -216,7 +227,9 @@ async function saveDetailForm(){
     tor_qualification: document.getElementById('pd-tor-qualification').value.trim() || null,
     budget_source: document.getElementById('pd-budget-source').value || null,
     vat_applicable: document.getElementById('pd-vat').checked,
-    withholding_tax: parseFloat(document.getElementById('pd-wht').value) || 0
+    // scrutinize finding (2026-07-07, MINOR): min="0" ไม่บังคับค่าจริงเพราะไม่มี <form> ครอบ (ปัญหาเดิม
+    // เจอแล้วใน sub-items Stage 15) — clamp เองกันภาษีหัก ณ ที่จ่ายติดลบหลุดเข้า DB
+    withholding_tax: Math.max(0, parseFloat(document.getElementById('pd-wht').value) || 0)
   };
   PD_DATE_SEQUENCE.concat(PD_DATE_EXTRA).forEach(function(row){
     detailBody[row[1]] = document.getElementById(row[0]).value || null;
@@ -243,7 +256,20 @@ async function saveDetailForm(){
       };
     });
     if(insertPayload.length) await POST('procurement_sub_items', insertPayload);
-    if(CURRENT_SUB_ITEMS_ORIGINAL_IDS.length) await DEL('procurement_sub_items', 'id=in.('+CURRENT_SUB_ITEMS_ORIGINAL_IDS.join(',')+')');
+
+    // scrutinize finding (2026-07-07, MAJOR): ขั้นตอน DEL นี้แยก try/catch ของตัวเองโดยตั้งใจ — ไม่รวมกับ
+    // try ด้านบน เพราะถึงตรงนี้ procurement_details + รายการย่อยชุดใหม่ "บันทึกสำเร็จแล้วจริง" ถ้า DEL ชุดเก่า
+    // พังตรงนี้ (เช่น network สะดุด) ไม่ควรบอกผู้ใช้ว่า "บันทึกไม่สำเร็จ" (เข้าใจผิด+เสี่ยงกด "บันทึก" ซ้ำ
+    // ทำให้ CURRENT_SUB_ITEMS_ORIGINAL_IDS ที่เป็น snapshot เก่ายิ่ง insert ซ้ำสะสมใน DB โดยไม่มีใครรู้)
+    // ต้องแจ้งเฉพาะเจาะจงว่า "บันทึกสำเร็จ แต่ลบชุดเก่าไม่สำเร็จ" แล้ว reload ให้เห็นแถวซ้ำเป็น signal ทันที
+    try{
+      if(CURRENT_SUB_ITEMS_ORIGINAL_IDS.length) await DEL('procurement_sub_items', 'id=in.('+CURRENT_SUB_ITEMS_ORIGINAL_IDS.join(',')+')');
+    }catch(delErr){
+      hide('loadingOverlay');
+      alert('บันทึกข้อมูลหลักสำเร็จ แต่ลบรายการย่อยชุดเก่าไม่สำเร็จ ('+delErr.message+')\nอาจมีรายการย่อยซ้ำ — กรุณาตรวจสอบและลบแถวที่ซ้ำเองก่อนบันทึกซ้ำ');
+      await openDetailForm(CURRENT_PROC_ITEM.id); // reload ให้เห็นสภาพจริงใน DB (รวมแถวซ้ำถ้ามี) แทนที่จะค้าง view เดิม
+      return;
+    }
 
     hide('loadingOverlay');
     showToast('บันทึกเอกสารพัสดุสำเร็จ ✓');
