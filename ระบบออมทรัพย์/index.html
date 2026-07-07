@@ -1132,7 +1132,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbzScb5FNx-5hkGjGyI25JP72AYSB_v6Ol2nw-hIh7sP9FOIxH7V2yvqrFqM8GcUotGiTQ/exec';
+var API = 'https://script.google.com/macros/s/AKfycbxOKM6yBXECbmaPztDm_Z5K7TT3Zh7dbu45Qu9-nyuTgjjLu62k-frzHU6hChLTpA_kTQ/exec';
 // รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
 var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
@@ -1717,6 +1717,16 @@ function doLoadMonthData() {
     var hadTx = {};
     txs.forEach(function(t){ hadTx[t.studentId]=true; });
     var noTx = allStus.filter(function(s){ return !hadTx[s.id]; });
+    // เรียงตามเลขที่เอง (แบบเดียวกับ rows ด้านบน) — เดิมพึ่ง order ของ allStus เฉยๆ ไม่มี sort ของตัวเอง
+    // ถ้า allStus มาจากที่อื่นที่ไม่ได้เรียง (เช่น cache เก่า) ส่วนนี้จะโชว์ไม่เรียงโดยไม่รู้ตัว — ใส่กันเหนียวไว้
+    noTx.sort(function(a,b){
+      var ra=parseInt(a.rollNo,10), rb=parseInt(b.rollNo,10);
+      var raOk=a.rollNo!==''&&a.rollNo!=null&&!isNaN(ra), rbOk=b.rollNo!==''&&b.rollNo!=null&&!isNaN(rb);
+      if (raOk&&rbOk) return ra-rb;
+      if (raOk&&!rbOk) return -1;
+      if (!raOk&&rbOk) return 1;
+      return a.name.localeCompare(b.name,'th');
+    });
     if (noTx.length > 0) {
       html += '<div style="font-family:\'Mitr\',sans-serif;font-size:13px;font-weight:600;color:var(--ts);margin:12px 0 8px">⏳ ยังไม่มีธุรกรรมเดือนนี้ ('+noTx.length+' คน)</div>'+
         cardRowsHtml(noTx.map(function(s){
