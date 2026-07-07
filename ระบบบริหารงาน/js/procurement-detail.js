@@ -5,8 +5,9 @@
 // SECTION C: ตารางรายการย่อย (procurement_sub_items) — เพิ่ม/ลบ/แก้แถวได้ใน memory (CURRENT_SUB_ITEMS)
 // SECTION B: ร้านค้า/ผู้รับจ้าง (dropdown จาก VENDORS_LIST)
 // SECTION D: วันที่ดำเนินการ 10 รายการ
-// SECTION E+F: คณะกรรมการกำหนด TOR (3 คน) / ตรวจรับพัสดุ (3 คน) — dropdown จาก STAFF_LIST
-// SECTION G+H: วัตถุประสงค์/คุณสมบัติ TOR, แหล่งงบประมาณ, VAT, ภาษีหัก ณ ที่จ่าย
+// SECTION E+F: คณะกรรมการกำหนด TOR (1-3 คน) / ตรวจรับพัสดุ (1-3 คน) — dropdown จาก STAFF_LIST
+//              (ไม่บังคับครบ 3 — BLUEPRINT L561 รองรับน้อยกว่า 3 คนได้ตามระเบียบพัสดุจริง)
+// SECTION G+H: วัตถุประสงค์/คุณสมบัติ TOR, แหล่งงบประมาณ, VAT, ภาษีหัก ณ ที่จ่าย, ค่าปรับ (ร้อยละต่อวัน — เพิ่ม 2026-07-08)
 // ปุ่ม "บันทึก" → UPSERT procurement_details + replace procurement_sub_items ทั้งหมด
 // SECTION I (พิมพ์เอกสาร PDF 16 ชุด) คือ Stage 17 ถัดไป — ยังไม่สร้างตอนนี้ตามกฎ "ห้าม build ข้าม stage"
 // =====================================================================
@@ -161,11 +162,13 @@ function populateDetailFields(detail){
   const budgetEl = document.getElementById('pd-budget-source');
   const vatEl = document.getElementById('pd-vat');
   const whtEl = document.getElementById('pd-wht');
-  if(objEl)    objEl.value    = (detail && detail.tor_objective) || '';
-  if(qualEl)   qualEl.value   = (detail && detail.tor_qualification) || '';
-  if(budgetEl) budgetEl.value = (detail && detail.budget_source) || '';
-  if(vatEl)    vatEl.checked  = !!(detail && detail.vat_applicable);
-  if(whtEl)    whtEl.value    = (detail && detail.withholding_tax != null) ? detail.withholding_tax : 0;
+  const penaltyEl = document.getElementById('pd-penalty'); // ค่าปรับ (ร้อยละต่อวัน) — เพิ่มตามคำขอ Pam 2026-07-08
+  if(objEl)     objEl.value     = (detail && detail.tor_objective) || '';
+  if(qualEl)    qualEl.value    = (detail && detail.tor_qualification) || '';
+  if(budgetEl)  budgetEl.value  = (detail && detail.budget_source) || '';
+  if(vatEl)     vatEl.checked   = !!(detail && detail.vat_applicable);
+  if(whtEl)     whtEl.value     = (detail && detail.withholding_tax != null) ? detail.withholding_tax : 0;
+  if(penaltyEl) penaltyEl.value = (detail && detail.penalty_rate_percent != null) ? detail.penalty_rate_percent : 0;
   const warnEl = document.getElementById('pd-date-warning');
   if(warnEl){ warnEl.style.display = 'none'; warnEl.textContent = ''; }
   const cmtWarnEl = document.getElementById('pd-committee-warning');
@@ -255,8 +258,10 @@ async function saveDetailForm(){
     budget_source: document.getElementById('pd-budget-source').value || null,
     vat_applicable: document.getElementById('pd-vat').checked,
     // scrutinize finding (2026-07-07, MINOR): min="0" ไม่บังคับค่าจริงเพราะไม่มี <form> ครอบ (ปัญหาเดิม
-    // เจอแล้วใน sub-items Stage 15) — clamp เองกันภาษีหัก ณ ที่จ่ายติดลบหลุดเข้า DB
-    withholding_tax: Math.max(0, parseFloat(document.getElementById('pd-wht').value) || 0)
+    // เจอแล้วใน sub-items Stage 15) — clamp เองกันภาษีหัก ณ ที่จ่าย/ค่าปรับติดลบหลุดเข้า DB
+    withholding_tax: Math.max(0, parseFloat(document.getElementById('pd-wht').value) || 0),
+    // ค่าปรับ (ร้อยละต่อวัน) — เพิ่มตามคำขอ Pam 2026-07-08, ไม่เท่ากันแต่ละสัญญา จึงเก็บแยกรายรายการ
+    penalty_rate_percent: Math.max(0, parseFloat(document.getElementById('pd-penalty').value) || 0)
   };
   PD_DATE_SEQUENCE.concat(PD_DATE_EXTRA).forEach(function(row){
     detailBody[row[1]] = document.getElementById(row[0]).value || null;
