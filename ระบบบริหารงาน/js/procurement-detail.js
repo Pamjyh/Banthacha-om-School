@@ -86,23 +86,35 @@ function removeSubItemRow(idx){
 // อัปเดตแค่ field ตัวเลข (quantity/unit_price) แล้ว recalc amount ของแถวนั้น — อัปเดตเฉพาะ cell/footer
 // ไม่ rebuild ทั้งตาราง กัน input เสีย focus ระหว่างพิมพ์ (ต่างจาก description/unit ที่ผูก oninput ตรงๆ
 // เพราะไม่กระทบยอดรวม ไม่ต้อง re-render อะไรเลย)
-// scrutinize finding (2026-07-07, MINOR): HTML min="0" ไม่บังคับค่าจริงเพราะ input ไม่ได้อยู่ใน <form> ที่ submit
-// ต้อง clamp ค่าติดลบเองใน JS แล้ว sync กลับเข้า input.value ด้วย ไม่งั้น input จะโชว์เลขติดลบทั้งที่ state ถูก clamp เป็น 0
-function updateSubItemAmount(idx, field, value, inputEl){
-  if(!canEditModule('procurement')){ alert('คุณไม่มีสิทธิ์แก้ไขหน้าพัสดุ'); if(inputEl) inputEl.value = CURRENT_SUB_ITEMS[idx]?.[field] ?? 0; return; }
+// bug-fixer (2026-07-07): ระหว่างพิมพ์ "-5" ตัว input type=number จะรายงาน value="" (ยังไม่ใช่เลขสมบูรณ์)
+// ตอนพิมพ์แค่ "-" ตัวเดียว — ถ้า sync inputEl.value=0 ตอนนั้นเลย จะไปทับตัว "-" ที่เพิ่งพิมพ์ ทำให้พิมพ์
+// เครื่องหมายลบไม่ได้เลย (bug ที่ Pam เจอ) แก้โดย "ไม่แตะ" input.value ระหว่างพิมพ์เด็ดขาด —
+// เก็บค่าดิบ (อาจติดลบชั่วคราว) ไว้ใน state ปกติ แต่คำนวณ amount/ยอดรวมด้วย max(0,...) เสมอ กันยอดติดลบ
+// ระหว่างพิมพ์ ส่วนการ clamp ค่าจริงถาวร (เขียนทับ input ที่ผู้ใช้เห็น) ทำตอน blur เท่านั้น (ดู clampSubItemField)
+function updateSubItemAmount(idx, field, value){
+  if(!canEditModule('procurement')){ alert('คุณไม่มีสิทธิ์แก้ไขหน้าพัสดุ'); return; }
   const row = CURRENT_SUB_ITEMS[idx];
   if(!row) return;
-  let v = parseFloat(value);
-  const wasNegativeOrInvalid = isNaN(v) || v < 0;
-  if(wasNegativeOrInvalid) v = 0;
-  row[field] = v;
-  // sync ค่ากลับเข้า input เฉพาะตอนถูก clamp เท่านั้น (ห้าม sync ทุกครั้ง — จะรบกวนการพิมพ์เลขทศนิยม
-  // เช่น พิมพ์ "5." ระหว่างพิมพ์ "5.5" ถ้า sync ทุกครั้งจะโดนรีเซ็ตกลับเป็น "5" ทำให้พิมพ์ทศนิยมไม่ได้)
-  if(inputEl && wasNegativeOrInvalid) inputEl.value = v;
-  row.amount = (Number(row.quantity)||0) * (Number(row.unit_price)||0);
+  row[field] = parseFloat(value) || 0;
+  row.amount = Math.max(0, Number(row.quantity)||0) * Math.max(0, Number(row.unit_price)||0);
   const cell = document.getElementById('pd-sub-amt-'+idx);
   if(cell) cell.textContent = fmt(row.amount);
   updateSubItemsFooter();
+}
+
+// clamp ค่าติดลบให้จริงถาวรตอนออกจากช่อง (blur) — HTML min="0" ไม่บังคับค่าจริงเพราะ input ไม่ได้อยู่ใน
+// <form> ที่ submit จึงต้องบังคับเองตรงนี้ ตอน blur เท่านั้น (ไม่ใช่ทุก keystroke) เพื่อไม่รบกวนการพิมพ์
+function clampSubItemField(idx, field, inputEl){
+  const row = CURRENT_SUB_ITEMS[idx];
+  if(!row) return;
+  if(row[field] < 0){
+    row[field] = 0;
+    inputEl.value = 0;
+    row.amount = Math.max(0, Number(row.quantity)||0) * Math.max(0, Number(row.unit_price)||0);
+    const cell = document.getElementById('pd-sub-amt-'+idx);
+    if(cell) cell.textContent = fmt(row.amount);
+    updateSubItemsFooter();
+  }
 }
 
 function renderSubItemsTable(){
@@ -117,8 +129,8 @@ function renderSubItemsTable(){
     return '<tr>'+
       '<td><input class="fc" style="padding:6px 8px;font-size:13px" type="text" value="'+escHtml(row.description)+'" placeholder="รายละเอียด" oninput="CURRENT_SUB_ITEMS['+idx+'].description=this.value"></td>'+
       '<td><input class="fc" style="padding:6px 8px;font-size:13px" type="text" value="'+escHtml(row.unit)+'" placeholder="หน่วย" oninput="CURRENT_SUB_ITEMS['+idx+'].unit=this.value"></td>'+
-      '<td><input class="fc" style="padding:6px 8px;font-size:13px;text-align:right" type="number" step="any" min="0" value="'+row.quantity+'" oninput="updateSubItemAmount('+idx+',\'quantity\',this.value,this)"></td>'+
-      '<td><input class="fc" style="padding:6px 8px;font-size:13px;text-align:right" type="number" step="any" min="0" value="'+row.unit_price+'" oninput="updateSubItemAmount('+idx+',\'unit_price\',this.value,this)"></td>'+
+      '<td><input class="fc" style="padding:6px 8px;font-size:13px;text-align:right" type="number" step="any" min="0" value="'+row.quantity+'" oninput="updateSubItemAmount('+idx+',\'quantity\',this.value)" onblur="clampSubItemField('+idx+',\'quantity\',this)"></td>'+
+      '<td><input class="fc" style="padding:6px 8px;font-size:13px;text-align:right" type="number" step="any" min="0" value="'+row.unit_price+'" oninput="updateSubItemAmount('+idx+',\'unit_price\',this.value)" onblur="clampSubItemField('+idx+',\'unit_price\',this)"></td>'+
       '<td class="r" id="pd-sub-amt-'+idx+'">'+fmt(row.amount)+'</td>'+
       '<td><button class="act-btn del" onclick="removeSubItemRow('+idx+')" title="ลบ">🗑️</button></td>'+
     '</tr>';
