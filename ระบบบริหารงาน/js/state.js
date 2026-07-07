@@ -43,3 +43,6 @@ let VENDORS_LIST = [];
 // ที่โหลดมา (null ถ้ายังไม่เคยบันทึก = create mode) — Stage 15-16 จะต่อยอดจาก state นี้
 let CURRENT_PROC_ITEM = null;
 let CURRENT_DETAIL = null;
+// CURRENT_SUB_ITEMS (Stage 15) — array ของแถวรายการย่อยในฟอร์ม (ยังไม่บันทึกจนกว่าจะกด "บันทึก" ใน Stage 16)
+// รูปแบบแต่ละแถว: {seq, description, unit, quantity, unit_price, amount} — ไม่มี id จนกว่าจะ save จริง
+let CURRENT_SUB_ITEMS = [];
