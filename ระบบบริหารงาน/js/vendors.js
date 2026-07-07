@@ -46,6 +46,7 @@ function filterVendors(){
 
 function openVendorForm(){
   if(!adminGuard()) return;
+  if(!isAdminIdentity()){ alert('เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการข้อมูลร้านค้าได้'); return; }
   document.getElementById('vendorEditId').value = '';
   document.getElementById('vendorName').value = '';
   document.getElementById('vendorContact').value = '';
@@ -95,6 +96,7 @@ function editVendor(id){
 
 async function saveVendorItem(){
   if(!adminGuard()) return;
+  if(!isAdminIdentity()){ alert('เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการข้อมูลร้านค้าได้'); return; }
   const name = document.getElementById('vendorName').value.trim();
   if(!name) return alert('กรุณาระบุชื่อร้านค้า/ผู้รับจ้าง');
 

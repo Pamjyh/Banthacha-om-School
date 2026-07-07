@@ -27,6 +27,7 @@ function renderStaffTable(){
 
 function openStaffForm(){
   if(!adminGuard()) return;
+  if(!isAdminIdentity()){ alert('เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการข้อมูลบุคลากรได้'); return; }
   document.getElementById('staffEditId').value = '';
   document.getElementById('staffPrefix').value = 'นาย';
   document.getElementById('staffName').value = '';
@@ -56,6 +57,7 @@ function editStaff(id){
 
 async function saveStaffItem(){
   if(!adminGuard()) return;
+  if(!isAdminIdentity()){ alert('เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการข้อมูลบุคลากรได้'); return; }
   const prefix   = document.getElementById('staffPrefix').value;
   const name     = document.getElementById('staffName').value.trim();
   const position = document.getElementById('staffPosition').value.trim();
@@ -88,6 +90,7 @@ async function saveStaffItem(){
 // เปิด/ปิดใช้งาน — ไม่ลบแถวจริง (deactivate เท่านั้น ตามสเปก CONSTRUCTION_PLAN Stage 11)
 async function toggleStaffActive(id, currentlyActive){
   if(!adminGuard()) return;
+  if(!isAdminIdentity()){ alert('เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการข้อมูลบุคลากรได้'); return; }
   show('loadingOverlay','flex');
   try{
     await PATCH('staff', 'id=eq.'+id, { is_active: !currentlyActive });

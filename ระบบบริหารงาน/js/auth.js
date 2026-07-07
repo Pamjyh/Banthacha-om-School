@@ -1,39 +1,12 @@
 // =====================================================================
-// AUTH — password gate (view-only public, edit requires password)
+// AUTH — ตัดรหัสผ่านรวม (shared password) ออกทั้งหมด (2026-07-07 ตามคำขอ Pam)
+// เดิม: ต้องกรอกรหัสผ่านรวมก่อน ถึงจะเจอ Teacher Selector ("คุณคือใคร")
+// ใหม่: เจอ Teacher Selector ได้ทันทีโดยไม่ต้องมีรหัสผ่านเลย — การเลือกตัวตนเองคือ "login"
+// สิทธิ์แก้ไขจริงมาจาก canEdit()/canEditModule() (ตามตัวตน+flag ที่เลือก) ไม่ใช่รหัสผ่านรวมอีกต่อไป
+// จุดเดียวที่ยังมีรหัส/PIN คือตัวตน "ผู้ดูแลระบบ" (ADMIN_PIN_KEY ด้านล่าง) และหน้า "⚙️ จัดการข้อมูล"
+// ที่ยังผูกกับตัวตน ADMIN เท่านั้น (ดู isAdminIdentity())
+// IS_ADMIN ตอนนี้แปลว่า "เลือกตัวตนใน Teacher Selector แล้ว" (ไม่ว่าครูคนไหนหรือ ADMIN) ไม่ใช่ "ผ่านรหัสผ่านแล้ว"
 // =====================================================================
-const ADMIN_PW_KEY   = 'school_admin_hash';     // localStorage — hash ถาวร
-const ADMIN_SES_KEY  = 'school_admin_session';  // sessionStorage — หมดอัตโนมัติเมื่อปิด tab/browser
-const ADMIN_LOCK_KEY = 'school_login_lock';     // localStorage — rate limit {count, lockedUntil}
-const MAX_ATTEMPTS   = 5;
-const LOCK_MS        = 15 * 60 * 1000; // 15 นาที
-
-function getLockState(){
-  try{ return JSON.parse(localStorage.getItem(ADMIN_LOCK_KEY)) || {count:0, lockedUntil:0}; }
-  catch{ return {count:0, lockedUntil:0}; }
-}
-function setLockState(s){ localStorage.setItem(ADMIN_LOCK_KEY, JSON.stringify(s)); }
-function clearLockState(){ localStorage.removeItem(ADMIN_LOCK_KEY); }
-
-function checkLocked(){
-  var s = getLockState();
-  if(s.lockedUntil && Date.now() < s.lockedUntil){
-    var remain = Math.ceil((s.lockedUntil - Date.now()) / 60000);
-    return 'เข้าสู่ระบบล้มเหลวเกิน ' + MAX_ATTEMPTS + ' ครั้ง กรุณารอ ' + remain + ' นาที';
-  }
-  // lock หมดอายุแล้ว → reset
-  if(s.lockedUntil && Date.now() >= s.lockedUntil) clearLockState();
-  return null;
-}
-
-function recordFailedAttempt(){
-  var s = getLockState();
-  s.count = (s.count || 0) + 1;
-  if(s.count >= MAX_ATTEMPTS){
-    s.lockedUntil = Date.now() + LOCK_MS;
-    s.count = 0;
-  }
-  setLockState(s);
-}
 
 async function hashPw(pw){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
@@ -43,98 +16,48 @@ async function hashPw(pw){
 function setAdminMode(on){
   IS_ADMIN = on;
   document.body.classList.toggle('is-admin', on);
-  var btn = document.getElementById('nav-lock-btn');
-  if(btn) btn.textContent = on ? '🔓 ออก' : '🔒 เข้าระบบ';
 }
 
+// เดิมชื่อ checkAdminSession() ตรวจรหัสผ่านรวม — ตอนนี้แค่ sync IS_ADMIN ให้ตรงกับว่าเลือกตัวตนไว้แล้วหรือยัง
+// (เก็บชื่อฟังก์ชันเดิมไว้เพื่อไม่ต้องแก้ init.js/connectSupabase() ที่เรียกอยู่)
 function checkAdminSession(){
-  var stored = localStorage.getItem(ADMIN_PW_KEY);
-  if(!stored){
-    // แก้บั๊ก 2026-07-07 (พบจาก Pam ทดสอบ + scrutinize): เดิม auto-grant IS_ADMIN=true ตรงนี้
-    // ทำให้เบราว์เซอร์/อุปกรณ์ใดก็ตามที่ยังไม่เคยตั้งรหัสในเครื่องนั้น ได้สิทธิ์ผู้ดูแลระบบทันที
-    // โดยไม่ต้อง login เลย (zero-auth) — ไม่ใช่แค่ตอน deploy ครั้งแรก แต่เกิดซ้ำได้ทุกเบราว์เซอร์ใหม่
-    // ตอนนี้ไม่ auto-grant แล้ว ผู้ใช้ต้องกดปุ่ม "เข้าระบบ" เอง ซึ่ง openLoginModal() จะพาไปตั้งรหัส
-    // ผ่าน openSetPasswordModal() ตามปกติถ้ายังไม่เคยตั้ง (ยังรองรับ first-time setup เหมือนเดิม
-    // แค่ต้องกดปุ่มเอง ไม่ auto-grant แบบเงียบๆ ตอนโหลดหน้า)
-    setAdminMode(false);
-    return;
-  }
-  var ses = sessionStorage.getItem(ADMIN_SES_KEY);
-  setAdminMode(ses === 'ok');
+  setAdminMode(!!sessionStorage.getItem(CURRENT_STAFF_KEY));
 }
 
 function adminGuard(){
   if(!IS_ADMIN){
-    showToast('กรุณาเข้าสู่ระบบก่อนดำเนินการ');
-    openLoginModal();
+    showToast('กรุณาเลือกตัวตนก่อนดำเนินการ');
+    openTeacherSelector();
     return false;
   }
   return true;
 }
 
-// ---------- LOGIN MODAL ----------
-function openLoginModal(){
-  if(IS_ADMIN){ logoutAdmin(); return; }
-  var stored = localStorage.getItem(ADMIN_PW_KEY);
-  if(!stored){ openSetPasswordModal(); return; }
-  document.getElementById('login-pw-input').value = '';
-  document.getElementById('login-error').textContent = '';
-  document.getElementById('loginOverlay').classList.add('open');
-  setTimeout(function(){ document.getElementById('login-pw-input').focus(); }, 100);
-}
-
-function closeLoginModal(){
-  document.getElementById('loginOverlay').classList.remove('open');
-}
-
-async function loginAdmin(){
-  var errEl = document.getElementById('login-error');
-  // ตรวจ rate limit ก่อน
-  var lockMsg = checkLocked();
-  if(lockMsg){ errEl.textContent = lockMsg; return; }
-
-  var stored = localStorage.getItem(ADMIN_PW_KEY);
-  var pw = document.getElementById('login-pw-input').value;
-  if(!pw){ errEl.textContent = 'กรุณาระบุรหัสผ่าน'; return; }
-  var h = await hashPw(pw);
-  if(h === stored){
-    clearLockState(); // reset นับเมื่อเข้าสำเร็จ
-    sessionStorage.setItem(ADMIN_SES_KEY, 'ok');
-    setAdminMode(true);
-    closeLoginModal();
-    showToast('เข้าสู่ระบบสำเร็จ ✓');
-    openTeacherSelector();
-  } else {
-    recordFailedAttempt();
-    var s = getLockState();
-    var lockMsg2 = checkLocked();
-    if(lockMsg2){
-      errEl.textContent = lockMsg2;
-    } else {
-      var left = MAX_ATTEMPTS - (s.count || 0);
-      errEl.textContent = 'รหัสผ่านไม่ถูกต้อง (เหลืออีก ' + left + ' ครั้ง)';
-    }
-    document.getElementById('login-pw-input').select();
-  }
+// isAdminIdentity() — ใช้แยกสิทธิ์ "⚙️ จัดการข้อมูล" (staff/vendors CRUD) โดยเฉพาะ
+// เพราะหน้านั้นไม่ delegate ผ่าน module flag (Q6-6) ต้องเป็นตัวตน ADMIN ที่ผ่าน PIN แล้วเท่านั้น
+// ต่างจาก IS_ADMIN ทั่วไปที่ตอนนี้แปลว่า "เลือกตัวตนแล้ว" (ครูคนไหนก็ได้)
+function isAdminIdentity(){
+  return sessionStorage.getItem(CURRENT_STAFF_KEY) === 'ADMIN';
 }
 
 function logoutAdmin(){
-  sessionStorage.removeItem(ADMIN_SES_KEY);
   sessionStorage.removeItem(CURRENT_STAFF_KEY);
   setAdminMode(false);
   updateStaffHeaderDisplay();
+  if(typeof applyModulePermissionUI === 'function') applyModulePermissionUI();
+  if(typeof renderProjGrid === 'function') renderProjGrid();
   // Stage 13D scrutinize fix (2026-07-07): เดิมไม่เปลี่ยนหน้าเลย ค้างอยู่หน้าที่เปิดไว้ตอน logout
   // (รวมถึงหน้า "⚙️ จัดการข้อมูล" ที่ admin-only — พอ logout แล้ว CSS จะซ่อนหน้านั้นทันทีจน nav ดูค้าง)
-  // ย้ายกลับไปหน้าแดชบอร์ดให้ชัดเจนว่าออกจากระบบแล้วจริง
+  // ย้ายกลับไปหน้าแดชบอร์ดให้ชัดเจนว่าล้างตัวตนแล้วจริง
   if(typeof goPage === 'function') goPage('dashboard');
-  showToast('ออกจากระบบแล้ว');
+  showToast('ล้างตัวตนแล้ว — เลือกใหม่ได้ทุกเมื่อ');
 }
 
 // ---------- TEACHER SELECTOR (Stage 13 — Multi-User Soft Protection) ----------
-// หลัง login สำเร็จ → เลือกว่า "คุณคือใคร?" เก็บใน sessionStorage (หมดเมื่อปิด tab)
+// นี่คือจุดเข้าระบบเดียวตอนนี้ (2026-07-07 ตัดรหัสผ่านรวมออกแล้ว) — เลือกว่า "คุณคือใคร?" เก็บใน sessionStorage (หมดเมื่อปิด tab)
 // ใช้กำหนดว่าใครแก้ไข/ลบโครงการของใครได้บ้าง ผ่าน canEdit() ด้านล่าง
 const CURRENT_STAFF_KEY = 'current_staff_id'; // sessionStorage: uuid ของ staff หรือ 'ADMIN'
-const ADMIN_PIN_KEY     = 'school_admin2_hash'; // localStorage — รหัสผู้ดูแลระบบ Stage 13C แยกจาก ADMIN_PW_KEY (รหัส login ทั่วไป)
+const ADMIN_PIN_KEY     = 'school_admin2_hash'; // localStorage — รหัสผู้ดูแลระบบ ใช้เฉพาะตอนเลือกตัวตน "ผู้ดูแลระบบ" เท่านั้น
 
 function openTeacherSelector(){
   const sel = document.getElementById('teacherSelectDropdown');
@@ -213,6 +136,7 @@ async function confirmTeacherSelection(){
 
 function finalizeTeacherSelection(val){
   sessionStorage.setItem(CURRENT_STAFF_KEY, val);
+  setAdminMode(true); // เลือกตัวตนแล้ว (ครูคนไหนก็ได้ หรือ ADMIN) = IS_ADMIN true — ไม่มีรหัสผ่านรวมแยกต่างหากอีกต่อไป
   document.getElementById('teacherSelectOverlay').classList.remove('open');
   updateStaffHeaderDisplay();
   // renderProjGrid() ใช้ canEdit()/canViewProject() ตัดสินว่าโครงการ/ปุ่มไหนแสดง — ต้อง re-render ทันที
@@ -247,7 +171,7 @@ function canEdit(projectTeacherName){
 // canEditModule() — BLUEPRINT §7.3(B), Stage 13C
 // 'ผู้ดูแลระบบ' (ผ่าน PIN แล้วเท่านั้นถึงจะเป็นค่านี้ได้ — ดู confirmTeacherSelection) แก้ได้ทุกโมดูล
 // staff ทั่วไปแก้ได้เฉพาะโมดูลที่ติ๊กไว้ในหน้าจัดการข้อมูล → บุคลากร (can_edit_procurement / can_edit_finance)
-// หมายเหตุ: ไม่ครอบคลุมหน้า "⚙️ จัดการข้อมูล" เอง (staff/vendors CRUD) — หน้านั้นผูก admin-only (IS_ADMIN) อย่างเดียวเหมือนเดิม ไม่ delegate
+// หมายเหตุ: ไม่ครอบคลุมหน้า "⚙️ จัดการข้อมูล" เอง (staff/vendors CRUD) — หน้านั้นผูกกับ isAdminIdentity() โดยเฉพาะ ไม่ delegate ผ่าน flag นี้
 function canEditModule(moduleName){
   const currentId = sessionStorage.getItem(CURRENT_STAFF_KEY);
   if(currentId === 'ADMIN') return true;
@@ -318,34 +242,17 @@ function applyModulePermissionUI(){
   if(extBtnAdd) extBtnAdd.style.display = canFin ? '' : 'none';
   if(extBtnCat) extBtnCat.style.display = canFin ? '' : 'none';
   if(!canFin && typeof switchExtTab === 'function') switchExtTab('charts');
-}
 
-// ---------- SET PASSWORD MODAL ----------
-function openSetPasswordModal(){
-  document.getElementById('setpw-input').value = '';
-  document.getElementById('setpw-confirm').value = '';
-  document.getElementById('setpw-error').textContent = '';
-  document.getElementById('setpwOverlay').classList.add('open');
-  setTimeout(function(){ document.getElementById('setpw-input').focus(); }, 100);
-}
-
-function closeSetPasswordModal(){
-  document.getElementById('setpwOverlay').classList.remove('open');
-}
-
-async function saveAdminPassword(){
-  var pw  = document.getElementById('setpw-input').value.trim();
-  var pw2 = document.getElementById('setpw-confirm').value.trim();
-  var errEl = document.getElementById('setpw-error');
-  if(!pw)      { errEl.textContent = 'กรุณาระบุรหัสผ่าน'; return; }
-  if(pw !== pw2){ errEl.textContent = 'รหัสผ่านไม่ตรงกัน'; return; }
-  var h = await hashPw(pw);
-  localStorage.setItem(ADMIN_PW_KEY, h);
-  sessionStorage.setItem(ADMIN_SES_KEY, 'ok');
-  setAdminMode(true);
-  closeSetPasswordModal();
-  showToast('ตั้งรหัสผ่านสำเร็จ ✓');
-  openTeacherSelector();
+  // ---- ⚙️ จัดการข้อมูล — ยังผูกกับตัวตน ADMIN เท่านั้น (Q6-6, ไม่ delegate ผ่าน module flag) ----
+  // ตัดรหัสผ่านรวมออกแล้ว (2026-07-07) ทำให้ IS_ADMIN/.admin-only เปิดให้ทุกตัวตนที่เลือกแล้วเห็น
+  // ต้องซ่อน nav-tab นี้แยกต่างหากด้วย isAdminIdentity() ไม่งั้นครูทั่วไปจะเห็น/กดเข้าได้
+  const isAdmin = isAdminIdentity();
+  document.querySelectorAll('[data-page="manage"]').forEach(function(el){ el.style.display = isAdmin ? '' : 'none'; });
+  // ป้องกันการ "ค้าง" หน้า จัดการข้อมูล ไว้ตอนสลับตัวตนจาก ADMIN ไปเป็นครูทั่วไป (เช่น เปลี่ยนตัวตนโดยไม่ได้ออกจากหน้านี้ก่อน)
+  // ถ้าไม่เช็คตรงนี้ เนื้อหาหน้าจะยังค้างแสดงอยู่ (มี class active) แม้ nav-tab จะถูกซ่อนไปแล้วก็ตาม
+  if(!isAdmin && document.getElementById('page-manage')?.classList.contains('active')){
+    if(typeof goPage === 'function') goPage('dashboard');
+  }
 }
 
 // ---------- TOAST ----------

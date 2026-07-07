@@ -16,7 +16,8 @@ async function init(){
     checkAdminSession();
     await loadAll();
     updateStaffHeaderDisplay();
-    if(IS_ADMIN && !sessionStorage.getItem('current_staff_id')) openTeacherSelector();
+    // ตัดรหัสผ่านรวมออก (2026-07-07) — ไม่ auto-open Teacher Selector ตอนโหลดหน้าอีกต่อไป
+    // จะเปิดเองเมื่อเข้าเมนูพัสดุ/การเงิน/เงินนอก (goPage() ใน js/navigation.js) หรือกด adminGuard() ที่ล้มเหลว
   }catch(e){
     hide('loadingOverlay');
     show('setupScreen','block');
@@ -40,7 +41,8 @@ async function connectSupabase(){
     checkAdminSession();
     await loadAll();
     updateStaffHeaderDisplay();
-    if(IS_ADMIN && !sessionStorage.getItem('current_staff_id')) openTeacherSelector();
+    // ตัดรหัสผ่านรวมออก (2026-07-07) — ไม่ auto-open Teacher Selector ตอนโหลดหน้าอีกต่อไป
+    // จะเปิดเองเมื่อเข้าเมนูพัสดุ/การเงิน/เงินนอก (goPage() ใน js/navigation.js) หรือกด adminGuard() ที่ล้มเหลว
   }catch(e){
     hide('loadingOverlay');
     show('setupScreen','block');
