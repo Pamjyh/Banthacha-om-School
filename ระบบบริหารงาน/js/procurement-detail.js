@@ -168,6 +168,8 @@ function populateDetailFields(detail){
   if(whtEl)    whtEl.value    = (detail && detail.withholding_tax != null) ? detail.withholding_tax : 0;
   const warnEl = document.getElementById('pd-date-warning');
   if(warnEl){ warnEl.style.display = 'none'; warnEl.textContent = ''; }
+  const cmtWarnEl = document.getElementById('pd-committee-warning');
+  if(cmtWarnEl){ cmtWarnEl.style.display = 'none'; cmtWarnEl.textContent = ''; }
 }
 
 // เช็คลำดับวันที่ตาม BLUEPRINT §2.6 (L312) — เตือนแต่ไม่บล็อกการบันทึก (ผู้ใช้อาจกรอกไม่ครบระหว่างทำงานจริง)
@@ -185,6 +187,20 @@ function checkDateSequence(){
   const deliver = document.getElementById('pd-date-deliver')?.value;
   if(due && deliver && deliver > due) return '⚠️ วันที่ส่งมอบจริง ('+deliver+') อยู่หลังวันครบกำหนดส่งมอบ ('+due+')';
   return null;
+}
+
+// ตาม BLUEPRINT §5.3/edge-case (L561): "committee_tor มีน้อยกว่า 3 คน → แสดง warning; PDF ยังสร้างได้แต่
+// แสดง placeholder" — ตามระเบียบพัสดุจริง วงเงินต่ำ (เฉพาะเจาะจง) กรรมการน้อยกว่า 3 คนได้ (ถึงคนเดียวได้)
+// จึงแค่เตือน ไม่บล็อกบันทึก — เช็คเฉพาะกรณี "กรอกบางส่วน" (1-2 คน) เท่านั้น ถ้ายังไม่กรอกเลย (0 คน) ไม่เตือน
+// เพราะอาจอยู่ระหว่างทำงาน ยังไม่ถึงขั้นตอนกำหนดกรรมการ
+function checkCommitteeWarning(){
+  const torCount  = ['pd-tor-0','pd-tor-1','pd-tor-2'].filter(function(id){ return document.getElementById(id)?.value; }).length;
+  const inspCount = ['pd-insp-0','pd-insp-1','pd-insp-2'].filter(function(id){ return document.getElementById(id)?.value; }).length;
+  const msgs = [];
+  if(torCount > 0 && torCount < 3)   msgs.push('คณะกรรมการ TOR มี '+torCount+' คน (ปกติ 3 คน)');
+  if(inspCount > 0 && inspCount < 3) msgs.push('คณะกรรมการตรวจรับมี '+inspCount+' คน (ปกติ 3 คน)');
+  if(!msgs.length) return null;
+  return '⚠️ '+msgs.join(' / ')+' — ตามระเบียบพัสดุ วงเงินต่ำกรรมการน้อยกว่า 3 คนได้ กรุณาตรวจสอบว่าถูกต้องตามวงเงิน/วิธีจัดซื้อก่อนบันทึก';
 }
 
 // ---------- ปุ่ม "บันทึก" (Stage 16) ----------
@@ -208,6 +224,17 @@ async function saveDetailForm(){
     if(!confirm(dateWarn + '\n\nยืนยันบันทึกต่อหรือไม่?')) return;
   } else if(warnEl){
     warnEl.style.display = 'none'; warnEl.textContent = '';
+  }
+
+  // ตอบคำถาม Pam (2026-07-08): กรรมการ TOR/ตรวจรับ เลือก 1-3 คนได้จริงอยู่แล้ว (แต่ละช่องเป็น optional
+  // แยกกัน) ตรงนี้แค่เพิ่ม warning ตาม BLUEPRINT L561 ที่วางแผนไว้แต่แรกแต่ยังไม่เคยสร้าง UI จริง
+  const committeeWarn = checkCommitteeWarning();
+  const cmtWarnEl = document.getElementById('pd-committee-warning');
+  if(committeeWarn){
+    if(cmtWarnEl){ cmtWarnEl.style.display=''; cmtWarnEl.textContent = committeeWarn; }
+    if(!confirm(committeeWarn + '\n\nยืนยันบันทึกต่อหรือไม่?')) return;
+  } else if(cmtWarnEl){
+    cmtWarnEl.style.display = 'none'; cmtWarnEl.textContent = '';
   }
 
   const detailBody = {

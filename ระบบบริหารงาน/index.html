@@ -1225,17 +1225,20 @@ body:not(.is-admin) .admin-only { display: none !important; }
     <!-- Section E+F: คณะกรรมการกำหนด TOR / ตรวจรับพัสดุ -->
     <div class="table-card" style="padding:16px 20px;margin-bottom:16px">
       <strong style="font-size:14px;display:block;margin-bottom:10px">คณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะ (TOR)</strong>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">เลือกได้ 1-3 คนตามวงเงิน/วิธีจัดซื้อ ไม่บังคับต้องครบ 3</div>
       <div class="form-grid">
         <div class="fg"><label>ผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ</label><select class="fc" id="pd-tor-0"><option value="">— เลือก —</option></select></div>
-        <div class="fg"><label>กรรมการ (คนที่ 2)</label><select class="fc" id="pd-tor-1"><option value="">— เลือก —</option></select></div>
-        <div class="fg"><label>กรรมการ (คนที่ 3)</label><select class="fc" id="pd-tor-2"><option value="">— เลือก —</option></select></div>
+        <div class="fg"><label>กรรมการ (คนที่ 2, ถ้ามี)</label><select class="fc" id="pd-tor-1"><option value="">— เลือก —</option></select></div>
+        <div class="fg"><label>กรรมการ (คนที่ 3, ถ้ามี)</label><select class="fc" id="pd-tor-2"><option value="">— เลือก —</option></select></div>
       </div>
       <strong style="font-size:14px;display:block;margin:16px 0 10px">คณะกรรมการตรวจรับพัสดุ</strong>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">เลือกได้ 1-3 คนตามวงเงิน/วิธีจัดซื้อ ไม่บังคับต้องครบ 3</div>
       <div class="form-grid">
         <div class="fg"><label>ผู้ตรวจรับพัสดุ</label><select class="fc" id="pd-insp-0"><option value="">— เลือก —</option></select></div>
-        <div class="fg"><label>กรรมการ (คนที่ 2)</label><select class="fc" id="pd-insp-1"><option value="">— เลือก —</option></select></div>
-        <div class="fg"><label>กรรมการ (คนที่ 3)</label><select class="fc" id="pd-insp-2"><option value="">— เลือก —</option></select></div>
+        <div class="fg"><label>กรรมการ (คนที่ 2, ถ้ามี)</label><select class="fc" id="pd-insp-1"><option value="">— เลือก —</option></select></div>
+        <div class="fg"><label>กรรมการ (คนที่ 3, ถ้ามี)</label><select class="fc" id="pd-insp-2"><option value="">— เลือก —</option></select></div>
       </div>
+      <div id="pd-committee-warning" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:#fff3cd;color:#856404;font-size:13px"></div>
     </div>
 
     <!-- Section G+H: TOR (วัตถุประสงค์/คุณสมบัติ) + งบประมาณ/ภาษี -->
