@@ -253,7 +253,7 @@
 
 <script>
 // ====== CONFIG ======
-var API = 'https://script.google.com/macros/s/AKfycbxAQqAdzl0x8Juwu4OD5A3q0EwUux1iDVHSsTJDXnGwFjmXnyJOedfIZGA9D1tqrPb2bQ/exec';
+var API = 'https://script.google.com/macros/s/AKfycbzLFLglp29pQrI9rf1qQUzoDvRfrzmmFTYcx3XVl9v15M1Bsv-wIeQ2wf2lYXgQTLru/exec';
 // ลิงก์ระบบบริหารงาน — ใช้ path สัมพัทธ์ (อยู่ใน repo เดียวกัน)
 var SCHOOL_MGMT_URL = '../ระบบบริหารงาน/';
 
@@ -438,7 +438,7 @@ function renderClassGrid(res){
   h+='<th class="c">สถานะ</th><th class="c"></th></tr></thead><tbody>';
   res.students.forEach(function(s){
     h+='<tr data-id="'+s.id+'" class="'+(s.rides?'':'norider')+'">';
-    h+='<td class="name">'+esc(s.name)+'</td>';
+    h+='<td class="name">'+esc((s.rollNo?s.rollNo+'. ':'')+s.name)+'</td>';
     h+='<td class="c"><label class="switch"><input type="checkbox" '+(s.rides?'checked':'')+' onchange="toggleRiderInClass(this,\''+s.id+'\')"><span class="slider"></span></label></td>';
     h+='<td class="c"><input class="route-inp" type="text" value="'+esc(s.route)+'" placeholder="สายรถ" '+(s.rides?'':'disabled')+' onchange="saveRoute(this,\''+s.id+'\')"></td>';
     months.forEach(function(m){
@@ -690,7 +690,7 @@ function renderMonthContent(res,month){
     h+='<span style="font-weight:600;color:var(--primary);display:inline-block;min-width:38px">'+esc(g.grade)+'</span> ';
     h+='<span class="pill '+(unpaid.length===0?'pill-green':'pill-amber')+'" style="margin-right:6px">จ่าย '+paid.length+'/'+g.students.length+'</span>';
     if(unpaid.length>0){
-      h+='<span style="color:var(--red);font-size:13px">ค้าง: '+unpaid.map(function(s){return esc(s.name);}).join(', ')+'</span>';
+      h+='<span style="color:var(--red);font-size:13px">ค้าง: '+unpaid.map(function(s){return esc((s.rollNo?s.rollNo+'. ':'')+s.name);}).join(', ')+'</span>';
     } else {
       h+='<span style="color:var(--green);font-size:13px">✓ ครบทุกคน</span>';
     }
