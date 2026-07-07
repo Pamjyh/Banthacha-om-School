@@ -2237,7 +2237,7 @@ function renderOv(c) {
       '<div class="ovc">'+d.students.length+' คน</div></div></div>'+
       '<div class="ovbd" id="ov-'+g.replace('.','_')+'">'+
       (d.students.length ? d.students.map(function(s){
-        return '<div class="ovr"><span>'+esc(s.name)+'</span>'+
+        return '<div class="ovr"><span>'+(s.rollNo?'<b>'+esc(s.rollNo)+'.</b> ':'')+esc(s.name)+'</span>'+
           '<span style="font-weight:600;color:'+(s.balance>=0?'var(--ga)':'var(--red)')+'">'+fmt(s.balance)+' ฿</span></div>';
       }).join('') : '<div style="color:var(--ts);font-size:13px;padding:4px 0">ยังไม่มีนักเรียน</div>')+
       '</div></div>';

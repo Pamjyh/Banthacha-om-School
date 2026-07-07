@@ -83,10 +83,10 @@ function initSheets() {
   let s = ss.getSheetByName('นักเรียน');
   if (!s) {
     s = ss.insertSheet('นักเรียน');
-    s.getRange(1,1,1,8).setValues([[
-      'id','ชื่อ-สกุล','ชั้นปัจจุบัน','ปีที่เข้า','สถานะ','เลขบัญชี_ธกส','วันที่เพิ่ม','หมายเหตุ'
+    s.getRange(1,1,1,9).setValues([[
+      'id','ชื่อ-สกุล','ชั้นปัจจุบัน','ปีที่เข้า','สถานะ','เลขบัญชี_ธกส','วันที่เพิ่ม','หมายเหตุ','เลขที่'
     ]]);
-    styleHeader(s, 8);
+    styleHeader(s, 9);
     s.setFrozenRows(1);
     s.setColumnWidth(2, 180);
     s.setColumnWidth(6, 160);
@@ -105,6 +105,14 @@ function initSheets() {
         s.getRange(1, 6).setValue('เลขบัญชี_ธกส');
       }
       styleHeader(s, Math.max(6, s.getLastColumn()));
+    }
+    // เพิ่มคอลัมน์ "เลขที่" (เลขประจำตัวในห้อง) — ต่อท้ายเสมอ ห้ามแทรกกลาง
+    // เพราะโค้ดหลายจุด (editStudent, promoteGrade) อ้างอิงคอลัมน์ 2,3,5,6 แบบ hardcode อยู่แล้ว
+    // ถ้าแทรกกลางจะทำให้ข้อมูลเขียนผิดคอลัมน์ทันที — ต่อท้ายปลอดภัยที่สุด ไม่กระทบอะไรเลย
+    const headers2 = s.getRange(1, 1, 1, s.getLastColumn()).getValues()[0].map(h => String(h).trim());
+    if (!headers2.includes('เลขที่')) {
+      s.getRange(1, s.getLastColumn() + 1).setValue('เลขที่');
+      styleHeader(s, s.getLastColumn());
     }
   }
 
@@ -218,6 +226,25 @@ function getStudentByName(p) {
   return { ok: true, students: matches, history: [] };
 }
 
+// เรียงตามเลขที่ (ถ้ามี) — คนที่มีเลขที่ขึ้นก่อนตามลำดับตัวเลข
+// คนที่ยังไม่มีเลขที่ (นักเรียนเก่าก่อนมีฟีเจอร์นี้) ตกไปท้ายสุด เรียงตามลำดับที่เพิ่มเดิม (id = S + timestamp)
+// ใช้ร่วมกันทั้ง getStudents() และ getBootstrap() — ห้ามแยกก็อปปี้ เพราะเคยเพี้ยนกันมาแล้ว (bootstrap ลืมอัปเดตตอนเพิ่มฟีเจอร์เลขที่)
+function sortStudentsByRoll(list) {
+  list.sort(function(a, b) {
+    var ra = parseInt(a.rollNo, 10);
+    var rb = parseInt(b.rollNo, 10);
+    var raOk = a.rollNo !== '' && a.rollNo != null && !isNaN(ra);
+    var rbOk = b.rollNo !== '' && b.rollNo != null && !isNaN(rb);
+    if (raOk && rbOk) return ra - rb;
+    if (raOk && !rbOk) return -1;
+    if (!raOk && rbOk) return 1;
+    var na = parseInt(String(a.id).replace('S','')) || 0;
+    var nb = parseInt(String(b.id).replace('S','')) || 0;
+    return na - nb;
+  });
+  return list;
+}
+
 function getStudents(p) {
   // Cache ต่อชั้น (180 วินาที) — ลดการอ่าน sheet ซ้ำ
   if (p.grade) {
@@ -249,6 +276,7 @@ function getStudents(p) {
   const idxYear   = findCol(['ปีที่เข้า','ปีการศึกษา']);
   const idxStatus = findCol(['สถานะ']);
   const idxBank   = findCol(['เลขบัญชี_ธกส','เลขบัญชีธกส','เลขบัญชี']);
+  const idxRoll   = findCol(['เลขที่']);
 
   const rows = allData.slice(1);
   let students = rows
@@ -266,6 +294,7 @@ function getStudents(p) {
       entryYear:   idxYear  >= 0 ? String(r[idxYear]  || '') : '',
       status:      idxStatus >= 0 ? String(r[idxStatus] || '') : 'กำลังเรียน',
       bankAccount: idxBank  >= 0 ? String(r[idxBank]  || '') : '',
+      rollNo:      idxRoll  >= 0 ? String(r[idxRoll]  || '') : '',
     }));
 
   // กรองตามชั้น — ถ้าไม่พบ grade column ให้แสดงทั้งหมด
@@ -273,12 +302,8 @@ function getStudents(p) {
     students = students.filter(s => s.grade === p.grade);
   }
 
-  // เรียงตามลำดับที่เพิ่ม (id = S + timestamp)
-  students.sort(function(a, b) {
-    var na = parseInt(String(a.id).replace('S','')) || 0;
-    var nb = parseInt(String(b.id).replace('S','')) || 0;
-    return na - nb;
-  });
+  // เรียงตามเลขที่ (shared กับ getBootstrap() — ดู sortStudentsByRoll ด้านล่าง กันโค้ดเรียงคนละที่แล้วเพี้ยนกัน)
+  sortStudentsByRoll(students);
 
   const balances = calcAllBalances(ss);
   students = students.map(s => ({ ...s, balance: balances[String(s.id)] || 0 }));
@@ -294,6 +319,7 @@ function addStudent(p) {
   const name = (p.name || '').trim();
   const grade = p.grade;
   const bankAccount = (p.bankAccount || '').trim();
+  const rollNo = (p.rollNo || '').trim();
   if (!name || !grade) return { ok: false, error: 'ข้อมูลไม่ครบ' };
   if (!GRADES.includes(grade)) return { ok: false, error: 'ชั้นไม่ถูกต้อง' };
 
@@ -328,15 +354,16 @@ function addStudent(p) {
       else if (h === 'สถานะ')     row[i] = 'กำลังเรียน';
       else if (['เลขบัญชี_ธกส','เลขบัญชีธกส','เลขบัญชี'].includes(h)) row[i] = bankAccount;
       else if (h === 'วันที่เพิ่ม') row[i] = dateStr;
+      else if (h === 'เลขที่')    row[i] = rollNo;
     });
     sheet.appendRow(row);
   } else {
     // header ไม่ครบ → เขียน header ใหม่ก่อน (ปลอดภัย เพราะมีข้อมูลอยู่แล้วจะไม่ลบ)
-    // แค่ append ด้วย default format 8 คอลัมน์
+    // แค่ append ด้วย default format 8 คอลัมน์ (เคสนี้ไม่มีคอลัมน์เลขที่ให้เขียน — เป็น fallback ของ sheet เก่าที่ header ไม่ครบเท่านั้น)
     sheet.appendRow([id, name, grade, year, 'กำลังเรียน', bankAccount, dateStr, '']);
   }
 
-  return { ok: true, id, name, grade, bankAccount, entryYear: year };
+  return { ok: true, id, name, grade, bankAccount, rollNo, entryYear: year };
 }
 
 function editStudent(p) {
@@ -346,12 +373,20 @@ function editStudent(p) {
 
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName('นักเรียน');
+
+  // หาคอลัมน์ "เลขที่" แบบ dynamic ตามชื่อ header — ไม่ hardcode index เพราะคอลัมน์นี้ถูกต่อท้าย
+  // อาจอยู่ตำแหน่งต่างกันได้ในอนาคตถ้ามีการแก้ไข header เพิ่มเติม
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
+  const idxRoll = headers.indexOf('เลขที่');
+
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === p.studentId) {
       sheet.getRange(i+1, 2).setValue(name);
       if (p.bankAccount !== undefined)
         sheet.getRange(i+1, 6).setValue(p.bankAccount);
+      if (p.rollNo !== undefined && idxRoll >= 0)
+        sheet.getRange(i+1, idxRoll + 1).setValue(String(p.rollNo).trim());
       SpreadsheetApp.flush();
       try { GRADES.forEach(function(g){ CacheService.getScriptCache().remove('ss_stus_'+g); }); } catch(e) {}
       return { ok: true, name };
@@ -425,6 +460,19 @@ function addTransaction(p, type) {
       currentBal += (row[4] === 'ฝาก' ? parseFloat(row[5])||0 : -(parseFloat(row[5])||0));
     }
   });
+
+  // กันบันทึกซ้ำ — เผื่อกดส่งพร้อมกันจาก 2 อุปกรณ์ด้วยรหัสครูเดียวกัน (ฝั่ง frontend disable ปุ่มกันได้แค่เครื่องเดียวกัน)
+  // เช็ค transaction คนเดียวกัน+ประเภทเดียวกัน+ยอดเท่ากัน ที่เพิ่งถูกบันทึกภายใน 8 วินาทีล่าสุด (ใช้ epoch ใน id "T<ms>" ไม่ต้องเพิ่มคอลัมน์ใหม่)
+  const DUP_WINDOW_MS = 8000;
+  const nowMs = Date.now();
+  const isDupTx = allRows.slice(1).some(function(row) {
+    if (String(row[1]) !== sid || row[4] !== type || (parseFloat(row[5])||0) !== amount) return false;
+    const m = String(row[0]).match(/^T(\d+)$/);
+    return m && (nowMs - parseInt(m[1], 10)) < DUP_WINDOW_MS;
+  });
+  if (isDupTx) {
+    return { ok: false, error: 'ดูเหมือนเพิ่งบันทึกรายการนี้ไปแล้วเมื่อครู่ (คนเดียวกัน ยอดเดียวกัน) ถ้าตั้งใจทำซ้ำจริง รอสักครู่แล้วลองใหม่' };
+  }
 
   const rowsBefore = txSheet.getLastRow();
   // append ตรงๆ ตาม column order ที่กำหนด: id, นักเรียน_id, ชื่อ, ชั้น, ประเภท, จำนวนเงิน, ปีการศึกษา, วันที่
@@ -637,6 +685,7 @@ function getAllSummary(p) {
   const ssYear   = findSColSum(['ปีที่เข้า', 'ปีการศึกษา']);
   const ssStatus = findSColSum(['สถานะ']);
   const ssBank   = findSColSum(['เลขบัญชี_ธกส', 'เลขบัญชีธกส', 'เลขบัญชี']);
+  const ssRoll   = findSColSum(['เลขที่']);
 
   const studRows = studAllData.slice(1).filter(function(r) { return r[ssId >= 0 ? ssId : 0] !== ''; });
   const balances = calcAllBalances(ss);
@@ -649,11 +698,15 @@ function getAllSummary(p) {
     const year   = String(r[ssYear   >= 0 ? ssYear   : 3] || '');
     const status = String(r[ssStatus >= 0 ? ssStatus : 4] || '');
     const bank   = String(r[ssBank   >= 0 ? ssBank   : 5] || '');
+    const roll   = ssRoll >= 0 ? String(r[ssRoll] || '') : '';
     if (status === 'จบการศึกษา' || !grades[grade]) return;
     const bal = balances[id] || 0;
-    grades[grade].students.push({ id, name, grade, entryYear:year, bankAccount:bank, balance:bal });
+    grades[grade].students.push({ id, name, grade, entryYear:year, bankAccount:bank, rollNo:roll, balance:bal });
     grades[grade].totalBalance += bal;
   });
+  // เรียงตามเลขที่ต่อชั้น (shared กับ getStudents()/getBootstrap() — ดู sortStudentsByRoll ด้านบน
+  // เคยลืมอัปเดตจุดนี้มาก่อน เป็น duplicate ที่ 3 ของ pattern เดียวกัน พบระหว่าง scrutinize 2026-07-07)
+  GRADES.forEach(g => sortStudentsByRoll(grades[g].students));
   const grandTotal = Object.values(grades).reduce((s,g) => s+g.totalBalance, 0);
   const totalStudents = studRows.filter(function(r) {
     return String(r[ssStatus >= 0 ? ssStatus : 4] || '') !== 'จบการศึกษา';
@@ -1071,6 +1124,7 @@ function getBootstrap() {
   const idxYear   = findCol(['ปีที่เข้า','ปีการศึกษา']);
   const idxStatus = findCol(['สถานะ']);
   const idxBank   = findCol(['เลขบัญชี_ธกส','เลขบัญชีธกส','เลขบัญชี']);
+  const idxRoll   = findCol(['เลขที่']);
 
   // คำนวณยอดครั้งเดียว — ใช้ cache
   const balances = calcAllBalances(ss);
@@ -1092,16 +1146,15 @@ function getBootstrap() {
       entryYear:   idxYear   >= 0 ? String(r[idxYear]   || '') : '',
       status:      status || 'กำลังเรียน',
       bankAccount: idxBank   >= 0 ? String(r[idxBank]   || '') : '',
+      rollNo:      idxRoll   >= 0 ? String(r[idxRoll]   || '') : '',
       balance:     balances[String(r[idxId])] || 0
     });
   });
 
-  // เรียงตามลำดับ id และเซ็ต GAS cache ต่อชั้น
+  // เรียงตามเลขที่ (shared กับ getStudents() — sortStudentsByRoll) แล้วเซ็ต GAS cache ต่อชั้น
   const sCache = CacheService.getScriptCache();
   GRADES.forEach(g => {
-    gradeMap[g].sort(function(a,b){
-      return (parseInt(String(a.id).replace('S',''))||0) - (parseInt(String(b.id).replace('S',''))||0);
-    });
+    sortStudentsByRoll(gradeMap[g]);
     try { sCache.put('ss_stus_'+g, JSON.stringify({ok:true,students:gradeMap[g]}), 180); } catch(e) {}
   });
 
