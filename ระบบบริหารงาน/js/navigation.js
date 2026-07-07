@@ -2,6 +2,12 @@
 // NAVIGATION
 // =====================================================================
 function goPage(name){
+  // scrutinize finding (2026-07-07): ตัดรหัสผ่านรวมออกทำให้ IS_ADMIN เปิดกว้างให้ทุกตัวตนแล้ว
+  // nav-tab "จัดการข้อมูล" ถูกซ่อนด้วย JS เท่านั้น (applyModulePermissionUI) — แต่ goPage('manage') เองไม่มี guard
+  // ใครก็เรียกผ่าน console ตรงๆ ได้โดยไม่ต้องเป็น ADMIN เพิ่ม guard ตรงนี้เป็น defense-in-depth
+  if(name === 'manage' && typeof isAdminIdentity === 'function' && !isAdminIdentity()){
+    name = 'dashboard';
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+name)?.classList.add('active');
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('active',t.dataset.page===name));

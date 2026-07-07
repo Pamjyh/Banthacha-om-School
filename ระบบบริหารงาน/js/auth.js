@@ -40,19 +40,6 @@ function isAdminIdentity(){
   return sessionStorage.getItem(CURRENT_STAFF_KEY) === 'ADMIN';
 }
 
-function logoutAdmin(){
-  sessionStorage.removeItem(CURRENT_STAFF_KEY);
-  setAdminMode(false);
-  updateStaffHeaderDisplay();
-  if(typeof applyModulePermissionUI === 'function') applyModulePermissionUI();
-  if(typeof renderProjGrid === 'function') renderProjGrid();
-  // Stage 13D scrutinize fix (2026-07-07): เดิมไม่เปลี่ยนหน้าเลย ค้างอยู่หน้าที่เปิดไว้ตอน logout
-  // (รวมถึงหน้า "⚙️ จัดการข้อมูล" ที่ admin-only — พอ logout แล้ว CSS จะซ่อนหน้านั้นทันทีจน nav ดูค้าง)
-  // ย้ายกลับไปหน้าแดชบอร์ดให้ชัดเจนว่าล้างตัวตนแล้วจริง
-  if(typeof goPage === 'function') goPage('dashboard');
-  showToast('ล้างตัวตนแล้ว — เลือกใหม่ได้ทุกเมื่อ');
-}
-
 // ---------- TEACHER SELECTOR (Stage 13 — Multi-User Soft Protection) ----------
 // นี่คือจุดเข้าระบบเดียวตอนนี้ (2026-07-07 ตัดรหัสผ่านรวมออกแล้ว) — เลือกว่า "คุณคือใคร?" เก็บใน sessionStorage (หมดเมื่อปิด tab)
 // ใช้กำหนดว่าใครแก้ไข/ลบโครงการของใครได้บ้าง ผ่าน canEdit() ด้านล่าง
@@ -72,6 +59,12 @@ function openTeacherSelector(){
   document.getElementById('teacherAdminPinError').textContent = '';
   toggleTeacherAdminPin();
   document.getElementById('teacherSelectOverlay').classList.add('open');
+}
+
+// ปิด Teacher Selector แบบธรรมดา (X / คลิกนอกกรอบ / Esc) — แค่ปิด ไม่เปลี่ยนตัวตนที่มีอยู่
+// (2026-07-07 ตามคำขอ Pam: ไม่ต้องมีขั้นตอน "ล้างตัวตน" แยก แค่กดออกได้เลยเหมือน modal อื่นๆ ในระบบ)
+function closeTeacherSelector(){
+  document.getElementById('teacherSelectOverlay').classList.remove('open');
 }
 
 // แสดง/ซ่อนช่องรหัส PIN ในตัวเลือก dropdown ของ Teacher Selector — โผล่เฉพาะตอนเลือก "ผู้ดูแลระบบ"

@@ -52,7 +52,7 @@ if(procYearEl) procYearEl.addEventListener('change', ()=>{
   PROC_YEAR_VAL = parseInt(procYearEl.value)||0;
   PROC_PAGE=1; renderProc();
 });
-['procOverlay','projOverlay','yearOverlay','confirmOverlay','finOverlay','importOverlay','importExcelOverlay','extOverlay','extCatOverlay','staffOverlay','vendorOverlay','procDetailOverlay','adminPin2Overlay'].forEach(id=>{
+['procOverlay','projOverlay','yearOverlay','confirmOverlay','finOverlay','importOverlay','importExcelOverlay','extOverlay','extCatOverlay','staffOverlay','vendorOverlay','procDetailOverlay','adminPin2Overlay','teacherSelectOverlay'].forEach(id=>{
   document.getElementById(id)?.addEventListener('click',function(e){
     if(e.target!==this)return;
     if(id==='confirmOverlay')          closeConfirm();
@@ -67,11 +67,12 @@ if(procYearEl) procYearEl.addEventListener('change', ()=>{
     else if(id==='vendorOverlay')      closeVendorForm();
     else if(id==='procDetailOverlay')  closeDetailForm();
     else if(id==='adminPin2Overlay')   closeAdminPinSetupModal();
+    else if(id==='teacherSelectOverlay') closeTeacherSelector();
     else closeProcForm();
   });
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){closeProcForm();closeProjForm();closeYearModal();closeConfirm();closeFinanceForm();closeImportModal();closeImportExcelModal();closeExtForm();closeExtCatModal();closeStaffForm();closeVendorForm();closeDetailForm();closeAdminPinSetupModal();}
+  if(e.key==='Escape'){closeProcForm();closeProjForm();closeYearModal();closeConfirm();closeFinanceForm();closeImportModal();closeImportExcelModal();closeExtForm();closeExtCatModal();closeStaffForm();closeVendorForm();closeDetailForm();closeAdminPinSetupModal();closeTeacherSelector();}
   if(e.key==='Enter'&&document.getElementById('adminPin2Overlay')?.classList.contains('open')) saveAdminPin();
 });
 
