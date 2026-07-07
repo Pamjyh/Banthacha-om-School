@@ -32,8 +32,14 @@ async function generateDoc(docIndex, procItemId){
 }
 
 // หา staff ที่ตำแหน่งเป็นผู้อำนวยการ (ไม่ hardcode ชื่อ — ถ้าเปลี่ยนตัว ผอ. แค่แก้ข้อมูลใน "จัดการข้อมูล")
+// position เป็นช่อง text อิสระ (staff.js) ไม่ใช่ dropdown — ต้องกันไม่ให้ match "รองผู้อำนวยการ"
+// (มี "ผู้อำนวยการ" เป็น substring เหมือนกัน) เพราะถ้า match ผิดคนจะไปเซ็นชื่อผิดบนเอกสารราชการจริง
+// (scrutinize 2026-07-08 — ยังไม่ trigger จริงตอนนี้เพราะ DB มีแค่ ผอ. ตัวจริงคนเดียว แต่กันไว้ก่อน)
 function findDirector(){
-  return (STAFF_LIST||[]).find(function(s){ return (s.position||'').indexOf('ผู้อำนวยการ') >= 0 && s.is_active !== false; });
+  return (STAFF_LIST||[]).find(function(s){
+    const pos = (s.position||'').trim();
+    return pos.indexOf('ผู้อำนวยการ') >= 0 && pos.indexOf('รอง') !== 0 && s.is_active !== false;
+  });
 }
 
 // ---------- Doc 1: ขอดำเนิน (บันทึกข้อความขออนุมัติดำเนินการจัดซื้อ/จัดจ้าง) ----------
@@ -41,15 +47,11 @@ async function generateDoc1(procItemId){
   const item = PROC.find(function(x){ return x.id === procItemId; });
   if(!item) return alert('ไม่พบรายการพัสดุนี้');
 
-  let detail;
-  try{
-    const rows = await GET('procurement_details', 'procurement_item_id=eq.'+procItemId+'&select=*');
-    if(!rows || !rows.length){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return; }
-    detail = rows[0];
-  }catch(e){
-    alert('โหลดข้อมูลไม่สำเร็จ: '+e.message);
-    return;
-  }
+  // ใช้ CURRENT_DETAIL ตรงๆ แทนการ GET ใหม่ — openDetailForm()/saveDetailForm() sync ตัวนี้
+  // กับผลลัพธ์ DB ทุกครั้งอยู่แล้ว (procurement-detail.js) การ GET ซ้ำเป็นแค่ network call
+  // ที่ไม่จำเป็น (scrutinize 2026-07-08)
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return; }
   if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return; }
   if(!detail.date_request){ alert('กรุณากรอก "วันที่ขอดำเนินการ" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return; }
 
