@@ -1085,6 +1085,8 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <div class="merr" id="edit-err"></div>
     <input class="minp" id="edit-name" placeholder="ชื่อ-สกุล">
     <input class="minp" type="text" inputmode="numeric" pattern="[0-9]*" id="edit-rollno" placeholder="เลขที่ (ถ้ามี)" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+    <!-- แสดงเลขที่เดิมค้างไว้เสมอ (placeholder หายไปทันทีที่ช่องมีค่า ทำให้มองไม่เห็นว่าเดิมคือเลขอะไร) -->
+    <div id="edit-rollno-hint" style="font-size:11px;color:var(--ts);margin:-6px 0 8px 2px"></div>
     <input class="minp" id="edit-bank" placeholder="เลขบัญชี ธกส. (ถ้ามี)">
     <div class="mbtns">
       <button class="mbtn mbtn-c" onclick="closeMo('edit')">ยกเลิก</button>
@@ -2144,6 +2146,8 @@ function openEdit(id,name,bank,rollNo) {
   document.getElementById('edit-name').value=name;
   document.getElementById('edit-bank').value=bank||'';
   document.getElementById('edit-rollno').value=rollNo||'';
+  var hintEl=document.getElementById('edit-rollno-hint');
+  if (hintEl) hintEl.textContent = rollNo ? ('เลขที่เดิม: '+rollNo) : 'ยังไม่มีเลขที่';
   hide('edit-err'); openMo('edit');
   setTimeout(function(){var e=document.getElementById('edit-name');e.focus();e.select();},100);
 }
@@ -2152,6 +2156,11 @@ function confirmEdit() {
   var bank=document.getElementById('edit-bank').value.trim();
   var rollNo=document.getElementById('edit-rollno').value.trim();
   if (!name) {showErr('edit','กรุณาใส่ชื่อ'); return;}
+  // เตือนเลขที่ซ้ำ — เดิมจุดนี้ไม่มีเลย (มีแค่ตอนเพิ่มหลายคน/bulk-edit) ทำให้แก้ทีละคนบันทึกเลขที่ซ้ำกับคนอื่นได้แบบเงียบๆ
+  if (rollNo !== '') {
+    var dupNames = allStus.filter(function(s){ return s.id!==editStuId && String(s.rollNo||'')===rollNo; }).map(function(s){return s.name;});
+    if (dupNames.length && !window.confirm('⚠️ เลขที่ '+rollNo+' ซ้ำกับ: '+dupNames.join(', ')+'\n\nต้องการบันทึกต่อไปใช่ไหม?')) return;
+  }
   apiCall({action:'editStudent',studentId:editStuId,name:name,bankAccount:bank,rollNo:rollNo,password:_pw},function(r){
     if (!r.ok) {showErr('edit',r.error); return;}
     toast('✓ แก้ไขสำเร็จ','ok'); closeMo('edit'); loadStus(true);
