@@ -46,3 +46,6 @@ let CURRENT_DETAIL = null;
 // CURRENT_SUB_ITEMS (Stage 15) — array ของแถวรายการย่อยในฟอร์ม (ยังไม่บันทึกจนกว่าจะกด "บันทึก" ใน Stage 16)
 // รูปแบบแต่ละแถว: {seq, description, unit, quantity, unit_price, amount} — ไม่มี id จนกว่าจะ save จริง
 let CURRENT_SUB_ITEMS = [];
+// SUBITEMS_LOAD_ERROR (Stage 15, bug-fixer 2026-07-07) — error message ถ้าโหลด procurement_sub_items เดิมล้มเหลว
+// (null = โหลดสำเร็จ/ยังไม่โหลด) ใช้เตือนผู้ใช้ไม่ให้กด "บันทึก" ทับข้อมูลเดิมตอนโหลดพัง — ดู updateSubItemsFooter()
+let SUBITEMS_LOAD_ERROR = null;
