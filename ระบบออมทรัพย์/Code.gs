@@ -57,6 +57,7 @@ function handleRequest(e) {
       case 'getAllSummary':      result = getAllSummary(params); break;
       case 'exportMonthly':     result = exportMonthly(params); break;
       case 'exportTerm':        result = exportTerm(params); break;
+      case 'generateDepositRegistry': result = generateDepositRegistry(params); break;
       case 'promoteGrade':      result = promoteGrade(params); break;
       case 'promoteAll':        result = promoteAll(params); break;
       case 'getGraduated':      result = getGraduated(params); break;
@@ -923,6 +924,254 @@ function exportMonthly(p) {
     totalWithdraw: 0,
     net: grandTotal,
     url: 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/edit#gid=' + out.getSheetId()
+  };
+}
+
+// ============================================================
+// ทะเบียนรับฝากธนาคารรายวัน + ใบปะหน้านำฝาก (สร้าง 2026-07-07)
+// แทนที่การสร้างเอกสารนี้ด้วยมือทุกวันที่ต้องส่ง ธ.ก.ส.
+// ดู BLUEPRINT-bank-deposit-registry.md / CONSTRUCTION_PLAN-bank-deposit-registry.md
+// ============================================================
+
+// แปลง Thai date string "D MMM YYYY" (เช่น "7 ก.ค. 2569") เป็น {day, monthIdx, year}
+// คืน null ถ้า parse ไม่ได้ (กันชื่อ sheet เพี้ยน/กรองผิดวันแบบเงียบๆ)
+function parseThaiDateStr(dateStr) {
+  var parts = String(dateStr || '').trim().split(' ').filter(function(x){ return x !== ''; });
+  if (parts.length < 3) return null;
+  var day = parseInt(parts[0], 10);
+  var monthIdx = THAI_MONTHS.indexOf(parts[1]);
+  var year = parseInt(parts[2], 10);
+  if (isNaN(day) || monthIdx < 0 || isNaN(year)) return null;
+  return { day: day, monthIdx: monthIdx, year: year };
+}
+
+function generateDepositRegistry(p) {
+  if (p.password !== ADMIN_PASSWORD) return { ok: false, error: 'เฉพาะผู้ดูแล' };
+
+  // dateStr ต้องเป็น "D MMM YYYY" ไม่มีเวลา (ต่างจาก "วันที่" ใน sheet ธุรกรรมที่มีเวลาต่อท้ายเสมอ
+  // เช่น "7 ก.ค. 2569 14:30" — เพราะงั้นกรองด้วย prefix match เท่านั้น ห้าม === ตรงๆ)
+  const dateStr = String(p.date || '').trim();
+  const docNo = String(p.docNo || '').trim();
+  const receiverName = String(p.receiverName || '').trim();
+  if (!dateStr) return { ok: false, error: 'กรุณาระบุวันที่' };
+
+  const parsed = parseThaiDateStr(dateStr);
+  if (!parsed) return { ok: false, error: 'รูปแบบวันที่ไม่ถูกต้อง (' + dateStr + ')' };
+
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const txSheet = ss.getSheetByName('ธุรกรรม');
+  const studSheet = ss.getSheetByName('นักเรียน');
+  if (!txSheet || !studSheet) return { ok: false, error: 'ไม่พบ sheet' };
+
+  // อ่านนักเรียน — dynamic header lookup (pattern เดียวกับ exportMonthly)
+  const studAllData = studSheet.getDataRange().getValues();
+  const studHeaders = studAllData[0].map(function(h) { return String(h).trim(); });
+  function findSH(names) {
+    for (var n of names) { var i = studHeaders.indexOf(n); if (i >= 0) return i; }
+    return -1;
+  }
+  const siId   = findSH(['id']);
+  const siBank = findSH(['เลขบัญชี_ธกส', 'เลขบัญชีธกส', 'เลขบัญชี']);
+  const studMap = {};
+  studAllData.slice(1).forEach(function(r) {
+    if (r[siId]) studMap[String(r[siId])] = { bankAccount: siBank >= 0 ? String(r[siBank] || '') : '' };
+  });
+
+  // อ่านธุรกรรม — dynamic header lookup
+  const txAllData = txSheet.getDataRange().getValues();
+  const txHeaders = txAllData[0].map(function(h) { return String(h).trim(); });
+  function findTH(names) {
+    for (var n of names) { var i = txHeaders.indexOf(n); if (i >= 0) return i; }
+    return -1;
+  }
+  const tiId    = findTH(['id']);
+  const tiStuId = findTH(['นักเรียน_id']);
+  const tiName  = findTH(['ชื่อ']);
+  const tiType  = findTH(['ประเภท']);
+  const tiAmt   = findTH(['จำนวนเงิน']);
+  const tiDate  = findTH(['วันที่']);
+
+  // เฉพาะ "ฝาก" เท่านั้น (ไม่รวม "ถอน" แม้เกิดวันเดียวกัน) + prefix match วันที่
+  const matches = txAllData.slice(1).filter(function(r) {
+    if (!r[tiId]) return false;
+    if (String(r[tiType] || '') !== 'ฝาก') return false;
+    if ((parseFloat(r[tiAmt]) || 0) <= 0) return false; // เฉพาะฝากจริง >0 บาท (กันแถวผิดพลาดถ้าใครแก้ sheet มือ)
+    return String(r[tiDate] || '').indexOf(dateStr) === 0;
+  });
+
+  if (!matches.length) {
+    return { ok: false, error: 'ไม่พบธุรกรรมฝากในวันที่ ' + dateStr };
+  }
+
+  // เรียงตามเวลาฝากจริง (id = "T<epoch ms>") — สะท้อนลำดับที่มารับฝากจริง
+  matches.sort(function(a, b) {
+    var ma = String(a[tiId]).match(/^T(\d+)$/);
+    var mb = String(b[tiId]).match(/^T(\d+)$/);
+    var na = ma ? parseInt(ma[1], 10) : 0;
+    var nb = mb ? parseInt(mb[1], 10) : 0;
+    return na - nb;
+  });
+
+  // join กับเลขบัญชี ธกส. — ถ้านักเรียนถูกลบ/ไม่มีเลขบัญชี เว้นว่างไว้ ไม่ตัดแถวออก
+  // ชื่อใช้ snapshot ที่บันทึกไว้ในธุรกรรมเอง (tiName) ไม่พึ่ง join 100% กันชื่อหายถ้าลบนักเรียนไปแล้ว
+  const rows = matches.map(function(r) {
+    const stuId = String(r[tiStuId] || '');
+    const info = studMap[stuId] || { bankAccount: '' };
+    return {
+      name: String(r[tiName] || ''),
+      bankAccount: info.bankAccount || '',
+      amount: parseFloat(r[tiAmt]) || 0
+    };
+  });
+
+  const totalAmount = rows.reduce(function(s, r) { return s + r.amount; }, 0);
+  const depositorCount = rows.length;
+  const dateSlug = parsed.day + '-' + (parsed.monthIdx + 1) + '-' + parsed.year; // เช่น "7-7-2569"
+
+  // ==== Sheet1: ทะเบียนการรับฝากเงินประจำวัน ====
+  const sheet1Name = 'ทะเบียนฝาก_' + dateSlug;
+  let s1 = ss.getSheetByName(sheet1Name);
+  if (s1) ss.deleteSheet(s1);
+  s1 = ss.insertSheet(sheet1Name);
+
+  s1.getRange('A1').setValue('เลขที่เอกสาร ' + docNo).setFontWeight('bold').setBackground('#FFFF00');
+  s1.getRange('A2:G2').merge();
+  s1.getRange('A2').setValue(SCHOOL_NAME).setHorizontalAlignment('center').setFontWeight('bold').setFontSize(14);
+  s1.getRange('A3:G3').merge();
+  s1.getRange('A3').setValue('ทะเบียนการรับฝากเงินประจำวันที่ ' + dateStr).setHorizontalAlignment('center').setFontWeight('bold');
+
+  const headerRow = 4;
+  const headers1 = ['ลำดับที่', 'เลขที่บัญชี', 'ชื่อบัญชี', 'จำนวน', 'ยอดรวม', 'ผู้รับเงิน', 'หมายเหตุ'];
+  s1.getRange(headerRow, 1, 1, 7).setValues([headers1]);
+  s1.getRange(headerRow, 1, 1, 7)
+    .setBackground('#92D050').setFontWeight('bold')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
+  s1.setRowHeight(headerRow, 45);
+
+  let row = headerRow + 1;
+  rows.forEach(function(r, i) {
+    // จำนวน กับ ยอดรวม เขียนจากตัวแปรเดียวกันเสมอ (r.amount) — กันบั๊กพิมพ์แยก 2 ที่ไม่ตรงกัน
+    // ที่เจอในไฟล์ตัวอย่างจริง (แถวลำดับที่ 93 ของกรกฎาคม 2568: จำนวน=0 แต่ยอดรวม=20)
+    s1.getRange(row, 1, 1, 7).setValues([[i + 1, r.bankAccount, r.name, r.amount, r.amount, receiverName, '']]);
+    s1.getRange(row, 1).setHorizontalAlignment('center');
+    s1.getRange(row, 4, 1, 2).setNumberFormat('#,##0').setHorizontalAlignment('right');
+    if ((i + 1) % 2 === 0) s1.getRange(row, 1, 1, 7).setBackground('#F2F2F2');
+    row++;
+  });
+
+  s1.getRange(row, 1, 1, 7).setValues([['', '', 'รวมทั้งหมด (' + depositorCount + ' ราย)', totalAmount, totalAmount, '', '']]);
+  s1.getRange(row, 1, 1, 7).setFontWeight('bold').setBackground('#1C1917').setFontColor('#FFFFFF');
+  s1.getRange(row, 4, 1, 2).setNumberFormat('#,##0');
+
+  s1.getRange(headerRow, 1, row - headerRow + 1, 7).setBorder(true, true, true, true, true, true);
+  s1.setColumnWidth(1, 55);
+  s1.setColumnWidth(2, 130);
+  s1.setColumnWidth(3, 180);
+  s1.setColumnWidth(4, 80);
+  s1.setColumnWidth(5, 80);
+  s1.setColumnWidth(6, 80);
+  s1.setColumnWidth(7, 80);
+
+  // ==== Sheet2: ใบปะหน้านำฝาก ธ.ก.ส. (ตรวจนับเงินสด) ====
+  const sheet2Name = 'ปะหน้าฝาก_' + dateSlug;
+  let s2 = ss.getSheetByName(sheet2Name);
+  if (s2) {
+    // กันลบทับข้อมูลนับเงินสดที่ Pam พิมพ์มือไว้แล้ว (ถ้ากดสร้างซ้ำวันเดียวกันตอนมีฝากเพิ่มมาทีหลัง)
+    // เช็คคอลัมน์ "จำนวนหน่วย" (C) แถวข้อมูลธนบัตร/เหรียญ 12 แถว ว่ามีใครกรอกไว้แล้วหรือยัง
+    const existingCounts = s2.getRange(6, 3, 12, 1).getValues().flat();
+    const hasCounts = existingCounts.some(function(v) { return v !== '' && v !== null && !isNaN(v) && Number(v) !== 0; });
+    if (hasCounts) {
+      return { ok: false, error: 'ชีต "' + sheet2Name + '" มีข้อมูลนับเงินสดที่กรอกไว้แล้ว ถ้าต้องการสร้างใหม่ทับ กรุณาลบชีตนี้เองก่อน (คลิกขวาที่แท็บชีต > ลบ)' };
+    }
+    ss.deleteSheet(s2);
+  }
+  s2 = ss.insertSheet(sheet2Name);
+
+  s2.getRange('A1:D1').merge();
+  s2.getRange('A1').setValue('ใบปะหน้านำฝาก ธ.ก.ส. ' + SCHOOL_NAME).setHorizontalAlignment('center').setFontWeight('bold').setFontSize(13);
+  s2.getRange('A2:D2').merge();
+  s2.getRange('A2').setValue('ใบตรวจนับเงินสดคงเหลือ').setHorizontalAlignment('center').setFontWeight('bold');
+  s2.getRange('A3').setValue('วันที่ ' + dateStr);
+
+  const denomHeaderRow = 5;
+  s2.getRange(denomHeaderRow, 1, 1, 4).setValues([['รายการตรวจนับเงินสด', 'มูลค่าต่อหน่วย', 'จำนวนหน่วย', 'จำนวนเงิน']]);
+  s2.getRange(denomHeaderRow, 1, 1, 4).setFontWeight('bold').setBackground('#92D050');
+
+  // ธนบัตร 1000-10 บาท + เหรียญ 10-0.25 บาท — Pam กรอกจำนวนหน่วยเอง (คอลัมน์ 3 เว้นว่าง)
+  // "จำนวนเงิน" (คอลัมน์ 4) เป็นสูตรคูณ ไม่ใช่ค่าคงที่ — recalculate สดตอน Pam พิมพ์
+  const denoms = [
+    ['ธนบัตร', 1000], ['ธนบัตร', 500], ['ธนบัตร', 100], ['ธนบัตร', 50], ['ธนบัตร', 20], ['ธนบัตร', 10],
+    ['เหรียญ', 10], ['เหรียญ', 5], ['เหรียญ', 2], ['เหรียญ', 1], ['เหรียญ', 0.5], ['เหรียญ', 0.25]
+  ];
+  let dRow = denomHeaderRow + 1;
+  const firstDataRow = dRow;
+  denoms.forEach(function(d) {
+    s2.getRange(dRow, 1).setValue(d[0]);
+    s2.getRange(dRow, 2).setValue(d[1]).setNumberFormat('#,##0.00');
+    s2.getRange(dRow, 4).setFormula('=B' + dRow + '*C' + dRow).setNumberFormat('#,##0.00');
+    dRow++;
+  });
+  const lastDataRow = dRow - 1;
+
+  const sumRow1 = dRow + 1; // ยอดรวมเงินสดที่ตรวจนับได้จริง (1) — สูตร SUM คำนวณสด
+  s2.getRange(sumRow1, 1, 1, 3).merge();
+  s2.getRange(sumRow1, 1).setValue('ยอดรวมเงินสดที่ตรวจนับได้จริง (ธนบัตร+เหรียญ) (1)').setFontWeight('bold');
+  s2.getRange(sumRow1, 4).setFormula('=SUM(D' + firstDataRow + ':D' + lastDataRow + ')').setNumberFormat('#,##0.00').setFontWeight('bold');
+
+  const sumRow2 = sumRow1 + 1; // ยอดรวมตามทะเบียน (2) — ค่าคงที่จาก Sheet1 ตอนสร้าง (ไม่ใช่สูตรอ้างข้ามชีต กันปัญหาถ้า Pam ลบ/ย้าย Sheet1 ทีหลัง)
+  s2.getRange(sumRow2, 1, 1, 3).merge();
+  s2.getRange(sumRow2, 1).setValue('ยอดรวมเงินสดตามทะเบียนเงินสด (2)').setFontWeight('bold');
+  s2.getRange(sumRow2, 4).setValue(totalAmount).setNumberFormat('#,##0.00').setFontWeight('bold');
+
+  const diffRow = sumRow2 + 1; // ผลต่าง — สูตร recalculate สดตอน Pam กรอกจำนวนหน่วย
+  s2.getRange(diffRow, 1, 1, 3).merge();
+  s2.getRange(diffRow, 1).setValue('ผลต่าง (1)-(2)').setFontWeight('bold');
+  s2.getRange(diffRow, 4).setFormula('=D' + sumRow1 + '-D' + sumRow2).setNumberFormat('#,##0.00').setFontWeight('bold');
+
+  const countRow = diffRow + 1;
+  s2.getRange(countRow, 1, 1, 4).merge();
+  // "จำนวนผู้ฝากทั้งหมด" = depositorCount เสมอ (จำนวนแถวจริงใน Sheet1) — กันเลขไม่ตรงแบบที่เจอในไฟล์ตัวอย่าง (155 vs 127)
+  s2.getRange(countRow, 1).setValue('จำนวนผู้ฝากทั้งหมด ' + depositorCount + ' ราย');
+
+  const noteRow = countRow + 1;
+  s2.getRange(noteRow, 1, 1, 4).merge();
+  s2.getRange(noteRow, 1).setValue('*** ผลต่างต้องเท่ากับศูนย์ (0)').setFontColor('#c0392b');
+
+  // ลายเซ็น — เว้นว่างทั้งหมดให้เซ็นมือ (เหมือนไฟล์ตัวอย่างจริง)
+  let sigRow = noteRow + 2;
+  s2.getRange(sigRow, 1).setValue('กรรมการผู้รักษาเงินสดโรงเรียนธนาคาร');
+  s2.getRange(sigRow, 4).setValue('พนักงาน ธ.ก.ส.');
+  sigRow++;
+  s2.getRange(sigRow, 1).setValue('1. ..................................');
+  s2.getRange(sigRow, 4).setValue('..........................................................');
+  sigRow++;
+  s2.getRange(sigRow, 1).setValue('2. ..................................');
+  s2.getRange(sigRow, 4).setValue('(ผู้จัดการ/ผู้ช่วยผู้จัดการ)');
+  sigRow++;
+  s2.getRange(sigRow, 1).setValue('3. .................................. ครูผู้รับมอบเงิน');
+  s2.getRange(sigRow, 4).setValue('วันที่ ................................. เวลา ............... น.');
+  sigRow++;
+  s2.getRange(sigRow, 1).setValue('ตำแหน่ง.............................');
+  sigRow++;
+  s2.getRange(sigRow, 1).setValue('วันที่ .................................................');
+  sigRow += 2;
+  s2.getRange(sigRow, 1, 1, 4).merge();
+  s2.getRange(sigRow, 1).setValue('**** เอกสารนำส่ง ธ.ก.ส.');
+
+  s2.setColumnWidth(1, 260);
+  s2.setColumnWidth(2, 110);
+  s2.setColumnWidth(3, 110);
+  s2.setColumnWidth(4, 110);
+
+  const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/edit#gid=' + s1.getSheetId();
+
+  return {
+    ok: true,
+    sheet1Name: sheet1Name,
+    sheet2Name: sheet2Name,
+    url: url,
+    totalAmount: totalAmount,
+    depositorCount: depositorCount
   };
 }
 

@@ -1041,6 +1041,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <button class="atab" id="at-tx" onclick="adTab('tx')">📋<br>ธุรกรรม</button>
     <button class="atab" id="at-pr" onclick="adTab('pr')">🎓<br>เลื่อนชั้น</button>
     <button class="atab" id="at-gd" onclick="adTab('gd')">🏅<br>จบแล้ว</button>
+    <button class="atab" id="at-bk" onclick="adTab('bk')">🏦<br>ฝากธนาคาร</button>
   </div>
 </div>
 
@@ -1134,7 +1135,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbxOKM6yBXECbmaPztDm_Z5K7TT3Zh7dbu45Qu9-nyuTgjjLu62k-frzHU6hChLTpA_kTQ/exec';
+var API = 'https://script.google.com/macros/s/AKfycbzHKWx3Cu53K-ZXA_mXvtFkfRLHEdrhKCup-cmCQ7Fhard0Oa1Y8OVyAhlRomy9i-qY3g/exec';
 // รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
 var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
@@ -2231,7 +2232,7 @@ function loadAdmin() {
 }
 function adTab(tab) {
   curAdTab=tab;
-  ['ov','tx','pr','gd'].forEach(function(t){
+  ['ov','tx','pr','gd','bk'].forEach(function(t){
     document.getElementById('at-'+t).classList.toggle('on',t===tab);
   });
   renderAdTab(tab);
@@ -2242,6 +2243,60 @@ function renderAdTab(tab) {
   else if(tab==='tx') renderAdTx(c);
   else if(tab==='pr') renderPr(c);
   else if(tab==='gd') renderGd(c);
+  else if(tab==='bk') renderBk(c);
+}
+
+// ===== ทะเบียนฝากธนาคาร (bank deposit registry) =====
+// ดู BLUEPRINT-bank-deposit-registry.md / CONSTRUCTION_PLAN-bank-deposit-registry.md
+function renderBk(c) {
+  var today = new Date(Date.now() + 7*60*60*1000);
+  var todayISO = today.getUTCFullYear() + '-' + String(today.getUTCMonth()+1).padStart(2,'0') + '-' + String(today.getUTCDate()).padStart(2,'0');
+  c.innerHTML =
+    '<div class="ic"><div class="ic-t">🏦 สร้างทะเบียนรับฝากส่งธนาคาร</div>'+
+    '<div class="ic-d">เลือกวันที่ที่ต้องการ ระบบจะรวมยอดฝากทุกชั้นเป็นทะเบียนเดียว พร้อมใบปะหน้านำฝาก ธ.ก.ส. ให้อัตโนมัติ (เฉพาะคนที่ฝากจริงวันนั้น ไม่รวม "ถอน")</div>'+
+    '<label style="display:block;font-size:13px;color:var(--ts);margin:10px 0 4px">วันที่</label>'+
+    '<input class="minp" type="date" id="bk-date" value="'+todayISO+'" style="margin-bottom:10px">'+
+    '<label style="display:block;font-size:13px;color:var(--ts);margin:0 0 4px">เลขที่เอกสาร</label>'+
+    '<input class="minp" id="bk-docno" placeholder="เช่น 003" style="margin-bottom:10px">'+
+    '<label style="display:block;font-size:13px;color:var(--ts);margin:0 0 4px">ผู้รับเงิน</label>'+
+    '<input class="minp" id="bk-receiver" placeholder="ชื่อผู้รับฝาก" style="margin-bottom:14px">'+
+    '<div class="merr" id="bk-err" style="display:none"></div>'+
+    '<div id="bk-result"></div>'+
+    '<button class="abtn" id="bk-btn" onclick="submitBk()">📄 สร้างทะเบียน</button></div>';
+}
+
+function submitBk() {
+  var dateEl = document.getElementById('bk-date');
+  var docNo = document.getElementById('bk-docno').value.trim();
+  var receiver = document.getElementById('bk-receiver').value.trim();
+  var errEl = document.getElementById('bk-err');
+  var resEl = document.getElementById('bk-result');
+  errEl.style.display='none'; resEl.innerHTML='';
+  if (!dateEl.value) { errEl.textContent='กรุณาเลือกวันที่'; errEl.style.display='block'; return; }
+  if (!receiver) { errEl.textContent='กรุณากรอกชื่อผู้รับเงิน'; errEl.style.display='block'; return; }
+
+  // แปลง yyyy-mm-dd (จาก <input type=date>) -> "D MMM YYYY" แบบเดียวกับที่ระบบเก็บ (เดือนย่อไทย, ปี พ.ศ.)
+  // พาร์สจาก string ตรงๆ ไม่ผ่าน Date object เพื่อกัน timezone เพี้ยนวันข้ามคืน
+  var parts = dateEl.value.split('-'); // [YYYY, MM, DD]
+  var y = parseInt(parts[0],10) + 543;
+  var m = parseInt(parts[1],10) - 1;
+  var d = parseInt(parts[2],10);
+  var dateStr = d + ' ' + MONTHS_SHORT[m] + ' ' + y;
+
+  var btn = document.getElementById('bk-btn');
+  btn.disabled = true; btn.textContent = '⏳ กำลังสร้าง...';
+  apiCall({action:'generateDepositRegistry', date:dateStr, docNo:docNo, receiverName:receiver, password:_pw}, function(r) {
+    btn.disabled = false; btn.textContent = '📄 สร้างทะเบียน';
+    if (!r.ok) { errEl.textContent = r.error; errEl.style.display='block'; return; }
+    resEl.innerHTML =
+      '<div style="background:var(--hg);border-radius:var(--cr);padding:1rem;margin-bottom:12px">'+
+      '<div style="font-size:13px;color:var(--tws);margin-bottom:6px">✓ สร้างสำเร็จ · '+esc(dateStr)+'</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:18px;font-weight:700;color:var(--gl)">'+fmt(r.totalAmount)+' บาท</div>'+
+      '<div style="font-size:12px;color:var(--tws);margin-bottom:10px">'+r.depositorCount+' ราย</div>'+
+      '<a href="'+r.url+'" target="_blank" style="display:inline-block;padding:8px 16px;background:var(--ga);color:#fff;border-radius:20px;text-decoration:none;font-size:13px">📂 เปิด Google Sheet</a>'+
+      '<div style="font-size:12px;color:var(--tws);margin-top:10px;line-height:1.5">⚠️ ระบบสร้างไว้ 2 ชีตในไฟล์เดียวกัน: <b>'+esc(r.sheet1Name)+'</b> (ทะเบียนรับฝาก) และ <b>'+esc(r.sheet2Name)+'</b> (ใบปะหน้านับเงินสด) — เปิดลิงก์ด้านบนแล้วเลื่อนไปแท็บที่ 2 เพื่อกรอกจำนวนธนบัตร/เหรียญที่นับได้จริงต่อ</div>'+
+      '</div>';
+  });
 }
 function renderOv(c) {
   if (!adData) {c.innerHTML='<div class="load">⏳...</div>'; return;}
