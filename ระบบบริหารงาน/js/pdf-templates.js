@@ -47,6 +47,33 @@ function findDirector(){
   });
 }
 
+// วาดข้อความไทยแบบ auto word-wrap ถ้ายาวเกิน maxWidth (มม.) — body paragraph เดิมเป็น string คงที่
+// ที่ pre-split มือครั้งเดียว พอความยาวจริงขึ้นกับข้อมูล (ชื่อโครงการ/จำนวนเงินเป็นตัวหนังสือ ฯลฯ) ที่ไม่รู้
+// ล่วงหน้าว่ายาวแค่ไหน มีโอกาสล้นขอบกระดาษ (เจอจริงจาก Pam ทดสอบ 2026-07-08 — บรรทัด "และขออนุมัติ...
+// จำนวน...รายการ" วิ่งเลยขอบขวา) ตัดคำที่ space เท่านั้น (ไม่ตัดกลางคำ) คืนค่า y ใหม่หลังวาดบรรทัดสุดท้าย
+// firstLineIndent (มม.) — เลื่อน x เฉพาะบรรทัดแรกเท่านั้น (จำลองการเยื้องย่อหน้า) — ใช้แทนการฝัง space
+// นำหน้าข้อความตรงๆ เพราะ split(' ') จะกิน leading space หายไปตอน wrap (คำว่างไม่ผ่านเงื่อนไข line ที่ยังไม่เริ่ม)
+function thaiTextWrapped(doc, text, x, y, maxWidth, lineHeight, firstLineIndent){
+  lineHeight = lineHeight || 8;
+  const words = String(text).split(' ').filter(function(w){ return w !== ''; });
+  let line = '';
+  let firstLine = true;
+  for(let i = 0; i < words.length; i++){
+    const test = line ? (line + ' ' + words[i]) : words[i];
+    const lineX = firstLine ? x + (firstLineIndent||0) : x;
+    if(line && doc.getTextWidth(test) > maxWidth - (firstLine ? (firstLineIndent||0) : 0)){
+      thaiText(doc, line, lineX, y);
+      y += lineHeight;
+      line = words[i];
+      firstLine = false;
+    } else {
+      line = test;
+    }
+  }
+  if(line){ thaiText(doc, line, firstLine ? x + (firstLineIndent||0) : x, y); y += lineHeight; }
+  return y;
+}
+
 // หา staff record ที่ตรงกับ teacherName ของโครงการ เพื่อดึง "ตำแหน่ง" มาใส่เอกสาร (เอกสารจริงมีบรรทัด
 // "ด้วยข้าพเจ้า {ชื่อ} ตำแหน่ง {ตำแหน่ง}" — projects.teacher_name เป็น text อิสระไม่ผูก staff.id
 // ใช้ normalize+exact-match แบบเดียวกับ canEdit() (auth.js) ไม่ใช่ substring แบบ canViewProject()
@@ -82,7 +109,11 @@ async function generateDoc1(procItemId){
   // auth.js:151-153, Q5-2) ไม่เหมาะพิมพ์บนเอกสารราชการ — fallback เป็น raw text เฉพาะหา staff ไม่เจอ
   const proposerPrintName = proposerStaff ? (proposerStaff.prefix + proposerStaff.name) : teacherName;
   const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
-  const projectName = (item.projects && item.projects.name) || '-';
+  // ตัดคำว่า "โครงการ" ที่ขึ้นต้นชื่อโครงการออกถ้ามี (บางโครงการใน DB พิมพ์ชื่อรวมคำนี้ไว้แล้ว บางโครงการไม่มี)
+  // กัน "ตามโครงการโครงการ..." ซ้ำคำเวลาต่อกับ prefix "ตามโครงการ"/"เรื่อง...โครงการ" ที่ template เขียนไว้เอง
+  // (เจอจริงจาก Pam ทดสอบ 2026-07-08)
+  const projectNameRaw = (item.projects && item.projects.name) || '-';
+  const projectName = projectNameRaw.replace(/^โครงการ\s*/, '');
   // จำนวน "รายการ" — ดึงสดจาก DB (ไม่ใช้ CURRENT_SUB_ITEMS.length) เพราะ addSubItemRow()/removeSubItemRow()
   // แก้ array ใน memory ตรงๆ ไม่เขียน DB จนกว่าจะกด "บันทึก" (procurement-detail.js:320-331) — ถ้าใช้
   // ค่า in-memory เอกสารอาจโชว์จำนวนรายการที่ยังไม่ถูกบันทึกจริง ขัดกับที่ปุ่มสัญญาไว้ว่า "ดึงจาก DB เท่านั้น"
@@ -104,25 +135,35 @@ async function generateDoc1(procItemId){
   // แยก "ส่วนราชการ" กับ "ที่/วันที่" เป็นคนละแถว (เดิม commit 0ed91a3 รวมบรรทัดเดียวตามลำดับ text ที่
   // OCR extract มาจากไฟล์จริง ซึ่งไม่ใช่ตำแหน่ง visual จริง — รวมกันยาว ~60 ตัวอักษรเสี่ยงล้นขอบกระดาษ
   // กว้าง 160mm ที่ font 16pt — ทั้ง 17 ไฟล์อ้างอิงจริงแยกเป็นคนละแถวเสมอ, scrutinize 2026-07-08)
+  // เนื้อหากว้างสูงสุด 155mm (เขตเขียนจริง 25-185mm เผื่อ safety margin 5mm) — ทุกบรรทัดที่ยาวขึ้นกับ
+  // ข้อมูล (ชื่อโครงการ/จำนวนเงิน ฯลฯ) ต้องผ่าน thaiTextWrapped ไม่ใช่ thaiText ตรงๆ กันล้นขอบ (scrutinize
+  // + Pam ทดสอบจริง 2026-07-08 พบ "และขออนุมัติ...จำนวน...รายการ" วิ่งเลยขอบขวา)
+  const CONTENT_MAX_WIDTH = 155;
   thaiText(doc, 'ส่วนราชการ  '+SCHOOL_FULL_NAME+' '+SCHOOL_EDU_OFFICE_ABBR, 25, 52);
   thaiText(doc, 'ที่  '+bareDocNumber, 25, 59);
   thaiText(doc, 'วันที่  '+fmtDateThai(detail.date_request), 105, 59);
-  thaiText(doc, 'เรื่อง  ขออนุมัติดำเนินงานตามโครงการ'+projectName, 25, 66);
-  doc.line(25, 70, 185, 70);
-  thaiText(doc, 'เรียน  ผู้อำนวยการ'+SCHOOL_FULL_NAME, 25, 77);
+  let y = thaiTextWrapped(doc, 'เรื่อง  ขออนุมัติดำเนินงานตามโครงการ'+projectName, 25, 66, CONTENT_MAX_WIDTH, 7);
+  y += 2;
+  doc.line(25, y, 185, y);
+  y += 7;
+  thaiText(doc, 'เรียน  ผู้อำนวยการ'+SCHOOL_FULL_NAME, 25, y);
+  y += 10;
 
-  let y = 87;
-  const bodyLines = [
-    '     ด้วยข้าพเจ้า '+proposerPrintName+' ตำแหน่ง '+proposerPosition+' '+SCHOOL_FULL_NAME+' ขออนุมัติตามที่',
-    'ได้รับอนุญาตให้ดำเนินงานตามโครงการ'+projectName+' และขออนุมัติจัด'+buyOrHire+' จำนวน '+itemCount+' รายการ',
-    'เป็นเงิน '+fmt(item.amount)+' บาท ('+thaiBahtText(item.amount)+') เพื่อ'+purpose,
-    'ตามรายละเอียดในแบบประมาณการจัด'+buyOrHire+'ดังแนบ',
-    '',
-    '     จึงเรียนมาเพื่อโปรดพิจารณาเห็นชอบและอนุมัติ'
-  ];
-  bodyLines.forEach(function(line){ if(line) thaiText(doc, line, 25, y); y += 8; });
+  // ย่อหน้า 1 — ต่อเป็น string เดียวแล้วให้ wrap function จัดบรรทัดเอง (ไม่ pre-split มือแบบเดิมที่แต่ละ
+  // ท่อนอาจยาวเกินบรรทัดได้เอง ไม่ขึ้นกับท่อนอื่น) — ตัด "จัด" ซ้ำหน้า buyOrHire ออก (buyOrHire มีคำว่า
+  // "จัด" อยู่ในตัวเองแล้ว "จัดซื้อ"/"จัดจ้าง" ต่อกับ "ขออนุมัติจัด" เดิมเลยกลายเป็น "ขออนุมัติจัดจัดซื้อ" ซ้ำคำ
+  // — เจอจริงจาก Pam ทดสอบ 2026-07-08)
+  const para1 = 'ด้วยข้าพเจ้า '+proposerPrintName+' ตำแหน่ง '+proposerPosition+' '+SCHOOL_FULL_NAME+
+    ' ขออนุมัติตามที่ได้รับอนุญาตให้ดำเนินงานตามโครงการ'+projectName+' และขออนุมัติ'+buyOrHire+
+    ' จำนวน '+itemCount+' รายการ เป็นเงิน '+fmt(item.amount)+' บาท ('+thaiBahtText(item.amount)+
+    ') เพื่อ'+purpose+' ตามรายละเอียดในแบบประมาณการ'+buyOrHire+'ดังแนบ';
+  y = thaiTextWrapped(doc, para1, 25, y, CONTENT_MAX_WIDTH, 7, 8);
 
-  y += 20;
+  y += 10;
+  const para2 = 'จึงเรียนมาเพื่อโปรดพิจารณาเห็นชอบและอนุมัติ';
+  y = thaiTextWrapped(doc, para2, 25, y, CONTENT_MAX_WIDTH, 7, 8);
+
+  y += 13;
   thaiText(doc, 'ผู้รับผิดชอบโครงการ', 25, y);
   thaiText(doc, 'ความเห็นของผู้อำนวยการ'+SCHOOL_FULL_NAME, 115, y);
   doc.line(25, y + 3, 90, y + 3);   // เว้นบรรทัดเซ็นผู้เสนอ (เอกสารจริงไม่มีชื่อพิมพ์กำกับ — ชื่ออยู่ในเนื้อหาแล้ว)
