@@ -935,8 +935,16 @@ function exportMonthly(p) {
 
 // แปลง Thai date string "D MMM YYYY" (เช่น "7 ก.ค. 2569") เป็น {day, monthIdx, year}
 // คืน null ถ้า parse ไม่ได้ (กันชื่อ sheet เพี้ยน/กรองผิดวันแบบเงียบๆ)
-function parseThaiDateStr(dateStr) {
-  var parts = String(dateStr || '').trim().split(' ').filter(function(x){ return x !== ''; });
+// รับ Date object ได้ด้วย — เซลล์ "วันที่" บางแถวถูก Google Sheets แปลงเป็น Date object จริงแทน string เฉยๆ
+// (auto-detect ตอนพิมพ์/วางในชีต) เจอ pattern นี้มาก่อนแล้วใน getHistory/exportMonthly/exportTerm
+// ถ้าไม่รองรับตรงนี้ แถวที่เป็น Date object จะหลุดจากการกรองแบบเงียบๆ ทันที (String(dateObj) ได้ format คนละแบบ)
+function parseThaiDateStr(dateVal) {
+  if (dateVal instanceof Date) {
+    const fullYear = dateVal.getFullYear();
+    const year = fullYear > 2500 ? fullYear : fullYear + 543; // กันกรณีเก็บเป็น พ.ศ. อยู่แล้ว
+    return { day: dateVal.getDate(), monthIdx: dateVal.getMonth(), year: year };
+  }
+  var parts = String(dateVal || '').trim().split(' ').filter(function(x){ return x !== ''; });
   if (parts.length < 3) return null;
   var day = parseInt(parts[0], 10);
   var monthIdx = THAI_MONTHS.indexOf(parts[1]);
@@ -1008,7 +1016,8 @@ function generateDepositRegistry(p) {
     if (!r[tiId]) return false;
     if (String(r[tiType] || '') !== 'ฝาก') return false;
     if ((parseFloat(r[tiAmt]) || 0) <= 0) return false; // เฉพาะฝากจริง >0 บาท (กันแถวผิดพลาดถ้าใครแก้ sheet มือ)
-    const txParsed = parseThaiDateStr(String(r[tiDate] || ''));
+    // ส่ง r[tiDate] ดิบๆ ไม่ String() ทับก่อน — ต้องให้ parseThaiDateStr เห็น Date object ถ้ามี ไม่งั้นเช็ค instanceof ข้างในจะไม่มีทางเจอ
+    const txParsed = parseThaiDateStr(r[tiDate]);
     return txParsed && txParsed.monthIdx === parsed.monthIdx && txParsed.year === parsed.year;
   });
 
