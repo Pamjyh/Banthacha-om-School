@@ -396,6 +396,51 @@ a { color: inherit; text-decoration: none; }
 #page-wrapper.hidden { display: none; }
 
 /* ─────────────────────────────────────────────
+   STAFF DIRECTORY (ทำเนียบบุคลากร) — พับเก็บ อยู่บนสุด
+───────────────────────────────────────────── */
+#staff-directory-section { margin: 24px 0 4px; display: none; } /* display:none จนกว่า JS ยืนยันโหลดสำเร็จ */
+#staff-directory-section.ready { display: block; }
+.staff-directory-toggle {
+  width: 100%;
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 16px; font-weight: 700; color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.staff-directory-toggle:hover { background: var(--canvas-soft); }
+#staff-directory-arrow { transition: transform 0.2s ease; color: var(--ink-muted); }
+.staff-directory-toggle[aria-expanded="true"] #staff-directory-arrow { transform: rotate(180deg); }
+.staff-directory-body {
+  border: 1px solid var(--hairline);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  padding: 18px;
+  background: var(--canvas);
+}
+.staff-directory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 16px;
+}
+.staff-person {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px;
+}
+.staff-person-photo { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; border: 2px solid var(--hairline); }
+.staff-person-photo-placeholder {
+  width: 68px; height: 68px; border-radius: 50%;
+  border: 2px solid var(--hairline); background: var(--canvas-soft);
+  display: flex; align-items: center; justify-content: center; font-size: 28px; color: var(--ink-faint);
+}
+.staff-person-name { font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+.staff-person-position { font-size: 12px; color: var(--ink-muted); line-height: 1.3; }
+.staff-person-headof { font-size: 11px; font-weight: 600; color: var(--primary); line-height: 1.3; }
+
+/* ─────────────────────────────────────────────
    RESPONSIVE
 ───────────────────────────────────────────── */
 @media (max-width: 767px) {
@@ -489,6 +534,17 @@ a { color: inherit; text-decoration: none; }
     <section id="greeting-section" aria-label="คำทักทาย">
       <p class="greeting-main" id="greeting-text">สวัสดี</p>
       <p class="greeting-sub" id="greeting-date">—</p>
+    </section>
+
+    <section id="staff-directory-section" aria-label="ทำเนียบบุคลากร">
+      <button type="button" id="staff-directory-toggle" class="staff-directory-toggle"
+              aria-expanded="false" aria-controls="staff-directory-body">
+        <span>👥 ทำเนียบบุคลากร</span>
+        <span id="staff-directory-arrow" aria-hidden="true">▾</span>
+      </button>
+      <div id="staff-directory-body" class="staff-directory-body" hidden>
+        <div id="staff-directory-grid" class="staff-directory-grid"></div>
+      </div>
     </section>
 
     <p class="section-label">เลือกระบบที่ต้องการใช้งาน</p>
@@ -786,6 +842,55 @@ function initCardHandlers() {
 
 initCardHandlers();
 loadSystemStatus().then(initCards);
+
+/* ─────────────────────────────────────────────
+   STAFF DIRECTORY (ทำเนียบบุคลากร) — read-only, fail-safe
+───────────────────────────────────────────── */
+function escapeHtmlStaff(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function loadStaffDirectory() {
+  fetch(SUPABASE_URL + '/rest/v1/staff_directory?select=full_name,position,photo,head_of,display_order&order=display_order.asc,full_name.asc', {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(rows) {
+      if (!rows || !Array.isArray(rows) || rows.length === 0) return; // ไม่มีข้อมูล → ไม่โชว์ section เลย (เงียบๆ)
+
+      var grid = document.getElementById('staff-directory-grid');
+      grid.innerHTML = rows.map(function(p) {
+        var photoHtml = p.photo
+          ? '<img class="staff-person-photo" src="' + p.photo + '" alt="">'
+          : '<div class="staff-person-photo-placeholder" aria-hidden="true">🧑</div>';
+        var headOfHtml = p.head_of ? '<div class="staff-person-headof">' + escapeHtmlStaff(p.head_of) + '</div>' : '';
+        return '<div class="staff-person">' +
+          photoHtml +
+          '<div class="staff-person-name">' + escapeHtmlStaff(p.full_name) + '</div>' +
+          '<div class="staff-person-position">' + escapeHtmlStaff(p.position) + '</div>' +
+          headOfHtml +
+        '</div>';
+      }).join('');
+
+      document.getElementById('staff-directory-section').classList.add('ready');
+    })
+    .catch(function() { /* fetch พัง → ไม่โชว์ section เลย ไม่กระทบส่วนอื่นของ Portal */ });
+}
+
+function initStaffDirectoryToggle() {
+  var btn  = document.getElementById('staff-directory-toggle');
+  var body = document.getElementById('staff-directory-body');
+  btn.addEventListener('click', function() {
+    var expanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', String(!expanded));
+    body.hidden = expanded;
+  });
+}
+
+initStaffDirectoryToggle();
+loadStaffDirectory();
 
 /* ─────────────────────────────────────────────
    ADMIN PANEL — เข้าถึงผ่านคลิกชื่อโรงเรียนท้ายหน้า 5 ครั้งติดกัน

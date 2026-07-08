@@ -2,7 +2,7 @@
 // Service Worker — โรงเรียนบ้านท่าชะอม
 // v1.0 — cache-first static, network-only API
 // =====================================================================
-const CACHE_NAME = 'banthacha-om-v2';
+const CACHE_NAME = 'banthacha-om-v3'; // v3: เพิ่มฟีเจอร์ทำเนียบบุคลากร (2026-07-09)
 
 // ไฟล์ที่ pre-cache ตอน install
 const PRE_CACHE = [
@@ -18,6 +18,7 @@ const PRE_CACHE = [
   './ระบบค่ารถ/',
   './ระบบลงเวลา/',
   './ระบบสารบัญ/',
+  './ทำเนียบบุคลากร/',
 ];
 
 // domain ที่ไม่ cache (API calls)

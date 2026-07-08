@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>จัดการทำเนียบบุคลากร — โรงเรียนบ้านท่าชะอม</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --canvas-soft:   #f6f5f4;
+  --canvas:        #ffffff;
+  --ink:           #1a1a1a;
+  --ink-secondary: #31302e;
+  --ink-muted:     #615d59;
+  --ink-faint:     #a39e98;
+  --hairline:      #e6e6e6;
+  --primary:       #0075de;
+  --primary-dark:  #005bab;
+  --green:         #1aae39;
+  --green-bg:      #e2f7e7;
+  --orange:        #dd5b00;
+  --orange-bg:     #fdeede;
+  --red:           #c0392b;
+  --red-bg:        #fce6e3;
+  --radius-sm:     8px;
+  --radius-md:     12px;
+  --radius-lg:     16px;
+  --radius-full:   9999px;
+  --shadow-card:   0 1px 3px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 17px; }
+body {
+  font-family: 'Sarabun', sans-serif;
+  background: var(--canvas-soft);
+  color: var(--ink);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+#page-wrapper { max-width: 720px; margin: 0 auto; padding: 24px 20px 48px; }
+
+.back-link { font-size: 14px; font-weight: 600; display: inline-block; margin-bottom: 16px; }
+
+h1 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.subtitle { font-size: 14px; color: var(--ink-muted); margin-bottom: 24px; }
+
+.card {
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 24px;
+}
+
+label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--ink-secondary); }
+input[type="text"], input[type="password"], input[type="number"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-family: 'Sarabun', sans-serif;
+  margin-bottom: 16px;
+}
+input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+button {
+  font-family: 'Sarabun', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 12px 24px;
+}
+.btn-primary { background: var(--primary); color: #fff; width: 100%; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:disabled { opacity: .6; cursor: default; }
+
+#login-msg {
+  font-size: 14px;
+  min-height: 20px;
+  margin-top: 4px;
+  color: var(--red);
+}
+
+#admin-panel { display: none; }
+#admin-panel.show { display: block; }
+#login-card.hide { display: none; }
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.btn-logout {
+  background: var(--canvas-soft);
+  border: 1px solid var(--hairline);
+  color: var(--ink-muted);
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+#staff-list-container { display: flex; flex-direction: column; gap: 10px; margin-top: 8px; }
+.staff-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px; border: 1px solid var(--hairline); border-radius: var(--radius-md);
+}
+.staff-row-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--canvas-soft); }
+.staff-row-photo-placeholder {
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+  background: var(--canvas-soft); border: 1px solid var(--hairline);
+  display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--ink-faint);
+}
+.staff-row-info { flex: 1; min-width: 0; }
+.staff-row-name { font-size: 15px; font-weight: 600; color: var(--ink); }
+.staff-row-meta { font-size: 13px; color: var(--ink-muted); }
+.staff-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.btn-small { padding: 6px 12px; font-size: 13px; border-radius: var(--radius-full); }
+.btn-edit { background: var(--canvas-soft); border: 1px solid var(--hairline); color: var(--ink); }
+.btn-delete { background: var(--red-bg); color: var(--red); }
+</style>
+</head>
+<body>
+
+<div id="page-wrapper">
+
+  <a class="back-link" href="../index.html">← กลับหน้า Portal</a>
+
+  <h1>จัดการทำเนียบบุคลากร</h1>
+  <p class="subtitle">โรงเรียนบ้านท่าชะอม — เพิ่ม/แก้ไข/ลบ รายชื่อบุคลากรที่แสดงในหน้า Portal</p>
+
+  <!-- Login card -->
+  <div class="card" id="login-card">
+    <label for="login-pw-input">รหัสผ่านผู้ดูแล</label>
+    <input type="password" id="login-pw-input" placeholder="กรอกรหัสผ่าน" autocomplete="off">
+    <button class="btn-primary" id="login-btn">เข้าสู่ระบบ</button>
+    <p id="login-msg"></p>
+  </div>
+
+  <!-- Admin panel (shown after successful login) -->
+  <div id="admin-panel">
+    <div class="panel-header">
+      <span style="font-size:14px; color:var(--ink-muted);">เข้าสู่ระบบแล้ว</span>
+      <button class="btn-logout" id="logout-btn">ออกจากระบบ</button>
+    </div>
+    <div class="card">
+      <h2 style="font-size:16px; font-weight:700; margin-bottom:14px;">➕ เพิ่มบุคลากรใหม่</h2>
+
+      <label for="add-full-name">ชื่อ-สกุล</label>
+      <input type="text" id="add-full-name" placeholder="เช่น นางสาวสมหญิง ใจดี">
+
+      <label for="add-position">ตำแหน่ง</label>
+      <input type="text" id="add-position" placeholder="เช่น ครูผู้สอน">
+
+      <label for="add-head-of">หัวหน้าฝ่าย (ถ้ามี — เว้นว่างได้)</label>
+      <input type="text" id="add-head-of" placeholder="เช่น หัวหน้าฝ่ายวิชาการ">
+
+      <label for="add-display-order">ลำดับการแสดงผล</label>
+      <input type="number" id="add-display-order" placeholder="ตัวเลขน้อย = แสดงก่อน">
+
+      <label for="add-photo">รูปถ่าย (ถ้ามี — เว้นว่างได้)</label>
+      <input type="file" id="add-photo" accept="image/*" style="margin-bottom:16px;">
+
+      <button class="btn-primary" id="add-submit-btn">เพิ่มบุคลากร</button>
+      <button type="button" id="cancel-edit-btn" class="btn-logout" style="display:none; width:100%; margin-top:8px;">ยกเลิกการแก้ไข</button>
+      <p id="add-msg" style="font-size:14px; min-height:20px; margin-top:8px;"></p>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2 style="font-size:16px; font-weight:700; margin-bottom:4px;">รายชื่อบุคลากรทั้งหมด</h2>
+      <p id="staff-list-status" style="font-size:13px; color:var(--ink-muted); margin-bottom:8px;">กำลังโหลด...</p>
+      <div id="staff-list-container"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ─────────────────────────────────────────────
+   SUPABASE CONFIG (เหมือนกับ index.html ของ Portal)
+───────────────────────────────────────────── */
+var SUPABASE_URL      = 'https://cgwtgqyllalaogdgyxlo.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd3RncXlsbGFsYW9nZGd5eGxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDc2MDYsImV4cCI6MjA5NTc4MzYwNn0.hDZPSLM8SVsTDwjpT3-yAhxgBc6b1sX3Tay_HRfyf78';
+
+/* เก็บรหัสผ่านไว้ใน memory เท่านั้น (ไม่ persist ข้าม reload ตามที่ออกแบบไว้) */
+var _sessionPassword = null;
+
+/* เรียก RPC ใดๆ ก็ได้ — คืน {success, data, error} เสมอ ไม่ว่า PostgREST จะตอบ 200 หรือ error status */
+function callRpc(fnName, params) {
+  return fetch(SUPABASE_URL + '/rest/v1/rpc/' + fnName, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(params)
+  }).then(function(r) {
+    return r.json().then(function(body) {
+      if (!r.ok) {
+        return { success: false, data: null, error: (body && body.message) || 'เกิดข้อผิดพลาด' };
+      }
+      return { success: true, data: body, error: null };
+    });
+  }).catch(function() {
+    return { success: false, data: null, error: 'เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่' };
+  });
+}
+
+/* ───────────── LOGIN ───────────── */
+function handleLogin() {
+  var pw  = document.getElementById('login-pw-input').value;
+  var msg = document.getElementById('login-msg');
+  var btn = document.getElementById('login-btn');
+
+  if (!pw) { msg.textContent = '⚠️ กรอกรหัสผ่านก่อนครับ'; return; }
+
+  msg.textContent = 'กำลังตรวจสอบ...';
+  msg.style.color = 'var(--ink-muted)';
+  btn.disabled = true;
+
+  callRpc('staff_directory_verify_password', { p_password: pw }).then(function(res) {
+    btn.disabled = false;
+    if (!res.success) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ ' + res.error;
+      return;
+    }
+    if (res.data !== true) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ รหัสผ่านผิด';
+      return;
+    }
+    // ถูกต้อง
+    _sessionPassword = pw;
+    document.getElementById('login-card').classList.add('hide');
+    document.getElementById('admin-panel').classList.add('show');
+    prefillNextDisplayOrder();
+    renderStaffList();
+  });
+}
+
+function handleLogout() {
+  _sessionPassword = null;
+  document.getElementById('login-pw-input').value = '';
+  document.getElementById('login-msg').textContent = '';
+  document.getElementById('admin-panel').classList.remove('show');
+  document.getElementById('login-card').classList.remove('hide');
+}
+
+document.getElementById('login-btn').addEventListener('click', handleLogin);
+document.getElementById('login-pw-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') handleLogin();
+});
+document.getElementById('logout-btn').addEventListener('click', handleLogout);
+
+/* ───────────── ลำดับการแสดงผลถัดไป (default = max+1) ───────────── */
+function prefillNextDisplayOrder() {
+  fetch(SUPABASE_URL + '/rest/v1/staff_directory?select=display_order&order=display_order.desc&limit=1', {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(rows) {
+      var maxOrder = (rows && rows[0] && rows[0].display_order) || 0;
+      document.getElementById('add-display-order').value = maxOrder + 1;
+    })
+    .catch(function() { /* เงียบไว้ — admin กรอกเลขเองได้ */ });
+}
+
+/* ───────────── ย่อรูปด้วย canvas ก่อนแปลงเป็น base64 Data URI ─────────────
+   กันไฟล์ต้นฉบับจากมือถือที่มักใหญ่หลาย MB ทำให้แถวในตาราง Postgres บวมเกินจำเป็น */
+function resizeImageToDataURL(file, maxDim, quality) {
+  maxDim = maxDim || 480;
+  quality = quality || 0.82;
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      img.onload = function() {
+        var w = img.width, h = img.height;
+        if (w > h && w > maxDim) { h = Math.round(h * (maxDim / w)); w = maxDim; }
+        else if (h > maxDim) { w = Math.round(w * (maxDim / h)); h = maxDim; }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = function() { reject(new Error('ไฟล์รูปเสียหาย เปิดไม่ได้')); };
+      img.src = e.target.result;
+    };
+    reader.onerror = function() { reject(new Error('อ่านไฟล์ไม่สำเร็จ')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ───────────── เพิ่ม / แก้ไข บุคลากร (ฟอร์มเดียวใช้ร่วมกัน) ─────────────
+   _editingId = null → โหมดเพิ่มใหม่ | _editingId = uuid → โหมดแก้ไขคนนั้น */
+var _editingId = null;
+
+function resetFormToAddMode() {
+  _editingId = null;
+  document.getElementById('add-full-name').value = '';
+  document.getElementById('add-position').value = '';
+  document.getElementById('add-head-of').value = '';
+  document.getElementById('add-photo').value = '';
+  document.getElementById('add-submit-btn').textContent = 'เพิ่มบุคลากร';
+  document.getElementById('cancel-edit-btn').style.display = 'none';
+  document.getElementById('add-msg').textContent = '';
+  prefillNextDisplayOrder();
+}
+
+function startEdit(person) {
+  _editingId = person.id;
+  document.getElementById('add-full-name').value = person.full_name || '';
+  document.getElementById('add-position').value = person.position || '';
+  document.getElementById('add-head-of').value = person.head_of || '';
+  document.getElementById('add-display-order').value = person.display_order || 0;
+  document.getElementById('add-photo').value = '';
+  document.getElementById('add-submit-btn').textContent = 'บันทึกการแก้ไข (' + person.full_name + ')';
+  document.getElementById('cancel-edit-btn').style.display = 'block';
+  document.getElementById('add-msg').textContent = '';
+  document.getElementById('add-full-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+document.getElementById('cancel-edit-btn').addEventListener('click', resetFormToAddMode);
+
+function handleSaveStaff() {
+  var fullName = document.getElementById('add-full-name').value.trim();
+  var position = document.getElementById('add-position').value.trim();
+  var headOf   = document.getElementById('add-head-of').value.trim();
+  var order    = parseInt(document.getElementById('add-display-order').value, 10);
+  var fileInput= document.getElementById('add-photo');
+  var msg      = document.getElementById('add-msg');
+  var btn      = document.getElementById('add-submit-btn');
+
+  msg.style.color = 'var(--red)';
+  if (!fullName) { msg.textContent = '⚠️ กรอกชื่อ-สกุลก่อนครับ'; return; }
+  if (!position) { msg.textContent = '⚠️ กรอกตำแหน่งก่อนครับ'; return; }
+  if (isNaN(order)) order = 0;
+
+  var file = fileInput.files && fileInput.files[0];
+  if (file && file.type.indexOf('image/') !== 0) {
+    msg.textContent = '⚠️ ไฟล์ที่เลือกไม่ใช่รูปภาพ';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.style.color = 'var(--ink-muted)';
+  msg.textContent = 'กำลังบันทึก...';
+
+  var photoPromise = file ? resizeImageToDataURL(file) : Promise.resolve(null);
+  var isEdit = !!_editingId;
+
+  photoPromise.then(function(photoDataUrl) {
+    // ตอนแก้ไข: ถ้าไม่เลือกไฟล์ใหม่ ส่ง null ไป — RPC ฝั่ง server จะ coalesce เก็บรูปเดิมไว้เอง (กันรูปหาย)
+    if (isEdit) {
+      return callRpc('staff_directory_update', {
+        p_password: _sessionPassword,
+        p_id: _editingId,
+        p_full_name: fullName,
+        p_position: position,
+        p_photo: photoDataUrl,
+        p_display_order: order,
+        p_head_of: headOf || null
+      });
+    }
+    return callRpc('staff_directory_add', {
+      p_password: _sessionPassword,
+      p_full_name: fullName,
+      p_position: position,
+      p_photo: photoDataUrl,
+      p_display_order: order,
+      p_head_of: headOf || null
+    });
+  }).then(function(res) {
+    btn.disabled = false;
+    if (!res.success) {
+      msg.style.color = 'var(--red)';
+      msg.textContent = '❌ ' + res.error;
+      return;
+    }
+    msg.style.color = 'var(--green)';
+    msg.textContent = isEdit ? '✅ บันทึกการแก้ไขแล้ว' : '✅ เพิ่มบุคลากรแล้ว';
+    resetFormToAddMode();
+    renderStaffList();
+  }).catch(function(err) {
+    btn.disabled = false;
+    msg.style.color = 'var(--red)';
+    msg.textContent = '❌ ' + (err && err.message ? err.message : 'เกิดข้อผิดพลาด');
+  });
+}
+
+document.getElementById('add-submit-btn').addEventListener('click', handleSaveStaff);
+
+/* ───────────── รายชื่อบุคลากรทั้งหมด (list + แก้ไข/ลบ) ───────────── */
+var _staffCache = [];
+
+function renderStaffList() {
+  var statusEl = document.getElementById('staff-list-status');
+  var listEl   = document.getElementById('staff-list-container');
+  statusEl.textContent = 'กำลังโหลด...';
+
+  fetch(SUPABASE_URL + '/rest/v1/staff_directory?select=*&order=display_order.asc,full_name.asc', {
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(rows) {
+      _staffCache = rows || [];
+      statusEl.textContent = 'ทั้งหมด ' + _staffCache.length + ' คน';
+      listEl.innerHTML = _staffCache.map(function(p) {
+        var photoHtml = p.photo
+          ? '<img class="staff-row-photo" src="' + p.photo + '" alt="">'
+          : '<div class="staff-row-photo-placeholder">🧑</div>';
+        var metaParts = [p.position];
+        if (p.head_of) metaParts.push(p.head_of);
+        metaParts.push('ลำดับ ' + p.display_order);
+        return '<div class="staff-row">' +
+          photoHtml +
+          '<div class="staff-row-info">' +
+            '<div class="staff-row-name">' + escapeHtml(p.full_name) + '</div>' +
+            '<div class="staff-row-meta">' + escapeHtml(metaParts.filter(Boolean).join(' · ')) + '</div>' +
+          '</div>' +
+          '<div class="staff-row-actions">' +
+            '<button type="button" class="btn-small btn-edit" data-id="' + p.id + '">แก้ไข</button>' +
+            '<button type="button" class="btn-small btn-delete" data-id="' + p.id + '">ลบ</button>' +
+          '</div>' +
+        '</div>';
+      }).join('') || '<p style="font-size:14px; color:var(--ink-muted);">ยังไม่มีบุคลากรในระบบ</p>';
+
+      listEl.querySelectorAll('.btn-edit').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var person = _staffCache.find(function(p) { return p.id === btn.dataset.id; });
+          if (person) startEdit(person);
+        });
+      });
+      listEl.querySelectorAll('.btn-delete').forEach(function(btn) {
+        btn.addEventListener('click', function() { handleDeleteStaff(btn.dataset.id); });
+      });
+    })
+    .catch(function() {
+      statusEl.textContent = '❌ โหลดรายชื่อไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองรีเฟรชหน้า';
+    });
+}
+
+function handleDeleteStaff(id) {
+  var person = _staffCache.find(function(p) { return p.id === id; });
+  var name = person ? person.full_name : 'คนนี้';
+  if (!confirm('ยืนยันลบ "' + name + '" ออกจากทำเนียบบุคลากร?')) return;
+
+  callRpc('staff_directory_delete', { p_password: _sessionPassword, p_id: id }).then(function(res) {
+    if (!res.success) {
+      alert('❌ ' + res.error);
+      return;
+    }
+    if (_editingId === id) resetFormToAddMode();
+    renderStaffList();
+  });
+}
+
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+</script>
+</body>
+</html>
