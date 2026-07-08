@@ -990,9 +990,13 @@ function generateDepositRegistry(p) {
   }
   const siId   = findSH(['id']);
   const siBank = findSH(['เลขบัญชี_ธกส', 'เลขบัญชีธกส', 'เลขบัญชี']);
+  const siRoll = findSH(['เลขที่']);
   const studMap = {};
   studAllData.slice(1).forEach(function(r) {
-    if (r[siId]) studMap[String(r[siId])] = { bankAccount: siBank >= 0 ? String(r[siBank] || '') : '' };
+    if (r[siId]) studMap[String(r[siId])] = {
+      bankAccount: siBank >= 0 ? String(r[siBank] || '') : '',
+      rollNo: siRoll >= 0 ? String(r[siRoll] || '') : ''
+    };
   });
 
   // อ่านธุรกรรม — dynamic header lookup
@@ -1005,6 +1009,7 @@ function generateDepositRegistry(p) {
   const tiId    = findTH(['id']);
   const tiStuId = findTH(['นักเรียน_id']);
   const tiName  = findTH(['ชื่อ']);
+  const tiGrade = findTH(['ชั้น']);
   const tiType  = findTH(['ประเภท']);
   const tiAmt   = findTH(['จำนวนเงิน']);
   const tiDate  = findTH(['วันที่']);
@@ -1035,18 +1040,22 @@ function generateDepositRegistry(p) {
   });
 
   // รวมยอดต่อคน (คนเดียวกันอาจฝากหลายครั้งในเดือนเดียว) — group by นักเรียน_id แล้ว sum
-  // เลขบัญชี: join จากชีตนักเรียนปัจจุบัน (สดตอนสร้างทะเบียน กันกรณีเพิ่งเพิ่มเลขบัญชีทีหลัง)
-  // ชื่อ: ใช้ snapshot จากธุรกรรมแรกที่เจอ ไม่พึ่ง join 100% กันชื่อหายถ้าลบนักเรียนไปแล้ว
+  // เลขบัญชี+เลขที่: join จากชีตนักเรียนปัจจุบัน (สดตอนสร้างทะเบียน กันกรณีเพิ่งเพิ่มเลขบัญชี/แก้เลขที่ทีหลัง)
+  // ชื่อ+ชั้น: ใช้ snapshot จากธุรกรรมแรกที่เจอของแต่ละคน (ไม่พึ่ง join 100%) — กันชื่อหายถ้าลบนักเรียนไปแล้ว
+  // และกันปัญหาเลื่อนชั้นแล้วยอดเก่าไปโผล่ผิดชั้น (ชั้น ณ ตอนฝากจริง ไม่ใช่ชั้นปัจจุบัน)
   const groups = {};
   const order = [];
   matches.forEach(function(r) {
     const stuId = String(r[tiStuId] || '');
     const key = stuId || ('name:' + String(r[tiName] || ''));
     if (!groups[key]) {
-      const info = studMap[stuId] || { bankAccount: '' };
+      const info = studMap[stuId] || { bankAccount: '', rollNo: '' };
       groups[key] = {
+        id: stuId,
         name: String(r[tiName] || ''),
+        grade: String(r[tiGrade] || ''),
         bankAccount: info.bankAccount || '',
+        rollNo: info.rollNo || '',
         amount: 0,
         count: 0
       };
@@ -1055,10 +1064,35 @@ function generateDepositRegistry(p) {
     groups[key].amount += parseFloat(r[tiAmt]) || 0;
     groups[key].count += 1;
   });
-  const rows = order.map(function(key) { return groups[key]; });
+  let rows = order.map(function(key) { return groups[key]; });
 
-  const totalAmount = rows.reduce(function(s, r) { return s + r.amount; }, 0);
-  const depositorCount = rows.length; // จำนวนคนจริง (ไม่ใช่จำนวนครั้งที่ฝาก)
+  // เรียงตามชั้น (ลำดับ GRADES) แล้วตามเลขที่ในชั้นเดียวกัน (คนไม่มีเลขที่ตกท้ายกลุ่มชั้นนั้น)
+  // ทำครั้งเดียวตอนนี้ก่อนแยก account/no-account — แยกทีหลังยังคงลำดับเดิมไว้ทั้งคู่
+  rows.sort(function(a, b) {
+    var ga = GRADES.indexOf(a.grade); if (ga < 0) ga = GRADES.length;
+    var gb = GRADES.indexOf(b.grade); if (gb < 0) gb = GRADES.length;
+    if (ga !== gb) return ga - gb;
+    var ra = parseInt(a.rollNo, 10), rb = parseInt(b.rollNo, 10);
+    var raOk = a.rollNo !== '' && a.rollNo != null && !isNaN(ra);
+    var rbOk = b.rollNo !== '' && b.rollNo != null && !isNaN(rb);
+    if (raOk && rbOk) return ra - rb;
+    if (raOk && !rbOk) return -1;
+    if (!raOk && rbOk) return 1;
+    var na = parseInt(String(a.id).replace('S', '')) || 0;
+    var nb = parseInt(String(b.id).replace('S', '')) || 0;
+    return na - nb;
+  });
+
+  // แยกคนมีเลขบัญชีกับไม่มี — Sheet1 (ส่งธนาคาร) เอาเฉพาะคนมีบัญชี, คนไม่มีบัญชีไปอยู่ Sheet3 ต่างหาก
+  const accountRows = rows.filter(function(r) { return r.bankAccount !== ''; });
+  const noAccountRows = rows.filter(function(r) { return r.bankAccount === ''; });
+
+  if (accountRows.length === 0) {
+    return { ok: false, error: 'มีคนฝากในเดือนนี้ แต่ยังไม่มีใครมีเลขบัญชี ธ.ก.ส. เลย ไม่สามารถสร้างทะเบียนส่งธนาคารได้' };
+  }
+
+  const totalAmount = accountRows.reduce(function(s, r) { return s + r.amount; }, 0);
+  const depositorCount = accountRows.length; // จำนวนคนจริงที่มีบัญชี (ไม่ใช่จำนวนครั้งที่ฝาก และไม่รวมคนไม่มีบัญชี)
   const dateSlug = (parsed.monthIdx + 1) + '-' + parsed.year; // เช่น "7-2569"
 
   // ==== Sheet1: ทะเบียนการรับฝากเงินประจำวัน ====
@@ -1081,19 +1115,42 @@ function generateDepositRegistry(p) {
     .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
   s1.setRowHeight(headerRow, 45);
 
+  // จัดกลุ่มเป็นช่วงต่อชั้น (ตามลำดับ GRADES) — ข้ามชั้นที่ไม่มีใครฝาก (accountRows เรียงชั้น+เลขที่มาแล้ว)
+  // ลำดับที่ (seq) ต่อเนื่องทั้งไฟล์ ไม่รีเซ็ตต่อชั้น ตาม Decision Log #19
   let row = headerRow + 1;
-  rows.forEach(function(r, i) {
-    // จำนวน กับ ยอดรวม เขียนจากตัวแปรเดียวกันเสมอ (r.amount) — กันบั๊กพิมพ์แยก 2 ที่ไม่ตรงกัน
-    // ที่เจอในไฟล์ตัวอย่างจริง (แถวลำดับที่ 93 ของกรกฎาคม 2568: จำนวน=0 แต่ยอดรวม=20)
-    // หมายเหตุ: โชว์จำนวนครั้งที่ฝากถ้ามากกว่า 1 (ยอดนี้เป็นผลรวมทั้งเดือน ไม่ใช่ฝากครั้งเดียว)
-    const note = r.count > 1 ? ('รวม ' + r.count + ' ครั้ง') : '';
-    s1.getRange(row, 1, 1, 7).setValues([[i + 1, r.bankAccount, r.name, r.amount, r.amount, receiverName, note]]);
-    s1.getRange(row, 1).setHorizontalAlignment('center');
-    s1.getRange(row, 4, 1, 2).setNumberFormat('#,##0').setHorizontalAlignment('right');
-    if ((i + 1) % 2 === 0) s1.getRange(row, 1, 1, 7).setBackground('#F2F2F2');
+  let seq = 1;
+  GRADES.forEach(function(g) {
+    const gradeRows = accountRows.filter(function(r) { return r.grade === g; });
+    if (!gradeRows.length) return;
+
+    // หัวข้อคั่นชั้น
+    s1.getRange(row, 1, 1, 7).merge();
+    s1.getRange(row, 1).setValue('ชั้น ' + g).setFontWeight('bold').setBackground('#D9D9D9').setHorizontalAlignment('left');
+    row++;
+
+    let gradeSubtotal = 0;
+    gradeRows.forEach(function(r) {
+      // จำนวน กับ ยอดรวม เขียนจากตัวแปรเดียวกันเสมอ (r.amount) — กันบั๊กพิมพ์แยก 2 ที่ไม่ตรงกัน
+      // ที่เจอในไฟล์ตัวอย่างจริง (แถวลำดับที่ 93 ของกรกฎาคม 2568: จำนวน=0 แต่ยอดรวม=20)
+      // หมายเหตุ: โชว์จำนวนครั้งที่ฝากถ้ามากกว่า 1 (ยอดนี้เป็นผลรวมทั้งเดือน ไม่ใช่ฝากครั้งเดียว)
+      const note = r.count > 1 ? ('รวม ' + r.count + ' ครั้ง') : '';
+      s1.getRange(row, 1, 1, 7).setValues([[seq, r.bankAccount, r.name, r.amount, r.amount, receiverName, note]]);
+      s1.getRange(row, 1).setHorizontalAlignment('center');
+      s1.getRange(row, 4, 1, 2).setNumberFormat('#,##0').setHorizontalAlignment('right');
+      if (seq % 2 === 0) s1.getRange(row, 1, 1, 7).setBackground('#F2F2F2');
+      gradeSubtotal += r.amount;
+      row++;
+      seq++;
+    });
+
+    // ยอดรวมย่อยต่อชั้น
+    s1.getRange(row, 1, 1, 7).setValues([['', '', 'รวมชั้น ' + g + ' (' + gradeRows.length + ' ราย)', gradeSubtotal, gradeSubtotal, '', '']]);
+    s1.getRange(row, 1, 1, 7).setFontWeight('bold').setBackground('#FFF2CC');
+    s1.getRange(row, 4, 1, 2).setNumberFormat('#,##0');
     row++;
   });
 
+  // ยอดรวมใหญ่ปิดท้ายทั้งหมด
   s1.getRange(row, 1, 1, 7).setValues([['', '', 'รวมทั้งหมด (' + depositorCount + ' ราย)', totalAmount, totalAmount, '', '']]);
   s1.getRange(row, 1, 1, 7).setFontWeight('bold').setBackground('#1C1917').setFontColor('#FFFFFF');
   s1.getRange(row, 4, 1, 2).setNumberFormat('#,##0');
@@ -1198,12 +1255,51 @@ function generateDepositRegistry(p) {
   s2.setColumnWidth(3, 110);
   s2.setColumnWidth(4, 110);
 
+  // ==== Sheet3: รายชื่อฝากจริงแต่ยังไม่มีเลขบัญชี ธ.ก.ส. (สร้างเฉพาะมีอย่างน้อย 1 คน) ====
+  // ตาราง flat ไม่จัดกลุ่มชั้น ไม่มี subtotal — เป็นแค่ note เตือน Pam ไม่ได้ส่งธนาคาร
+  let sheet3Name = null;
+  if (noAccountRows.length > 0) {
+    sheet3Name = 'ไม่มีบัญชี_' + dateSlug;
+    let s3 = ss.getSheetByName(sheet3Name);
+    if (s3) ss.deleteSheet(s3);
+    s3 = ss.insertSheet(sheet3Name);
+
+    s3.getRange('A1:F1').merge();
+    s3.getRange('A1').setValue('รายชื่อฝากเงินแต่ยังไม่มีเลขบัญชี ธ.ก.ส. — เดือน ' + rangeStr)
+      .setHorizontalAlignment('center').setFontWeight('bold').setFontSize(13);
+
+    const s3HeaderRow = 3;
+    const headers3 = ['ลำดับที่', 'ชื่อ', 'ชั้น', 'เลขที่', 'ยอดสะสมเดือนนี้', 'หมายเหตุ'];
+    s3.getRange(s3HeaderRow, 1, 1, 6).setValues([headers3]);
+    s3.getRange(s3HeaderRow, 1, 1, 6).setBackground('#92D050').setFontWeight('bold').setHorizontalAlignment('center');
+
+    let r3 = s3HeaderRow + 1;
+    noAccountRows.forEach(function(r, i) {
+      const note = r.count > 1 ? ('รวม ' + r.count + ' ครั้ง') : '';
+      s3.getRange(r3, 1, 1, 6).setValues([[i + 1, r.name, r.grade, r.rollNo || '', r.amount, note]]);
+      s3.getRange(r3, 1).setHorizontalAlignment('center');
+      s3.getRange(r3, 5).setNumberFormat('#,##0').setHorizontalAlignment('right');
+      if ((i + 1) % 2 === 0) s3.getRange(r3, 1, 1, 6).setBackground('#F2F2F2');
+      r3++;
+    });
+
+    s3.getRange(s3HeaderRow, 1, r3 - s3HeaderRow, 6).setBorder(true, true, true, true, true, true);
+    s3.setColumnWidth(1, 55);
+    s3.setColumnWidth(2, 180);
+    s3.setColumnWidth(3, 80);
+    s3.setColumnWidth(4, 70);
+    s3.setColumnWidth(5, 110);
+    s3.setColumnWidth(6, 100);
+  }
+
   const url = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/edit#gid=' + s1.getSheetId();
 
   return {
     ok: true,
     sheet1Name: sheet1Name,
     sheet2Name: sheet2Name,
+    sheet3Name: sheet3Name,
+    noAccountCount: noAccountRows.length,
     url: url,
     totalAmount: totalAmount,
     depositorCount: depositorCount
