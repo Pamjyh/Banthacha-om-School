@@ -77,10 +77,23 @@ async function generateDoc1(procItemId){
   const teacherName = (item.projects && item.projects.teacher_name) || '';
   const proposerStaff = findStaffByTeacherName(teacherName);
   const proposerPosition = proposerStaff ? (proposerStaff.position || '-') : '-';
+  // ใช้ชื่อ+คำนำหน้าจาก staff record ที่ match ได้ (format ถูกต้องเสมอ เช่น "นางสาวสุทามาศ")
+  // แทน teacher_name ดิบ — teacher_name บางที่เก็บเป็น "ครูสุทามาศ..." (คำนำหน้าไม่เป็นทางการ ดู
+  // auth.js:151-153, Q5-2) ไม่เหมาะพิมพ์บนเอกสารราชการ — fallback เป็น raw text เฉพาะหา staff ไม่เจอ
+  const proposerPrintName = proposerStaff ? (proposerStaff.prefix + proposerStaff.name) : teacherName;
   const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
   const projectName = (item.projects && item.projects.name) || '-';
-  // จำนวน "รายการ" = จำนวนแถวในตารางรายการย่อย (Stage 15) ของการซื้อ/จ้างครั้งนี้
-  const itemCount = (CURRENT_SUB_ITEMS && CURRENT_SUB_ITEMS.length) || 1;
+  // จำนวน "รายการ" — ดึงสดจาก DB (ไม่ใช้ CURRENT_SUB_ITEMS.length) เพราะ addSubItemRow()/removeSubItemRow()
+  // แก้ array ใน memory ตรงๆ ไม่เขียน DB จนกว่าจะกด "บันทึก" (procurement-detail.js:320-331) — ถ้าใช้
+  // ค่า in-memory เอกสารอาจโชว์จำนวนรายการที่ยังไม่ถูกบันทึกจริง ขัดกับที่ปุ่มสัญญาไว้ว่า "ดึงจาก DB เท่านั้น"
+  // (scrutinize 2026-07-08)
+  let itemCount = 1;
+  try{
+    const subRows = await GET('procurement_sub_items', 'procurement_item_id=eq.'+procItemId+'&select=id');
+    itemCount = (subRows && subRows.length) || 1;
+  }catch(e){
+    itemCount = (CURRENT_SUB_ITEMS && CURRENT_SUB_ITEMS.length) || 1; // fallback ถ้า network พลาด ดีกว่า block การพิมพ์
+  }
   // "เพื่อ..." (วัตถุประสงค์) — ใช้ tor_objective ถ้ากรอกไว้ (เอกสารจริงไม่ได้บังคับผ่าน TOR ก่อนเสมอ
   // สำหรับงานวงเงินต่ำ) ถ้ายังไม่กรอกใช้ชื่อรายการแทนเป็น fallback
   const purpose = detail.tor_objective || item.title || '-';
@@ -88,15 +101,19 @@ async function generateDoc1(procItemId){
   // ไม่มี prefix (prefix โผล่เฉพาะใบสั่งซื้อ/สั่งจ้างจริง Doc 13/14) — ตัด prefix ตัวอักษร+จุดออก
   const bareDocNumber = (detail.doc_number || '').replace(/^[ก-๙]+\./, '');
 
-  thaiText(doc, 'ส่วนราชการ  '+SCHOOL_FULL_NAME+' '+SCHOOL_EDU_OFFICE_ABBR+'  ที่  '+bareDocNumber, 25, 52);
-  thaiText(doc, 'วันที่  '+fmtDateThai(detail.date_request), 25, 59);
+  // แยก "ส่วนราชการ" กับ "ที่/วันที่" เป็นคนละแถว (เดิม commit 0ed91a3 รวมบรรทัดเดียวตามลำดับ text ที่
+  // OCR extract มาจากไฟล์จริง ซึ่งไม่ใช่ตำแหน่ง visual จริง — รวมกันยาว ~60 ตัวอักษรเสี่ยงล้นขอบกระดาษ
+  // กว้าง 160mm ที่ font 16pt — ทั้ง 17 ไฟล์อ้างอิงจริงแยกเป็นคนละแถวเสมอ, scrutinize 2026-07-08)
+  thaiText(doc, 'ส่วนราชการ  '+SCHOOL_FULL_NAME+' '+SCHOOL_EDU_OFFICE_ABBR, 25, 52);
+  thaiText(doc, 'ที่  '+bareDocNumber, 25, 59);
+  thaiText(doc, 'วันที่  '+fmtDateThai(detail.date_request), 105, 59);
   thaiText(doc, 'เรื่อง  ขออนุมัติดำเนินงานตามโครงการ'+projectName, 25, 66);
   doc.line(25, 70, 185, 70);
   thaiText(doc, 'เรียน  ผู้อำนวยการ'+SCHOOL_FULL_NAME, 25, 77);
 
   let y = 87;
   const bodyLines = [
-    '     ด้วยข้าพเจ้า '+teacherName+' ตำแหน่ง '+proposerPosition+' '+SCHOOL_FULL_NAME+' ขออนุมัติตามที่',
+    '     ด้วยข้าพเจ้า '+proposerPrintName+' ตำแหน่ง '+proposerPosition+' '+SCHOOL_FULL_NAME+' ขออนุมัติตามที่',
     'ได้รับอนุญาตให้ดำเนินงานตามโครงการ'+projectName+' และขออนุมัติจัด'+buyOrHire+' จำนวน '+itemCount+' รายการ',
     'เป็นเงิน '+fmt(item.amount)+' บาท ('+thaiBahtText(item.amount)+') เพื่อ'+purpose,
     'ตามรายละเอียดในแบบประมาณการจัด'+buyOrHire+'ดังแนบ',
@@ -112,9 +129,11 @@ async function generateDoc1(procItemId){
   y += 10;
   thaiText(doc, '( ) เห็นชอบ   ( ) อนุมัติ', 115, y);
 
+  // เส้นเซ็นวาดเสมอ (ไม่ผูกกับ director) — คนจริงยังต้องมีที่เซ็นแม้หา staff record ของ ผอ. ไม่เจอ
+  // (เช่น ช่วงเปลี่ยนตัว ผอ. ข้อมูลว่างชั่วคราว) ส่วนชื่อ/ตำแหน่งพิมพ์กำกับค่อยขึ้นกับว่าหาเจอมั้ย (scrutinize 2026-07-08)
+  y += 14;
+  thaiText(doc, 'ลงชื่อ .......................................', 115, y);
   if(director){
-    y += 14;
-    thaiText(doc, 'ลงชื่อ .......................................', 115, y);
     y += 8;
     thaiText(doc, '(' + (director.prefix||'') + director.name + ')', 150, y, {align:'center'});
     y += 8;
