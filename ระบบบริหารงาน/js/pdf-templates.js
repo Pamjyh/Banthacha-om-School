@@ -15,6 +15,13 @@
 const SCHOOL_FULL_NAME = 'โรงเรียนบ้านท่าชะอม';
 const SCHOOL_EDU_OFFICE_ABBR = 'สพป.อุทัยธานี เขต 2';
 
+// ขอบซ้าย/ขวาของเนื้อหา (มม.) — เดิมใช้ x=25/185 (เว้นขอบข้างละ 25mm) กว้างเกินไปเทียบกับไฟล์จริง
+// Pam เทียบภาพ screenshot ข้างๆ กันแล้วพบว่าไฟล์จริงเว้นขอบแค่ ~15mm ต่อข้าง (เนื้อหากว้างเกือบเต็มหน้า
+// มากกว่านี้ชัดเจน) ปรับ margin ให้แคบลงตามของจริง — ครุฑยังอยู่ตำแหน่งเดิม (คำนวณจาก page center
+// ไม่ผูกกับ margin พวกนี้) (scrutinize/Pam ทดสอบจริง 2026-07-08)
+const PAGE_LEFT = 15;
+const PAGE_RIGHT = 195;
+
 const PD_DOC_NAMES = {
   1:'ขอดำเนิน', 2:'แนบขอดำเนิน', 3:'ขออนุมัติTOR', 4:'คำสั่งTOR', 5:'เห็นชอบTOR',
   6:'ขอบเขตงาน', 7:'แนบTOR', 8:'ขอซื้อจ้าง', 9:'แนบท้าย', 10:'พิจารณา',
@@ -58,19 +65,37 @@ function thaiTextWrapped(doc, text, x, y, maxWidth, lineHeight, firstLineIndent)
   const words = String(text).split(' ').filter(function(w){ return w !== ''; });
   let line = '';
   let firstLine = true;
+  function curX(){ return x + (firstLine ? (firstLineIndent||0) : 0); }
+  function curAvail(){ return maxWidth - (firstLine ? (firstLineIndent||0) : 0); }
+  function newLine(){
+    if(line){ thaiText(doc, line, curX(), y); y += lineHeight; }
+    line = '';
+    firstLine = false;
+  }
   for(let i = 0; i < words.length; i++){
-    const test = line ? (line + ' ' + words[i]) : words[i];
-    const lineX = firstLine ? x + (firstLineIndent||0) : x;
-    if(line && doc.getTextWidth(test) > maxWidth - (firstLine ? (firstLineIndent||0) : 0)){
-      thaiText(doc, line, lineX, y);
+    let word = words[i];
+    // ประโยคไทยส่วนใหญ่ไม่มีการเว้นวรรคระหว่างคำ (ต่างจากอังกฤษ) ดังนั้น "คำ" ที่ได้จาก split(' ') อาจเป็น
+    // ประโยคทั้งท่อนยาวมากที่ไม่มีวรรคเลยแม้แต่ตัวเดียว — ถ้าคำเดี่ยวนี้กว้างเกิน maxWidth เองทั้งบรรทัด
+    // ต้องตัดกลางคำแบบ char-by-char ไม่งั้นจะไม่มีทางแตกบรรทัดได้เลย ล้นขอบกระดาษ (เจอจริงจาก node harness
+    // ทดสอบ 2026-07-08 — "ขออนุมัติตามที่ได้รับอนุญาตให้ดำเนินงานตามโครงการ..." ยาวไม่มีวรรคเลย วิ่งเลยขอบขวา)
+    while(doc.getTextWidth(word) > curAvail()){
+      if(line){ newLine(); continue; }
+      let cut = 1;
+      while(cut < word.length && doc.getTextWidth(word.slice(0, cut + 1)) <= curAvail()){ cut++; }
+      thaiText(doc, word.slice(0, cut), curX(), y);
       y += lineHeight;
-      line = words[i];
       firstLine = false;
+      word = word.slice(cut);
+    }
+    const test = line ? (line + ' ' + word) : word;
+    if(line && doc.getTextWidth(test) > curAvail()){
+      newLine();
+      line = word;
     } else {
       line = test;
     }
   }
-  if(line){ thaiText(doc, line, firstLine ? x + (firstLineIndent||0) : x, y); y += lineHeight; }
+  if(line){ thaiText(doc, line, curX(), y); y += lineHeight; }
   return y;
 }
 
@@ -135,18 +160,18 @@ async function generateDoc1(procItemId){
   // แยก "ส่วนราชการ" กับ "ที่/วันที่" เป็นคนละแถว (เดิม commit 0ed91a3 รวมบรรทัดเดียวตามลำดับ text ที่
   // OCR extract มาจากไฟล์จริง ซึ่งไม่ใช่ตำแหน่ง visual จริง — รวมกันยาว ~60 ตัวอักษรเสี่ยงล้นขอบกระดาษ
   // กว้าง 160mm ที่ font 16pt — ทั้ง 17 ไฟล์อ้างอิงจริงแยกเป็นคนละแถวเสมอ, scrutinize 2026-07-08)
-  // เนื้อหากว้างสูงสุด 155mm (เขตเขียนจริง 25-185mm เผื่อ safety margin 5mm) — ทุกบรรทัดที่ยาวขึ้นกับ
+  // เนื้อหากว้างสูงสุด (เขตเขียนจริง PAGE_LEFT-PAGE_RIGHT เผื่อ safety margin 5mm) — ทุกบรรทัดที่ยาวขึ้นกับ
   // ข้อมูล (ชื่อโครงการ/จำนวนเงิน ฯลฯ) ต้องผ่าน thaiTextWrapped ไม่ใช่ thaiText ตรงๆ กันล้นขอบ (scrutinize
   // + Pam ทดสอบจริง 2026-07-08 พบ "และขออนุมัติ...จำนวน...รายการ" วิ่งเลยขอบขวา)
-  const CONTENT_MAX_WIDTH = 155;
-  thaiText(doc, 'ส่วนราชการ  '+SCHOOL_FULL_NAME+' '+SCHOOL_EDU_OFFICE_ABBR, 25, 52);
-  thaiText(doc, 'ที่  '+bareDocNumber, 25, 59);
-  thaiText(doc, 'วันที่  '+fmtDateThai(detail.date_request), 105, 59);
-  let y = thaiTextWrapped(doc, 'เรื่อง  ขออนุมัติดำเนินงานตามโครงการ'+projectName, 25, 66, CONTENT_MAX_WIDTH, 7);
+  const CONTENT_MAX_WIDTH = (PAGE_RIGHT - PAGE_LEFT) - 5;
+  thaiText(doc, 'ส่วนราชการ  '+SCHOOL_FULL_NAME+' '+SCHOOL_EDU_OFFICE_ABBR, PAGE_LEFT, 52);
+  thaiText(doc, 'ที่  '+bareDocNumber, PAGE_LEFT, 59);
+  thaiText(doc, 'วันที่  '+fmtDateThai(detail.date_request), PAGE_LEFT + 80, 59);
+  let y = thaiTextWrapped(doc, 'เรื่อง  ขออนุมัติดำเนินงานตามโครงการ'+projectName, PAGE_LEFT, 66, CONTENT_MAX_WIDTH, 7);
   y += 2;
-  doc.line(25, y, 185, y);
+  doc.line(PAGE_LEFT, y, PAGE_RIGHT, y);
   y += 7;
-  thaiText(doc, 'เรียน  ผู้อำนวยการ'+SCHOOL_FULL_NAME, 25, y);
+  thaiText(doc, 'เรียน  ผู้อำนวยการ'+SCHOOL_FULL_NAME, PAGE_LEFT, y);
   y += 10;
 
   // ย่อหน้า 1 — ต่อเป็น string เดียวแล้วให้ wrap function จัดบรรทัดเอง (ไม่ pre-split มือแบบเดิมที่แต่ละ
@@ -157,11 +182,11 @@ async function generateDoc1(procItemId){
     ' ขออนุมัติตามที่ได้รับอนุญาตให้ดำเนินงานตามโครงการ'+projectName+' และขออนุมัติ'+buyOrHire+
     ' จำนวน '+itemCount+' รายการ เป็นเงิน '+fmt(item.amount)+' บาท ('+thaiBahtText(item.amount)+
     ') เพื่อ'+purpose+' ตามรายละเอียดในแบบประมาณการ'+buyOrHire+'ดังแนบ';
-  y = thaiTextWrapped(doc, para1, 25, y, CONTENT_MAX_WIDTH, 7, 8);
+  y = thaiTextWrapped(doc, para1, PAGE_LEFT, y, CONTENT_MAX_WIDTH, 7, 8);
 
   y += 10;
   const para2 = 'จึงเรียนมาเพื่อโปรดพิจารณาเห็นชอบและอนุมัติ';
-  y = thaiTextWrapped(doc, para2, 25, y, CONTENT_MAX_WIDTH, 7, 8);
+  y = thaiTextWrapped(doc, para2, PAGE_LEFT, y, CONTENT_MAX_WIDTH, 7, 8);
 
   // กันเนื้อหายาวเกินหน้ากระดาษดันบล็อกลายเซ็นหลุดออกนอกหน้าไปเงียบๆ (silent failure) — "วัตถุประสงค์"
   // (tor_objective) เป็น textarea อิสระไม่จำกัดความยาว ถ้ากรอกยาวมาก wrap หลายบรรทัดจน y เกินหน้า A4
@@ -174,21 +199,23 @@ async function generateDoc1(procItemId){
   }
 
   y += 13;
-  thaiText(doc, 'ผู้รับผิดชอบโครงการ', 25, y);
-  thaiText(doc, 'ความเห็นของผู้อำนวยการ'+SCHOOL_FULL_NAME, 115, y);
-  doc.line(25, y + 3, 90, y + 3);   // เว้นบรรทัดเซ็นผู้เสนอ (เอกสารจริงไม่มีชื่อพิมพ์กำกับ — ชื่ออยู่ในเนื้อหาแล้ว)
+  // ตัดชื่อโรงเรียนออกจากหัวคอลัมน์นี้ — เอกสารระบุ "เรียน ผู้อำนวยการ{ชื่อโรงเรียน}" ไปแล้วก่อนหน้า ใส่ซ้ำที่นี่
+  // แค่ทำให้บรรทัดยาวเกินความกว้างคอลัมน์ (~90mm) ล้นขอบขวากระดาษ (เจอจริงจาก node harness 2026-07-08)
+  thaiText(doc, 'ผู้รับผิดชอบโครงการ', PAGE_LEFT, y);
+  thaiText(doc, 'ความเห็นของผู้อำนวยการ', PAGE_LEFT + 90, y);
+  doc.line(PAGE_LEFT, y + 3, PAGE_LEFT + 65, y + 3);   // เว้นบรรทัดเซ็นผู้เสนอ (เอกสารจริงไม่มีชื่อพิมพ์กำกับ — ชื่ออยู่ในเนื้อหาแล้ว)
   y += 10;
-  thaiText(doc, '( ) เห็นชอบ   ( ) อนุมัติ', 115, y);
+  thaiText(doc, '( ) เห็นชอบ   ( ) อนุมัติ', PAGE_LEFT + 90, y);
 
   // เส้นเซ็นวาดเสมอ (ไม่ผูกกับ director) — คนจริงยังต้องมีที่เซ็นแม้หา staff record ของ ผอ. ไม่เจอ
   // (เช่น ช่วงเปลี่ยนตัว ผอ. ข้อมูลว่างชั่วคราว) ส่วนชื่อ/ตำแหน่งพิมพ์กำกับค่อยขึ้นกับว่าหาเจอมั้ย (scrutinize 2026-07-08)
   y += 14;
-  thaiText(doc, 'ลงชื่อ .......................................', 115, y);
+  thaiText(doc, 'ลงชื่อ .......................................', PAGE_LEFT + 90, y);
   if(director){
     y += 8;
-    thaiText(doc, '(' + (director.prefix||'') + director.name + ')', 150, y, {align:'center'});
+    thaiText(doc, '(' + (director.prefix||'') + director.name + ')', PAGE_LEFT + 125, y, {align:'center'});
     y += 8;
-    thaiText(doc, 'ผู้อำนวยการ'+SCHOOL_FULL_NAME, 150, y, {align:'center'});
+    thaiText(doc, 'ผู้อำนวยการ'+SCHOOL_FULL_NAME, PAGE_LEFT + 125, y, {align:'center'});
   }
 
   // ชื่อไฟล์ยังใช้ doc_number เต็ม (มี prefix ซ./จ.) ตาม BLUEPRINT §6.7 — bareDocNumber ใช้แค่พิมพ์ในเอกสาร
