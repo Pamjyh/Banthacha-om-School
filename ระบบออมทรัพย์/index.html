@@ -2249,14 +2249,27 @@ function renderAdTab(tab) {
 // ===== ทะเบียนฝากธนาคาร (bank deposit registry) =====
 // ดู BLUEPRINT-bank-deposit-registry.md / CONSTRUCTION_PLAN-bank-deposit-registry.md
 function renderBk(c) {
+  // ใช้ select เดือน+ปี แยก 2 ช่อง แทน <input type="month"> เพราะ Safari รองรับ type="month" ไม่ดี
+  // (บางเวอร์ชัน fallback เป็น text ธรรมดา ไม่มี picker ให้เลือกเลย)
   var today = new Date(Date.now() + 7*60*60*1000);
-  var todayISO = today.getUTCFullYear() + '-' + String(today.getUTCMonth()+1).padStart(2,'0') + '-' + String(today.getUTCDate()).padStart(2,'0');
+  var curM = today.getUTCMonth(); // 0-11
+  var curY = today.getUTCFullYear() + 543; // พ.ศ.
+  var monthOpts = MONTHS_SHORT.map(function(m, i) {
+    return '<option value="'+i+'"'+(i===curM?' selected':'')+'>'+m+'</option>';
+  }).join('');
+  var yearOpts = '';
+  for (var y = curY; y >= curY - 2; y--) {
+    yearOpts += '<option value="'+y+'"'+(y===curY?' selected':'')+'>'+y+'</option>';
+  }
   c.innerHTML =
     '<div class="ic"><div class="ic-t">🏦 สร้างทะเบียนรับฝากส่งธนาคาร</div>'+
-    '<div class="ic-d">เลือกวันที่ที่ต้องการ ระบบจะรวมยอดฝากทุกชั้นเป็นทะเบียนเดียว พร้อมใบปะหน้านำฝาก ธ.ก.ส. ให้อัตโนมัติ (เฉพาะคนที่ฝากจริงวันนั้น ไม่รวม "ถอน")</div>'+
-    '<label style="display:block;font-size:13px;color:var(--ts);margin:10px 0 4px">วันที่</label>'+
-    '<input class="minp" type="date" id="bk-date" value="'+todayISO+'" style="margin-bottom:10px">'+
-    '<label style="display:block;font-size:13px;color:var(--ts);margin:0 0 4px">เลขที่เอกสาร</label>'+
+    '<div class="ic-d">เลือกเดือนที่ต้องการ ระบบจะรวมยอดฝากทั้งเดือนของทุกชั้นเป็นทะเบียนเดียว (รวมยอดสะสมต่อคน ถ้าฝากหลายครั้ง) พร้อมใบปะหน้านำฝาก ธ.ก.ส. ให้อัตโนมัติ (เฉพาะยอดฝากจริง ไม่รวม "ถอน")</div>'+
+    '<label style="display:block;font-size:13px;color:var(--ts);margin:10px 0 4px">เดือน</label>'+
+    '<div style="display:flex;gap:8px">'+
+    '<select class="minp" id="bk-month" style="flex:1.3">'+monthOpts+'</select>'+
+    '<select class="minp" id="bk-year" style="flex:1">'+yearOpts+'</select>'+
+    '</div>'+
+    '<label style="display:block;font-size:13px;color:var(--ts);margin:2px 0 4px">เลขที่เอกสาร</label>'+
     '<input class="minp" id="bk-docno" placeholder="เช่น 003" style="margin-bottom:10px">'+
     '<label style="display:block;font-size:13px;color:var(--ts);margin:0 0 4px">ผู้รับเงิน</label>'+
     '<input class="minp" id="bk-receiver" placeholder="ชื่อผู้รับฝาก" style="margin-bottom:14px">'+
@@ -2266,22 +2279,19 @@ function renderBk(c) {
 }
 
 function submitBk() {
-  var dateEl = document.getElementById('bk-date');
+  var monthEl = document.getElementById('bk-month');
+  var yearEl = document.getElementById('bk-year');
   var docNo = document.getElementById('bk-docno').value.trim();
   var receiver = document.getElementById('bk-receiver').value.trim();
   var errEl = document.getElementById('bk-err');
   var resEl = document.getElementById('bk-result');
   errEl.style.display='none'; resEl.innerHTML='';
-  if (!dateEl.value) { errEl.textContent='กรุณาเลือกวันที่'; errEl.style.display='block'; return; }
   if (!receiver) { errEl.textContent='กรุณากรอกชื่อผู้รับเงิน'; errEl.style.display='block'; return; }
 
-  // แปลง yyyy-mm-dd (จาก <input type=date>) -> "D MMM YYYY" แบบเดียวกับที่ระบบเก็บ (เดือนย่อไทย, ปี พ.ศ.)
-  // พาร์สจาก string ตรงๆ ไม่ผ่าน Date object เพื่อกัน timezone เพี้ยนวันข้ามคืน
-  var parts = dateEl.value.split('-'); // [YYYY, MM, DD]
-  var y = parseInt(parts[0],10) + 543;
-  var m = parseInt(parts[1],10) - 1;
-  var d = parseInt(parts[2],10);
-  var dateStr = d + ' ' + MONTHS_SHORT[m] + ' ' + y;
+  // "MMM YYYY" แบบเดียวกับที่ backend parseThaiMonthStr คาด (เดือนย่อไทย, ปี พ.ศ., ไม่มีวัน)
+  var m = parseInt(monthEl.value, 10);
+  var y = parseInt(yearEl.value, 10);
+  var dateStr = MONTHS_SHORT[m] + ' ' + y;
 
   var btn = document.getElementById('bk-btn');
   btn.disabled = true; btn.textContent = '⏳ กำลังสร้าง...';

@@ -1,8 +1,23 @@
 # BLUEPRINT — bank-deposit-registry
 
-Version 1.0 — Approved design, NOT yet built.
-Status: locked via grill-to-build (normal mode), 2026-07-07. Awaiting explicit build approval.
+Version 1.1 — Built + shipped, pivoted from รายวัน → รายเดือน after real-world test (2026-07-07 กลางคืน).
+Status: Version 1.0 (รายวัน) ถูก build+commit แล้ว (`4a5d996`) ตาม scope เดิมด้านล่างทั้งหมด แต่หลัง Pam ทดสอบจริง (deploy แล้ว กดใช้งาน) พบว่าการฝากธนาคารจริงของโรงเรียนนี้ทำ **เดือนละครั้ง ไม่ใช่วันละครั้ง** (เงินสดสะสมไว้ก่อน ค่อยเอาไปฝากทีเดียว) — Pam ยืนยันชัดเจนสองครั้งว่าต้องการรายเดือน จึงแก้ code จริงให้เป็นรายเดือนแล้ว (commit ถัดจาก `4a5d996`) ส่วน "หัวข้อ 1-9" ด้านล่างคือ spec ฉบับ**รายวันดั้งเดิม**ที่เก็บไว้อ้างอิงประวัติการตัดสินใจ — **ของจริงที่รันอยู่คือฉบับรายเดือนตามหัวข้อ "PIVOT: รายวัน → รายเดือน" ด้านล่างนี้** ให้ยึดหัวข้อ pivot เป็นหลักเสมอถ้าขัดกับเนื้อหาเดิมด้านล่าง
 This file is the self-contained source of truth for this feature. A builder with zero prior context should be able to implement it from this file alone (plus the referenced source files in the repo).
+
+---
+
+## PIVOT: รายวัน → รายเดือน (2026-07-07 กลางคืน)
+
+**อะไรเปลี่ยน:**
+- Input: จาก "เลือกวันที่" (`<input type=date>` → "D MMM YYYY") เป็น "เลือกเดือน+ปี" (2 select dropdown เดือน/ปี พ.ศ. → "MMM YYYY" ไม่มีวัน) — **ไม่ใช้ `<input type=month>`** เพราะ Safari (เบราว์เซอร์ที่ Pam ใช้จริง) รองรับ `type=month` ไม่ดี บาง version fallback เป็น text ธรรมดาไม่มี picker
+- Backend filter: จาก prefix-match string ทั้งวัน เปลี่ยนเป็น parse วันที่ของแต่ละธุรกรรม (`parseThaiDateStr`) แล้วเทียบเฉพาะ `monthIdx`+`year` — ทนกว่าเดิมด้วย (ไม่มีปัญหา "7" ไปแมตช์ "17" แบบที่ระวังไว้ตอน prefix match รายวัน)
+- **Aggregation ใหม่ที่ไม่มีในฉบับรายวัน**: คนเดียวกันฝากได้หลายครั้งในหนึ่งเดือน ต้อง group by `นักเรียน_id` แล้ว sum ยอด — Sheet1 จึงมี **1 แถวต่อคน (ไม่ใช่ 1 แถวต่อ transaction)** คอลัมน์ "หมายเหตุ" โชว์ "รวม N ครั้ง" ถ้าฝากมากกว่า 1 ครั้ง เพื่อความโปร่งใส
+- `depositorCount`/ยอดรวม: นับจากจำนวนคนจริง (distinct) ไม่ใช่จำนวน transaction — แก้ side-effect เดิมที่ถ้าใครฝาก 2 ครั้งในวันเดียวจะถูกนับซ้ำเป็น 2 "ราย" ผิดๆ (ฉบับรายวันเดิมมีบั๊กแฝงนี้อยู่โดยไม่รู้ตัว ฉบับรายเดือนแก้ให้ถูกไปในตัว)
+- Sheet naming: `dateSlug` จาก `D-M-Y` (เช่น `7-7-2569`) เหลือแค่ `M-Y` (เช่น `7-2569`)
+- หัวเอกสาร: "ประจำวันที่" → "ประจำเดือน" ทั้ง Sheet1 (A3) และ Sheet2 (A3)
+- Guard กันลบทับข้อมูลนับเงินสด (Sheet2) ยังใช้เหมือนเดิมทุกประการ — สำคัญขึ้นด้วยซ้ำเพราะตอนนี้เป็นการนับเงินสดสะสมทั้งเดือน ถ้าลบทับเสียหายกว่าเดิม
+
+**สิ่งที่ไม่เปลี่ยน**: Sheet1 คอลัมน์ (ลำดับที่/เลขที่บัญชี/ชื่อบัญชี/จำนวน/ยอดรวม/ผู้รับเงิน/หมายเหตุ), Sheet2 ทั้งหมด (denomination table, สูตร, ลายเซ็น), auth gate, join กับเลขบัญชีจากชีตนักเรียนสด, ชื่อใช้ snapshot จากธุรกรรม, error handling pattern
 
 ---
 

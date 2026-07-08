@@ -3,6 +3,8 @@
 Companion to `BLUEPRINT-bank-deposit-registry.md`. วิธีทำงาน: สร้าง → ทดสอบ → ผ่าน (create → test → pass)
 Output target: Code.gs (GAS) ของระบบออมทรัพย์ + index.html หน้า admin — ต้อง paste Code.gs เข้า GAS editor + redeploy + git push ตามขั้นตอนปกติของโปรเจกต์นี้ (ดู CLAUDE_HANDOFF.md)
 
+**⚠️ PIVOT 2026-07-07**: Stage ทั้งหมดด้านล่างสร้างตาม spec รายวันดั้งเดิม (ship แล้วที่ `4a5d996`) แต่หลังทดสอบจริง Pam ยืนยันว่าต้องการ**รายเดือน**ไม่ใช่รายวัน — แก้ไขแล้วในโค้ดจริง (commit ถัดไป) ดูรายละเอียดการเปลี่ยนที่หัวข้อ "PIVOT: รายวัน → รายเดือน" ใน BLUEPRINT ก่อนอ้างอิง stage ไหนด้านล่างนี้ (ตรรกะ core ยังเหมือนเดิม เปลี่ยนแค่ granularity ของวันที่ + เพิ่ม aggregation ต่อคน)
+
 ---
 
 ## วิธีอ่านเอกสารนี้ (สำหรับ Pam)

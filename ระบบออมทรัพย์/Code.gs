@@ -945,18 +945,28 @@ function parseThaiDateStr(dateStr) {
   return { day: day, monthIdx: monthIdx, year: year };
 }
 
+// สำหรับ generateDepositRegistry เท่านั้น — รับ "MMM YYYY" (ไม่มีวัน) เช่น "ก.ค. 2569"
+function parseThaiMonthStr(monthStr) {
+  var parts = String(monthStr || '').trim().split(' ').filter(function(x){ return x !== ''; });
+  if (parts.length < 2) return null;
+  var monthIdx = THAI_MONTHS.indexOf(parts[0]);
+  var year = parseInt(parts[1], 10);
+  if (monthIdx < 0 || isNaN(year)) return null;
+  return { monthIdx: monthIdx, year: year };
+}
+
 function generateDepositRegistry(p) {
   if (p.password !== ADMIN_PASSWORD) return { ok: false, error: 'เฉพาะผู้ดูแล' };
 
-  // dateStr ต้องเป็น "D MMM YYYY" ไม่มีเวลา (ต่างจาก "วันที่" ใน sheet ธุรกรรมที่มีเวลาต่อท้ายเสมอ
-  // เช่น "7 ก.ค. 2569 14:30" — เพราะงั้นกรองด้วย prefix match เท่านั้น ห้าม === ตรงๆ)
-  const dateStr = String(p.date || '').trim();
+  // rangeStr เป็น "MMM YYYY" (ไม่มีวัน) เช่น "ก.ค. 2569" — รวมยอดฝากทั้งเดือนเป็นทะเบียนเดียว
+  // (Pam ยืนยัน 2026-07-07 ว่าต้องการรายเดือน ไม่ใช่รายวัน — สอดคล้องกับที่เงินสดสะสมไว้แล้วค่อยฝากธนาคารทีเดียวต่อเดือน)
+  const rangeStr = String(p.date || '').trim();
   const docNo = String(p.docNo || '').trim();
   const receiverName = String(p.receiverName || '').trim();
-  if (!dateStr) return { ok: false, error: 'กรุณาระบุวันที่' };
+  if (!rangeStr) return { ok: false, error: 'กรุณาระบุเดือน' };
 
-  const parsed = parseThaiDateStr(dateStr);
-  if (!parsed) return { ok: false, error: 'รูปแบบวันที่ไม่ถูกต้อง (' + dateStr + ')' };
+  const parsed = parseThaiMonthStr(rangeStr);
+  if (!parsed) return { ok: false, error: 'รูปแบบเดือนไม่ถูกต้อง (' + rangeStr + ')' };
 
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const txSheet = ss.getSheetByName('ธุรกรรม');
@@ -991,19 +1001,22 @@ function generateDepositRegistry(p) {
   const tiAmt   = findTH(['จำนวนเงิน']);
   const tiDate  = findTH(['วันที่']);
 
-  // เฉพาะ "ฝาก" เท่านั้น (ไม่รวม "ถอน" แม้เกิดวันเดียวกัน) + prefix match วันที่
+  // เฉพาะ "ฝาก" เท่านั้น (ไม่รวม "ถอน") + อยู่ในเดือน/ปีที่เลือก
+  // เทียบด้วย parseThaiDateStr ของแต่ละธุรกรรมเอง (ตัดวัน/เวลาทิ้ง เหลือแค่ monthIdx+year) ไม่ใช้ string match
+  // เพราะทนกว่า — ไม่ต้องกังวลเรื่อง "7" ไปแมตช์ "17" แบบ prefix match ของเวอร์ชันรายวันเดิม
   const matches = txAllData.slice(1).filter(function(r) {
     if (!r[tiId]) return false;
     if (String(r[tiType] || '') !== 'ฝาก') return false;
     if ((parseFloat(r[tiAmt]) || 0) <= 0) return false; // เฉพาะฝากจริง >0 บาท (กันแถวผิดพลาดถ้าใครแก้ sheet มือ)
-    return String(r[tiDate] || '').indexOf(dateStr) === 0;
+    const txParsed = parseThaiDateStr(String(r[tiDate] || ''));
+    return txParsed && txParsed.monthIdx === parsed.monthIdx && txParsed.year === parsed.year;
   });
 
   if (!matches.length) {
-    return { ok: false, error: 'ไม่พบธุรกรรมฝากในวันที่ ' + dateStr };
+    return { ok: false, error: 'ไม่พบธุรกรรมฝากในเดือน ' + rangeStr };
   }
 
-  // เรียงตามเวลาฝากจริง (id = "T<epoch ms>") — สะท้อนลำดับที่มารับฝากจริง
+  // เรียงตามเวลาฝากจริง (id = "T<epoch ms>") — สะท้อนลำดับที่มารับฝากครั้งแรกในเดือนนั้น
   matches.sort(function(a, b) {
     var ma = String(a[tiId]).match(/^T(\d+)$/);
     var mb = String(b[tiId]).match(/^T(\d+)$/);
@@ -1012,21 +1025,32 @@ function generateDepositRegistry(p) {
     return na - nb;
   });
 
-  // join กับเลขบัญชี ธกส. — ถ้านักเรียนถูกลบ/ไม่มีเลขบัญชี เว้นว่างไว้ ไม่ตัดแถวออก
-  // ชื่อใช้ snapshot ที่บันทึกไว้ในธุรกรรมเอง (tiName) ไม่พึ่ง join 100% กันชื่อหายถ้าลบนักเรียนไปแล้ว
-  const rows = matches.map(function(r) {
+  // รวมยอดต่อคน (คนเดียวกันอาจฝากหลายครั้งในเดือนเดียว) — group by นักเรียน_id แล้ว sum
+  // เลขบัญชี: join จากชีตนักเรียนปัจจุบัน (สดตอนสร้างทะเบียน กันกรณีเพิ่งเพิ่มเลขบัญชีทีหลัง)
+  // ชื่อ: ใช้ snapshot จากธุรกรรมแรกที่เจอ ไม่พึ่ง join 100% กันชื่อหายถ้าลบนักเรียนไปแล้ว
+  const groups = {};
+  const order = [];
+  matches.forEach(function(r) {
     const stuId = String(r[tiStuId] || '');
-    const info = studMap[stuId] || { bankAccount: '' };
-    return {
-      name: String(r[tiName] || ''),
-      bankAccount: info.bankAccount || '',
-      amount: parseFloat(r[tiAmt]) || 0
-    };
+    const key = stuId || ('name:' + String(r[tiName] || ''));
+    if (!groups[key]) {
+      const info = studMap[stuId] || { bankAccount: '' };
+      groups[key] = {
+        name: String(r[tiName] || ''),
+        bankAccount: info.bankAccount || '',
+        amount: 0,
+        count: 0
+      };
+      order.push(key);
+    }
+    groups[key].amount += parseFloat(r[tiAmt]) || 0;
+    groups[key].count += 1;
   });
+  const rows = order.map(function(key) { return groups[key]; });
 
   const totalAmount = rows.reduce(function(s, r) { return s + r.amount; }, 0);
-  const depositorCount = rows.length;
-  const dateSlug = parsed.day + '-' + (parsed.monthIdx + 1) + '-' + parsed.year; // เช่น "7-7-2569"
+  const depositorCount = rows.length; // จำนวนคนจริง (ไม่ใช่จำนวนครั้งที่ฝาก)
+  const dateSlug = (parsed.monthIdx + 1) + '-' + parsed.year; // เช่น "7-2569"
 
   // ==== Sheet1: ทะเบียนการรับฝากเงินประจำวัน ====
   const sheet1Name = 'ทะเบียนฝาก_' + dateSlug;
@@ -1038,7 +1062,7 @@ function generateDepositRegistry(p) {
   s1.getRange('A2:G2').merge();
   s1.getRange('A2').setValue(SCHOOL_NAME).setHorizontalAlignment('center').setFontWeight('bold').setFontSize(14);
   s1.getRange('A3:G3').merge();
-  s1.getRange('A3').setValue('ทะเบียนการรับฝากเงินประจำวันที่ ' + dateStr).setHorizontalAlignment('center').setFontWeight('bold');
+  s1.getRange('A3').setValue('ทะเบียนการรับฝากเงินประจำเดือน ' + rangeStr).setHorizontalAlignment('center').setFontWeight('bold');
 
   const headerRow = 4;
   const headers1 = ['ลำดับที่', 'เลขที่บัญชี', 'ชื่อบัญชี', 'จำนวน', 'ยอดรวม', 'ผู้รับเงิน', 'หมายเหตุ'];
@@ -1052,7 +1076,9 @@ function generateDepositRegistry(p) {
   rows.forEach(function(r, i) {
     // จำนวน กับ ยอดรวม เขียนจากตัวแปรเดียวกันเสมอ (r.amount) — กันบั๊กพิมพ์แยก 2 ที่ไม่ตรงกัน
     // ที่เจอในไฟล์ตัวอย่างจริง (แถวลำดับที่ 93 ของกรกฎาคม 2568: จำนวน=0 แต่ยอดรวม=20)
-    s1.getRange(row, 1, 1, 7).setValues([[i + 1, r.bankAccount, r.name, r.amount, r.amount, receiverName, '']]);
+    // หมายเหตุ: โชว์จำนวนครั้งที่ฝากถ้ามากกว่า 1 (ยอดนี้เป็นผลรวมทั้งเดือน ไม่ใช่ฝากครั้งเดียว)
+    const note = r.count > 1 ? ('รวม ' + r.count + ' ครั้ง') : '';
+    s1.getRange(row, 1, 1, 7).setValues([[i + 1, r.bankAccount, r.name, r.amount, r.amount, receiverName, note]]);
     s1.getRange(row, 1).setHorizontalAlignment('center');
     s1.getRange(row, 4, 1, 2).setNumberFormat('#,##0').setHorizontalAlignment('right');
     if ((i + 1) % 2 === 0) s1.getRange(row, 1, 1, 7).setBackground('#F2F2F2');
@@ -1091,7 +1117,7 @@ function generateDepositRegistry(p) {
   s2.getRange('A1').setValue('ใบปะหน้านำฝาก ธ.ก.ส. ' + SCHOOL_NAME).setHorizontalAlignment('center').setFontWeight('bold').setFontSize(13);
   s2.getRange('A2:D2').merge();
   s2.getRange('A2').setValue('ใบตรวจนับเงินสดคงเหลือ').setHorizontalAlignment('center').setFontWeight('bold');
-  s2.getRange('A3').setValue('วันที่ ' + dateStr);
+  s2.getRange('A3').setValue('ประจำเดือน ' + rangeStr);
 
   const denomHeaderRow = 5;
   s2.getRange(denomHeaderRow, 1, 1, 4).setValues([['รายการตรวจนับเงินสด', 'มูลค่าต่อหน่วย', 'จำนวนหน่วย', 'จำนวนเงิน']]);
