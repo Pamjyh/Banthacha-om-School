@@ -1094,9 +1094,22 @@ function generateDepositRegistry(p) {
   const totalAmount = accountRows.reduce(function(s, r) { return s + r.amount; }, 0);
   const depositorCount = accountRows.length; // จำนวนคนจริงที่มีบัญชี (ไม่ใช่จำนวนครั้งที่ฝาก และไม่รวมคนไม่มีบัญชี)
   const dateSlug = (parsed.monthIdx + 1) + '-' + parsed.year; // เช่น "7-2569"
+  const sheet1Name = 'ทะเบียนฝาก_' + dateSlug;
+  const sheet2Name = 'ปะหน้าฝาก_' + dateSlug;
+
+  // เช็ค guard ของ Sheet2 ก่อนแตะ Sheet1 เลย (fail fast) — เดิม guard นี้เช็คทีหลังสุด
+  // ทำให้ Sheet1 ถูกลบ+สร้างใหม่ไปแล้วก่อนจะรู้ว่าต้อง error กลายเป็น "error แต่ Sheet1 เปลี่ยนไปแล้ว"
+  // ซึ่งขัดกับสิ่งที่ Pam คาดหวังว่า error ควรแปลว่า "ไม่มีอะไรเกิดขึ้นเลย"
+  const s2Existing = ss.getSheetByName(sheet2Name);
+  if (s2Existing) {
+    const existingCounts = s2Existing.getRange(6, 3, 12, 1).getValues().flat();
+    const hasCounts = existingCounts.some(function(v) { return v !== '' && v !== null && !isNaN(v) && Number(v) !== 0; });
+    if (hasCounts) {
+      return { ok: false, error: 'ชีต "' + sheet2Name + '" มีข้อมูลนับเงินสดที่กรอกไว้แล้ว ถ้าต้องการสร้างใหม่ทับ กรุณาลบชีตนี้เองก่อน (คลิกขวาที่แท็บชีต > ลบ)' };
+    }
+  }
 
   // ==== Sheet1: ทะเบียนการรับฝากเงินประจำวัน ====
-  const sheet1Name = 'ทะเบียนฝาก_' + dateSlug;
   let s1 = ss.getSheetByName(sheet1Name);
   if (s1) ss.deleteSheet(s1);
   s1 = ss.insertSheet(sheet1Name);
@@ -1119,17 +1132,17 @@ function generateDepositRegistry(p) {
   // ลำดับที่ (seq) ต่อเนื่องทั้งไฟล์ ไม่รีเซ็ตต่อชั้น ตาม Decision Log #19
   let row = headerRow + 1;
   let seq = 1;
-  GRADES.forEach(function(g) {
-    const gradeRows = accountRows.filter(function(r) { return r.grade === g; });
-    if (!gradeRows.length) return;
 
-    // หัวข้อคั่นชั้น
+  // แยกเป็นฟังก์ชันกลาง — ใช้ทั้งกับชั้นที่รู้จักใน GRADES และหมวด "อื่นๆ" ด้านล่าง
+  // (กันโค้ดซ้ำ 2 ที่แล้วมีโอกาสแก้ไม่ตรงกัน)
+  function renderSection(label, sectionRows) {
+    if (!sectionRows.length) return;
     s1.getRange(row, 1, 1, 7).merge();
-    s1.getRange(row, 1).setValue('ชั้น ' + g).setFontWeight('bold').setBackground('#D9D9D9').setHorizontalAlignment('left');
+    s1.getRange(row, 1).setValue(label).setFontWeight('bold').setBackground('#D9D9D9').setHorizontalAlignment('left');
     row++;
 
-    let gradeSubtotal = 0;
-    gradeRows.forEach(function(r) {
+    let subtotal = 0;
+    sectionRows.forEach(function(r) {
       // จำนวน กับ ยอดรวม เขียนจากตัวแปรเดียวกันเสมอ (r.amount) — กันบั๊กพิมพ์แยก 2 ที่ไม่ตรงกัน
       // ที่เจอในไฟล์ตัวอย่างจริง (แถวลำดับที่ 93 ของกรกฎาคม 2568: จำนวน=0 แต่ยอดรวม=20)
       // หมายเหตุ: โชว์จำนวนครั้งที่ฝากถ้ามากกว่า 1 (ยอดนี้เป็นผลรวมทั้งเดือน ไม่ใช่ฝากครั้งเดียว)
@@ -1138,17 +1151,25 @@ function generateDepositRegistry(p) {
       s1.getRange(row, 1).setHorizontalAlignment('center');
       s1.getRange(row, 4, 1, 2).setNumberFormat('#,##0').setHorizontalAlignment('right');
       if (seq % 2 === 0) s1.getRange(row, 1, 1, 7).setBackground('#F2F2F2');
-      gradeSubtotal += r.amount;
+      subtotal += r.amount;
       row++;
       seq++;
     });
 
-    // ยอดรวมย่อยต่อชั้น
-    s1.getRange(row, 1, 1, 7).setValues([['', '', 'รวมชั้น ' + g + ' (' + gradeRows.length + ' ราย)', gradeSubtotal, gradeSubtotal, '', '']]);
+    s1.getRange(row, 1, 1, 7).setValues([['', '', 'รวม' + label + ' (' + sectionRows.length + ' ราย)', subtotal, subtotal, '', '']]);
     s1.getRange(row, 1, 1, 7).setFontWeight('bold').setBackground('#FFF2CC');
     s1.getRange(row, 4, 1, 2).setNumberFormat('#,##0');
     row++;
+  }
+
+  GRADES.forEach(function(g) {
+    renderSection('ชั้น ' + g, accountRows.filter(function(r) { return r.grade === g; }));
   });
+
+  // กันเงินหายเงียบๆ: ถ้าใครมีค่า "ชั้น" ในธุรกรรมไม่ตรงกับ GRADES ที่รู้จักเป๊ะ (ข้อมูลเพี้ยน เคยเจอปัญหานี้กับ อ.3 มาก่อน)
+  // ต้องยังโผล่ในตารางที่เห็นได้ ไม่งั้นยอดรวมใหญ่จะไม่เท่ากับผลรวมแถวที่เห็นจริง (บั๊กคลาสเดียวกับที่ทั้งฟีเจอร์นี้กันไว้)
+  const otherRows = accountRows.filter(function(r) { return GRADES.indexOf(r.grade) < 0; });
+  renderSection('อื่นๆ/ไม่ทราบชั้น', otherRows);
 
   // ยอดรวมใหญ่ปิดท้ายทั้งหมด
   s1.getRange(row, 1, 1, 7).setValues([['', '', 'รวมทั้งหมด (' + depositorCount + ' ราย)', totalAmount, totalAmount, '', '']]);
@@ -1165,18 +1186,9 @@ function generateDepositRegistry(p) {
   s1.setColumnWidth(7, 80);
 
   // ==== Sheet2: ใบปะหน้านำฝาก ธ.ก.ส. (ตรวจนับเงินสด) ====
-  const sheet2Name = 'ปะหน้าฝาก_' + dateSlug;
-  let s2 = ss.getSheetByName(sheet2Name);
-  if (s2) {
-    // กันลบทับข้อมูลนับเงินสดที่ Pam พิมพ์มือไว้แล้ว (ถ้ากดสร้างซ้ำวันเดียวกันตอนมีฝากเพิ่มมาทีหลัง)
-    // เช็คคอลัมน์ "จำนวนหน่วย" (C) แถวข้อมูลธนบัตร/เหรียญ 12 แถว ว่ามีใครกรอกไว้แล้วหรือยัง
-    const existingCounts = s2.getRange(6, 3, 12, 1).getValues().flat();
-    const hasCounts = existingCounts.some(function(v) { return v !== '' && v !== null && !isNaN(v) && Number(v) !== 0; });
-    if (hasCounts) {
-      return { ok: false, error: 'ชีต "' + sheet2Name + '" มีข้อมูลนับเงินสดที่กรอกไว้แล้ว ถ้าต้องการสร้างใหม่ทับ กรุณาลบชีตนี้เองก่อน (คลิกขวาที่แท็บชีต > ลบ)' };
-    }
-    ss.deleteSheet(s2);
-  }
+  // guard กันลบทับข้อมูลนับเงินสด เช็คไปแล้วก่อนหน้านี้ (fail fast ก่อนแตะ Sheet1) — ตรงนี้แค่ลบของเดิมทิ้งถ้ามี
+  let s2 = s2Existing;
+  if (s2) ss.deleteSheet(s2);
   s2 = ss.insertSheet(sheet2Name);
 
   s2.getRange('A1:D1').merge();
