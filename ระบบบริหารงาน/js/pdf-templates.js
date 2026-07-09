@@ -65,9 +65,12 @@ function findStaffByTeacherName(teacherName){
 
 // escape ข้อความก่อนแทรกเข้า HTML string ตรงๆ — กัน data จาก DB (ชื่อโครงการ/ชื่อคน ฯลฯ) ที่อาจมีอักขระ
 // พิเศษ (<, >, &) ทำให้ HTML พัง หรือแย่กว่านั้นคือ XSS ถ้ามีคนแอบใส่ <script> ไว้ในชื่อโครงการ
+// escape quote (", ') ด้วยแม้ Doc 1 ยังไม่มีจุดที่แทรกลง attribute — กัน Doc 2-16 ที่จะสร้างต่อ (อาจมี
+// table cell ที่ใช้ attribute เช่น title=) ลืมแล้วเจอ broken markup/injection (scrutinize 2026-07-09)
 function escHtml(s){
   return String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 // สร้างหน้าเอกสารเป็น HTML แล้วสั่งพิมพ์ผ่าน browser (window.print()) แทนการวาด PDF เอง — ใช้ hidden
@@ -111,7 +114,10 @@ function officialDocCss(){
   '@page{size:A4;margin:0;}'+
   '*{box-sizing:border-box;}'+
   'body{margin:0;padding:18mm 15mm 15mm 15mm;font-family:"TH Sarabun New",sans-serif;font-size:16pt;line-height:1.6;color:#000;}'+
-  '.garuda{display:block;margin:0 auto 4mm auto;height:22mm;}'+
+  // ⚠️ ต้องกำหนดทั้ง width และ height — ไฟล์ครุฑจริงมี native ratio 163:177 (~0.92) ไม่ตรงกับ 18:22 (~0.82)
+  // ที่ jsPDF เดิมเคยใช้ ถ้ากำหนดแค่ height ตัวเดียว browser จะ auto-scale width ตาม native ratio แทน
+  // ทำให้ครุฑกว้างขึ้น ~13% จากที่ Pam เคยเห็น (scrutinize 2026-07-09) — ล็อกทั้งคู่ให้ตรงสัดส่วนเดิม
+  '.garuda{display:block;margin:0 auto 4mm auto;width:18mm;height:22mm;}'+
   '.doc-title{text-align:center;font-weight:bold;font-size:20pt;margin-bottom:6mm;}'+
   '.row{display:flex;}'+
   '.row .col-r{width:65mm;}'+

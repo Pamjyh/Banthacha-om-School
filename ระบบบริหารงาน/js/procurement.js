@@ -300,5 +300,15 @@ async function saveProcItem(){
       }
     }
     await loadAll(); closeProcForm();
-  }catch(e){ hide('loadingOverlay'); alert('บันทึกไม่ได้: '+e.message); }
+  }catch(e){
+    hide('loadingOverlay');
+    // DB มี UNIQUE (year_id, type, seq) กันไว้ชั้นนอกสุด (migration 2026-07-09) เผื่อ guard ข้างบน
+    // (เช็คจาก PROC ใน memory) พลาดเพราะ race condition — 2 คนกรอกพร้อมกันเห็น PROC คนละ snapshot
+    // ผ่าน guard ได้ทั้งคู่ ต้องดัก error จาก DB ตรงนี้ด้วย ไม่ใช่โชว์ raw Postgres error ให้ผู้ใช้งง
+    if(String(e.message||'').indexOf('procurement_items_year_type_seq_uniq') >= 0){
+      alert('ลำดับที่ '+seq+' ('+typeVal+') ถูกใช้ไปแล้ว (มีคนบันทึกลำดับที่นี้ไปพร้อมกัน) กรุณาเปิดฟอร์มใหม่แล้วระบุลำดับที่อื่น');
+    } else {
+      alert('บันทึกไม่ได้: '+e.message);
+    }
+  }
 }
