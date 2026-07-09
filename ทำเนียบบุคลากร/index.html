@@ -69,6 +69,17 @@ input[type="text"], input[type="password"], input[type="number"] {
   margin-bottom: 16px;
 }
 input:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-family: 'Sarabun', sans-serif;
+  margin-bottom: 16px;
+  background: var(--canvas);
+}
+select:focus { outline: 2px solid var(--primary); outline-offset: 1px; }
 
 button {
   font-family: 'Sarabun', sans-serif;
@@ -169,6 +180,15 @@ button {
       <label for="add-head-of">หัวหน้าฝ่าย (ถ้ามี — เว้นว่างได้)</label>
       <input type="text" id="add-head-of" placeholder="เช่น หัวหน้าฝ่ายวิชาการ">
 
+      <label for="add-employment-type">ประเภทบุคลากร</label>
+      <select id="add-employment-type">
+        <option value="">— ยังไม่ระบุ —</option>
+        <option value="ข้าราชการ">ข้าราชการ</option>
+        <option value="ลูกจ้าง">ลูกจ้าง</option>
+        <option value="ภารโรง">ภารโรง</option>
+        <option value="อื่นๆ">อื่นๆ</option>
+      </select>
+
       <label for="add-display-order">ลำดับการแสดงผล</label>
       <input type="number" id="add-display-order" placeholder="ตัวเลขน้อย = แสดงก่อน">
 
@@ -268,6 +288,22 @@ document.getElementById('login-pw-input').addEventListener('keydown', function(e
 });
 document.getElementById('logout-btn').addEventListener('click', handleLogout);
 
+/* ───────────── Auto-login ถ้ามารดจาก Portal (ผ่าน ?pw=...) ─────────────
+   กันไม่ต้องพิมพ์รหัสผ่านซ้ำ เพราะ Pam กรอกไปแล้วรอบหนึ่งตอนเปิด admin panel ของ Portal
+   ถ้าไม่มี query param หรือ auto-login ไม่ผ่าน → ตกไปหน้า login ปกติ ไม่กระทบอะไร */
+(function tryAutoLogin() {
+  var params = new URLSearchParams(window.location.search);
+  var pw = params.get('pw');
+  if (!pw) return;
+
+  document.getElementById('login-pw-input').value = pw;
+  handleLogin();
+
+  // ลบรหัสผ่านออกจาก URL ทันทีหลังใช้ (กันหลงเหลือใน address bar/history ของ iframe)
+  var cleanUrl = window.location.pathname;
+  window.history.replaceState({}, '', cleanUrl);
+})();
+
 /* ───────────── ลำดับการแสดงผลถัดไป (default = max+1) ───────────── */
 function prefillNextDisplayOrder() {
   fetch(SUPABASE_URL + '/rest/v1/staff_directory?select=display_order&order=display_order.desc&limit=1', {
@@ -316,6 +352,7 @@ function resetFormToAddMode() {
   document.getElementById('add-full-name').value = '';
   document.getElementById('add-position').value = '';
   document.getElementById('add-head-of').value = '';
+  document.getElementById('add-employment-type').value = '';
   document.getElementById('add-photo').value = '';
   document.getElementById('add-submit-btn').textContent = 'เพิ่มบุคลากร';
   document.getElementById('cancel-edit-btn').style.display = 'none';
@@ -328,6 +365,7 @@ function startEdit(person) {
   document.getElementById('add-full-name').value = person.full_name || '';
   document.getElementById('add-position').value = person.position || '';
   document.getElementById('add-head-of').value = person.head_of || '';
+  document.getElementById('add-employment-type').value = person.employment_type || '';
   document.getElementById('add-display-order').value = person.display_order || 0;
   document.getElementById('add-photo').value = '';
   document.getElementById('add-submit-btn').textContent = 'บันทึกการแก้ไข (' + person.full_name + ')';
@@ -342,6 +380,7 @@ function handleSaveStaff() {
   var fullName = document.getElementById('add-full-name').value.trim();
   var position = document.getElementById('add-position').value.trim();
   var headOf   = document.getElementById('add-head-of').value.trim();
+  var empType  = document.getElementById('add-employment-type').value;
   var order    = parseInt(document.getElementById('add-display-order').value, 10);
   var fileInput= document.getElementById('add-photo');
   var msg      = document.getElementById('add-msg');
@@ -375,7 +414,8 @@ function handleSaveStaff() {
         p_position: position,
         p_photo: photoDataUrl,
         p_display_order: order,
-        p_head_of: headOf || null
+        p_head_of: headOf || null,
+        p_employment_type: empType || null
       });
     }
     return callRpc('staff_directory_add', {
@@ -384,7 +424,8 @@ function handleSaveStaff() {
       p_position: position,
       p_photo: photoDataUrl,
       p_display_order: order,
-      p_head_of: headOf || null
+      p_head_of: headOf || null,
+      p_employment_type: empType || null
     });
   }).then(function(res) {
     btn.disabled = false;
@@ -427,6 +468,7 @@ function renderStaffList() {
           : '<div class="staff-row-photo-placeholder">🧑</div>';
         var metaParts = [p.position];
         if (p.head_of) metaParts.push(p.head_of);
+        if (p.employment_type) metaParts.push(p.employment_type);
         metaParts.push('ลำดับ ' + p.display_order);
         return '<div class="staff-row" draggable="true" data-id="' + p.id + '">' +
           '<span class="staff-row-handle" aria-hidden="true">⠿</span>' +
@@ -516,7 +558,8 @@ function reorderStaff(sourceId, targetId) {
         p_position: person.position,
         p_photo: null, // null → RPC coalesce เก็บรูปเดิมไว้ ไม่ต้องส่งรูปซ้ำ
         p_display_order: newDisplayOrder,
-        p_head_of: person.head_of || null
+        p_head_of: person.head_of || null,
+        p_employment_type: person.employment_type || null // ต้องส่งซ้ำเสมอ — employment_type ไม่ coalesce เหมือน photo
       }));
     }
   });

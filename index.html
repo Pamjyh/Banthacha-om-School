@@ -422,6 +422,14 @@ a { color: inherit; text-decoration: none; }
   padding: 18px;
   background: var(--canvas);
 }
+.staff-directory-summary {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 16px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.staff-directory-summary .badge {
+  background: var(--blue-bg); color: var(--primary-dark);
+}
 .staff-directory-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
@@ -500,6 +508,28 @@ a { color: inherit; text-decoration: none; }
            style="width:100%; padding:10px 12px; border:1px solid var(--hairline); border-radius:8px; font-size:15px; font-family:'Sarabun',sans-serif; margin-bottom:14px; box-sizing:border-box;">
     <div id="admin-sys-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;"></div>
     <div id="admin-msg" style="font-size:13px; color:var(--ink-muted); min-height:18px; margin-bottom:10px;"></div>
+
+    <button id="open-staff-directory-btn" type="button"
+       style="display:block; text-align:center; width:100%; padding:10px; border-radius:var(--radius-full); background:var(--canvas-soft); border:1px solid var(--hairline); font-family:'Sarabun',sans-serif; font-size:14px; font-weight:600; color:var(--ink); margin-bottom:10px; box-sizing:border-box; cursor:pointer;">
+      🧑‍💼 จัดการทำเนียบบุคลากร →
+    </button>
+
+    <button id="toggle-change-pw-btn" type="button"
+       style="display:block; text-align:center; width:100%; padding:8px; background:none; border:none; font-family:'Sarabun',sans-serif; font-size:13px; font-weight:600; color:var(--ink-muted); margin-bottom:6px; cursor:pointer;">
+      🔑 เปลี่ยนรหัสผ่าน
+    </button>
+    <div id="change-pw-box" style="display:none; margin-bottom:10px;">
+      <input type="password" id="new-pw-input" placeholder="รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)"
+             style="width:100%; padding:10px 12px; border:1px solid var(--hairline); border-radius:8px; font-size:15px; font-family:'Sarabun',sans-serif; margin-bottom:8px; box-sizing:border-box;">
+      <input type="password" id="new-pw-confirm-input" placeholder="ยืนยันรหัสผ่านใหม่อีกครั้ง"
+             style="width:100%; padding:10px 12px; border:1px solid var(--hairline); border-radius:8px; font-size:15px; font-family:'Sarabun',sans-serif; margin-bottom:8px; box-sizing:border-box;">
+      <button id="submit-change-pw-btn" type="button"
+         style="width:100%; padding:10px; border-radius:var(--radius-full); border:none; background:var(--primary); color:#fff; font-family:'Sarabun',sans-serif; font-size:14px; font-weight:600; cursor:pointer;">
+        บันทึกรหัสผ่านใหม่
+      </button>
+      <p id="change-pw-msg" style="font-size:13px; min-height:18px; margin-top:6px;"></p>
+    </div>
+
     <button id="admin-close-btn" type="button"
             style="width:100%; padding:10px; border-radius:var(--radius-full); border:1px solid var(--hairline); background:var(--canvas-soft); font-family:'Sarabun',sans-serif; font-size:14px; font-weight:600; color:var(--ink); cursor:pointer;">
       ปิดหน้าต่างนี้
@@ -543,6 +573,7 @@ a { color: inherit; text-decoration: none; }
         <span id="staff-directory-arrow" aria-hidden="true">▾</span>
       </button>
       <div id="staff-directory-body" class="staff-directory-body" hidden>
+        <div id="staff-directory-summary" class="staff-directory-summary"></div>
         <div id="staff-directory-grid" class="staff-directory-grid"></div>
       </div>
     </section>
@@ -853,12 +884,24 @@ function escapeHtmlStaff(str) {
 }
 
 function loadStaffDirectory() {
-  fetch(SUPABASE_URL + '/rest/v1/staff_directory?select=full_name,position,photo,head_of,display_order&order=display_order.asc,full_name.asc', {
+  fetch(SUPABASE_URL + '/rest/v1/staff_directory?select=full_name,position,photo,head_of,display_order,employment_type&order=display_order.asc,full_name.asc', {
     headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY }
   })
     .then(function(r) { return r.json(); })
     .then(function(rows) {
       if (!rows || !Array.isArray(rows) || rows.length === 0) return; // ไม่มีข้อมูล → ไม่โชว์ section เลย (เงียบๆ)
+
+      // สรุปจำนวนแยกตามประเภทบุคลากร — แสดงก่อนรูป
+      var counts = {};
+      rows.forEach(function(p) {
+        var key = p.employment_type || 'ยังไม่ระบุ';
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      var summaryEl = document.getElementById('staff-directory-summary');
+      summaryEl.innerHTML = '<span class="badge">รวม ' + rows.length + ' คน</span>' +
+        Object.keys(counts).map(function(key) {
+          return '<span class="badge">' + escapeHtmlStaff(key) + ' ' + counts[key] + ' คน</span>';
+        }).join('');
 
       var grid = document.getElementById('staff-directory-grid');
       grid.innerHTML = rows.map(function(p) {
@@ -978,6 +1021,62 @@ function handleAdminToggle(btn) {
       msg.textContent = '❌ เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่';
     });
 }
+
+/* ─────────────────────────────────────────────
+   เปิดหน้าจัดการทำเนียบบุคลากร — ใช้ iframe overlay เดิม ไม่เด้งหน้าใหม่
+   ส่งรหัสผ่านที่พิมพ์ไว้แล้วผ่าน query string ให้ auto-login ไม่ต้องพิมพ์ซ้ำ
+───────────────────────────────────────────── */
+document.getElementById('open-staff-directory-btn').addEventListener('click', function() {
+  var pw = document.getElementById('admin-pw-input').value;
+  closeAdminModal();
+  var url = 'ทำเนียบบุคลากร/index.html' + (pw ? ('?pw=' + encodeURIComponent(pw)) : '');
+  openSystem(url, 'จัดการทำเนียบบุคลากร');
+});
+
+/* ─────────────────────────────────────────────
+   เปลี่ยนรหัสผ่าน admin (ใช้ร่วมกันทั้ง toggle ระบบงาน และทำเนียบบุคลากร)
+───────────────────────────────────────────── */
+document.getElementById('toggle-change-pw-btn').addEventListener('click', function() {
+  var box = document.getElementById('change-pw-box');
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+});
+
+document.getElementById('submit-change-pw-btn').addEventListener('click', function() {
+  var oldPw     = document.getElementById('admin-pw-input').value;
+  var newPw     = document.getElementById('new-pw-input').value;
+  var newPwConf = document.getElementById('new-pw-confirm-input').value;
+  var msg       = document.getElementById('change-pw-msg');
+
+  if (!oldPw) { msg.style.color = 'var(--red, #c0392b)'; msg.textContent = '⚠️ กรอกรหัสผ่านเดิมในช่องด้านบนสุดก่อนครับ'; return; }
+  if (!newPw || newPw.length < 6) { msg.style.color = 'var(--red, #c0392b)'; msg.textContent = '⚠️ รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร'; return; }
+  if (newPw !== newPwConf) { msg.style.color = 'var(--red, #c0392b)'; msg.textContent = '⚠️ รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน'; return; }
+
+  msg.style.color = 'var(--ink-muted)';
+  msg.textContent = 'กำลังบันทึก...';
+
+  fetch(SUPABASE_URL + '/rest/v1/rpc/portal_admin_change_password', {
+    method: 'POST',
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_old_password: oldPw, p_new_password: newPw })
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+      if (!res || res.ok !== true) {
+        msg.style.color = 'var(--red, #c0392b)';
+        msg.textContent = '❌ ' + ((res && res.error) || 'เกิดข้อผิดพลาด');
+        return;
+      }
+      msg.style.color = 'var(--green)';
+      msg.textContent = '✅ เปลี่ยนรหัสผ่านแล้ว — ใช้รหัสใหม่ตั้งแต่ครั้งหน้า';
+      document.getElementById('admin-pw-input').value = newPw; // อัปเดตช่องบนสุดให้ตรงกับรหัสใหม่ทันที
+      document.getElementById('new-pw-input').value = '';
+      document.getElementById('new-pw-confirm-input').value = '';
+    })
+    .catch(function() {
+      msg.style.color = 'var(--red, #c0392b)';
+      msg.textContent = '❌ เชื่อมต่อไม่ได้ ตรวจอินเทอร์เน็ตแล้วลองใหม่';
+    });
+});
 
 /* ─────────────────────────────────────────────
    ERROR MODAL
