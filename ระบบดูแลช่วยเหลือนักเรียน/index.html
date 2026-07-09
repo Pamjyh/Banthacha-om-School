@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบดูแลช่วยเหลือนักเรียน — บ้านท่าชะอม</title>
+<meta name="theme-color" content="#8e44ad">
+<style>
+  :root{
+    --pri:#8e44ad; --pri-dark:#6c3483; --bg:#f5f2f9; --card:#fff;
+    --danger:#e74c3c; --ok:#27ae60; --text:#2c2c2c; --muted:#888; --br:14px;
+  }
+  *{box-sizing:border-box}
+  body{font-family:'Sarabun',system-ui,sans-serif;background:var(--bg);margin:0;color:var(--text)}
+  header{background:var(--pri);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+  header h1{font-size:1.05rem;margin:0}
+  .container{max-width:760px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border-radius:var(--br);padding:18px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:1rem;font-family:inherit;margin-bottom:10px}
+  textarea{min-height:70px}
+  label{font-size:.85rem;color:var(--muted);display:block;margin-bottom:4px}
+  button{background:var(--pri);color:#fff;border:none;border-radius:50px;padding:11px 20px;font-size:1rem;cursor:pointer;font-family:inherit}
+  button:hover{background:var(--pri-dark)}
+  button.secondary{background:#eee;color:#333}
+  button.danger{background:var(--danger)}
+  button.small{padding:6px 14px;font-size:.85rem}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .row>*{flex:1}
+  .hidden{display:none !important}
+  .stulist-item{display:flex;justify-content:space-between;align-items:center;padding:10px 4px;border-bottom:1px solid #eee;cursor:pointer}
+  .stulist-item:hover{background:#faf7fc}
+  .stulist-item .name{font-weight:600}
+  .stulist-item .meta{font-size:.8rem;color:var(--muted)}
+  .badge{font-size:.7rem;padding:2px 8px;border-radius:20px;background:#eee;color:#666}
+  .badge.temp{background:#fdebd0;color:#a04000}
+  .section-title{font-weight:700;color:var(--pri-dark);margin:18px 0 8px;border-bottom:2px solid #f0eaf5;padding-bottom:6px}
+  .section-title:first-child{margin-top:0}
+  .top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
+  .sync-bar{font-size:.8rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;background:#faf7fc;padding:8px 12px;border-radius:10px;margin-bottom:14px}
+  .msg{padding:10px 14px;border-radius:10px;margin-bottom:12px;font-size:.9rem}
+  .msg.error{background:#fdecea;color:#c0392b}
+  .msg.ok{background:#eafaf1;color:#1e8449}
+  #back-btn{background:none;color:#fff;font-size:1.3rem;padding:2px 10px}
+  .maps-link{display:inline-block;margin-top:4px;font-size:.85rem;color:var(--pri-dark)}
+</style>
+</head>
+<body>
+
+<header>
+  <button id="back-btn" class="hidden" onclick="goList()">←</button>
+  <h1 id="page-title">ระบบดูแลช่วยเหลือนักเรียน</h1>
+  <span></span>
+</header>
+
+<div class="container">
+
+  <!-- LOGIN -->
+  <div id="pg-login" class="card">
+    <p>ใส่รหัสผ่านครู/staff เพื่อเข้าใช้งาน</p>
+    <input type="password" id="pw-input" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="login-msg"></div>
+    <button onclick="doLogin()">เข้าสู่ระบบ</button>
+  </div>
+
+  <!-- LIST / SEARCH -->
+  <div id="pg-list" class="hidden">
+    <div class="sync-bar">
+      <span id="sync-status">ยังไม่เคยซิงค์</span>
+      <button class="small secondary" onclick="triggerSync()">🔄 ซิงค์เดี๋ยวนี้</button>
+    </div>
+    <div class="card">
+      <div class="row">
+        <input id="search-box" placeholder="ค้นชื่อนักเรียน..." oninput="renderList()">
+        <select id="grade-filter" onchange="renderList()"><option value="">ทุกชั้น</option></select>
+      </div>
+      <div id="stu-list"></div>
+    </div>
+    <button class="secondary" onclick="openAddTemp()">➕ เพิ่มนักเรียนใหม่ (ยังไม่ sync)</button>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="pg-profile" class="hidden">
+    <div id="profile-msg"></div>
+    <div class="card">
+      <h2 id="prof-name" style="margin-top:0"></h2>
+      <div id="prof-meta" style="color:var(--muted);font-size:.9rem;margin-bottom:10px"></div>
+
+      <div id="temp-merge-box" class="hidden" style="background:#fdebd0;padding:12px;border-radius:10px;margin-bottom:14px">
+        <p style="margin:0 0 8px">นักเรียนคนนี้ยังไม่ sync กับระบบออมทรัพย์ — ถ้าตอนนี้มีชื่อจริงใน sync แล้ว เลือกจับคู่ได้เลย</p>
+        <select id="merge-target"></select>
+        <button class="small" onclick="doMergeTemp()">จับคู่กับรายชื่อนี้</button>
+      </div>
+
+      <div class="section-title">ทั่วไป</div>
+      <label>เลขบัตรประชาชน</label><input id="f-national_id" oninput="checkNationalId()">
+      <div id="national-id-warn" class="hidden" style="color:#a04000;font-size:.8rem;margin:-6px 0 8px">⚠️ ปกติเลขบัตรประชาชนมี 13 หลัก (บันทึกได้ตามที่กรอก ไม่บังคับแก้)</div>
+      <label>วันเดือนปีเกิด</label><input id="f-birth_date" type="date">
+      <label>เพศ</label><input id="f-gender">
+      <label>ศาสนา</label><input id="f-religion">
+      <label>สัญชาติ</label><input id="f-nationality">
+      <label>เชื้อชาติ</label><input id="f-ethnicity">
+
+      <div class="section-title">ที่อยู่</div>
+      <label>ที่อยู่ตามทะเบียนบ้าน</label><textarea id="f-address_registered"></textarea>
+      <label>ที่อยู่ปัจจุบัน (ถ้าต่างจากทะเบียนบ้าน)</label><textarea id="f-address_current"></textarea>
+      <label>เบอร์โทรนักเรียน</label><input id="f-student_phone">
+      <div>
+        <button type="button" class="secondary" onclick="capturePin()">📍 ปักหมุดตรงนี้ (GPS)</button>
+        <div id="pin-display" style="margin-top:8px;font-size:.9rem"></div>
+      </div>
+
+      <div class="section-title">ผู้ปกครอง</div>
+      <label>ชื่อบิดา</label><input id="f-father_name">
+      <label>เบอร์โทรบิดา</label><input id="f-father_phone">
+      <label>อาชีพบิดา</label><input id="f-father_occupation">
+      <label>ชื่อมารดา</label><input id="f-mother_name">
+      <label>เบอร์โทรมารดา</label><input id="f-mother_phone">
+      <label>อาชีพมารดา</label><input id="f-mother_occupation">
+      <label>ผู้ปกครองหลัก (ถ้าไม่ใช่บิดา-มารดา)</label><input id="f-guardian_name" placeholder="ชื่อ">
+      <input id="f-guardian_relation" placeholder="ความสัมพันธ์">
+      <input id="f-guardian_phone" placeholder="เบอร์โทร">
+      <label>สถานภาพสมรสบิดามารดา</label><input id="f-parents_marital_status">
+      <label>รายได้ครอบครัวโดยประมาณ</label><input id="f-family_income_estimate">
+
+      <div class="section-title">สุขภาพ</div>
+      <label>โรคประจำตัว</label><textarea id="f-chronic_disease"></textarea>
+      <label>แพ้ยา</label><textarea id="f-drug_allergy"></textarea>
+      <label>แพ้อาหาร</label><textarea id="f-food_allergy"></textarea>
+      <label>หมู่เลือด</label><input id="f-blood_type">
+      <label>สิทธิการรักษาพยาบาล</label><input id="f-health_coverage" placeholder="บัตรทอง/ประกันสังคม/ข้าราชการ/อื่นๆ">
+      <label>ผู้ติดต่อฉุกเฉิน (ชื่อ)</label><input id="f-emergency_contact_name">
+      <label>เบอร์ติดต่อฉุกเฉิน</label><input id="f-emergency_contact_phone">
+
+      <div class="section-title">หมายเหตุ</div>
+      <textarea id="f-notes" placeholder="บันทึกอิสระ..."></textarea>
+
+      <div class="row" style="margin-top:14px">
+        <label style="flex:0 0 100%">ชื่อครูผู้บันทึก</label>
+        <input id="f-updated_by" placeholder="ชื่อครู/staff ของคุณ">
+      </div>
+      <button onclick="saveProfile()">💾 บันทึก</button>
+    </div>
+  </div>
+
+  <!-- ADD TEMP MODAL (simple inline card) -->
+  <div id="pg-addtemp" class="hidden">
+    <div class="card">
+      <h2 style="margin-top:0">เพิ่มนักเรียนใหม่ (ยังไม่มีใน sync)</h2>
+      <label>ชื่อ-สกุล</label><input id="temp-name">
+      <label>ชั้น</label><input id="temp-grade" placeholder="เช่น ป.1">
+      <div id="addtemp-msg"></div>
+      <div class="row">
+        <button class="secondary" onclick="goList()">ยกเลิก</button>
+        <button onclick="submitAddTemp()">เพิ่ม</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.108.2/dist/umd/supabase.min.js"></script>
+<script>
+const SUPABASE_URL = 'https://cgwtgqyllalaogdgyxlo.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNnd3RncXlsbGFsYW9nZGd5eGxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMDc2MDYsImV4cCI6MjA5NTc4MzYwNn0.hDZPSLM8SVsTDwjpT3-yAhxgBc6b1sX3Tay_HRfyf78';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let _pw = null;
+let allStudents = [];
+let currentId = null;
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function show(id){ document.getElementById(id).classList.remove('hidden'); }
+function hide(id){ document.getElementById(id).classList.add('hidden'); }
+function showOnly(id){
+  ['pg-login','pg-list','pg-profile','pg-addtemp'].forEach(p=> p===id ? show(p) : hide(p));
+  document.getElementById('back-btn').classList.toggle('hidden', id==='pg-login' || id==='pg-list');
+  document.getElementById('page-title').textContent = id==='pg-profile' ? 'โปรไฟล์นักเรียน' : id==='pg-addtemp' ? 'เพิ่มนักเรียนใหม่' : 'ระบบดูแลช่วยเหลือนักเรียน';
+}
+
+async function doLogin(){
+  const pw = document.getElementById('pw-input').value;
+  const msg = document.getElementById('login-msg');
+  msg.innerHTML = '';
+  const { data, error } = await sb.rpc('care_login', { p_password: pw });
+  if (error || data !== true) {
+    msg.innerHTML = '<div class="msg error">รหัสผ่านไม่ถูกต้อง</div>';
+    return;
+  }
+  _pw = pw; // เก็บใน memory เท่านั้น (ไม่ persist ข้าม reload) -- ข้อมูลอ่อนไหวกว่าระบบอื่น จึงเข้มกว่าระบบออมทรัพย์
+  await loadStudents();
+  goList();
+}
+
+async function loadStudents(){
+  const { data, error } = await sb.rpc('care_get_students', { p_password: _pw });
+  if (error) { alert('โหลดข้อมูลไม่สำเร็จ: ' + error.message); return; }
+  allStudents = data || [];
+  const grades = [...new Set(allStudents.map(s=>s.grade).filter(Boolean))].sort();
+  const sel = document.getElementById('grade-filter');
+  sel.innerHTML = '<option value="">ทุกชั้น</option>' + grades.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('');
+  renderList();
+  await loadSyncStatus();
+}
+
+async function loadSyncStatus(){
+  const { data, error } = await sb.rpc('care_get_sync_status', { p_password: _pw });
+  const statusEl = document.getElementById('sync-status');
+  if (error || !data || !data.length) { statusEl.textContent = 'ไม่ทราบสถานะซิงค์'; return; }
+  const s = data[0];
+  let txt = s.last_synced_at ? ('ซิงค์ล่าสุด: ' + new Date(s.last_synced_at).toLocaleString('th-TH')) : 'ยังไม่เคยซิงค์สำเร็จ';
+  if (s.last_row_count) txt += ` (${s.last_row_count} คน)`;
+  statusEl.textContent = txt;
+  if (s.last_error) {
+    statusEl.textContent += ' — ⚠️ ครั้งล่าสุดมีปัญหา: ' + s.last_error;
+  }
+}
+
+function renderList(){
+  const q = document.getElementById('search-box').value.trim().toLowerCase();
+  const gf = document.getElementById('grade-filter').value;
+  const list = allStudents.filter(s =>
+    (!gf || s.grade===gf) && (!q || (s.name||'').toLowerCase().includes(q))
+  );
+  const el = document.getElementById('stu-list');
+  if (!list.length){ el.innerHTML = '<p style="color:var(--muted)">ไม่พบนักเรียน</p>'; return; }
+  el.innerHTML = list.map(s => `
+    <div class="stulist-item" onclick="openProfile('${esc(s.id)}')">
+      <div>
+        <div class="name">${s.roll_no?esc(s.roll_no)+'. ':''}${esc(s.name)} ${s.is_temp?'<span class="badge temp">ยังไม่ sync</span>':''}</div>
+        <div class="meta">${esc(s.grade||'-')} · ${esc(s.status||'')}</div>
+      </div>
+    </div>`).join('');
+}
+
+function goList(){ showOnly('pg-list'); loadStudents(); }
+
+function checkNationalId(){
+  const v = document.getElementById('f-national_id').value.trim();
+  document.getElementById('national-id-warn').classList.toggle('hidden', v === '' || v.length === 13);
+}
+
+function openProfile(id){
+  currentId = id;
+  const s = allStudents.find(x=>x.id===id);
+  if (!s) return;
+  document.getElementById('prof-name').textContent = (s.roll_no?s.roll_no+'. ':'') + s.name;
+  document.getElementById('prof-meta').textContent = (s.grade||'-') + ' · ' + (s.status||'') + (s.updated_by ? ' · แก้ไขล่าสุดโดย ' + s.updated_by : '');
+  document.getElementById('profile-msg').innerHTML = '';
+
+  const fields = ['national_id','birth_date','gender','religion','nationality','ethnicity',
+    'address_registered','address_current','student_phone',
+    'father_name','father_phone','father_occupation','mother_name','mother_phone','mother_occupation',
+    'guardian_name','guardian_relation','guardian_phone','parents_marital_status','family_income_estimate',
+    'chronic_disease','drug_allergy','food_allergy','blood_type','health_coverage',
+    'emergency_contact_name','emergency_contact_phone','notes'];
+  fields.forEach(f => { document.getElementById('f-'+f).value = s[f] || ''; });
+  document.getElementById('f-updated_by').value = sessionStorage.getItem('care_teacher_name') || '';
+  checkNationalId();
+
+  if (s.lat && s.lng) {
+    document.getElementById('pin-display').innerHTML = `พิกัดล่าสุด: ${s.lat}, ${s.lng}<br><a class="maps-link" target="_blank" href="https://www.google.com/maps?q=${s.lat},${s.lng}">📍 เปิดใน Google Maps</a>`;
+  } else {
+    document.getElementById('pin-display').textContent = 'ยังไม่มีพิกัด';
+  }
+
+  const mergeBox = document.getElementById('temp-merge-box');
+  if (s.is_temp) {
+    mergeBox.classList.remove('hidden');
+    const realOnes = allStudents.filter(x=>!x.is_temp);
+    document.getElementById('merge-target').innerHTML = '<option value="">-- เลือกรายชื่อจริง --</option>' +
+      realOnes.map(x=>`<option value="${esc(x.id)}">${esc(x.grade||'-')} ${x.roll_no?x.roll_no+'.':''} ${esc(x.name)}</option>`).join('');
+  } else {
+    mergeBox.classList.add('hidden');
+  }
+
+  showOnly('pg-profile');
+}
+
+async function saveProfile(){
+  const fields = ['national_id','birth_date','gender','religion','nationality','ethnicity',
+    'address_registered','address_current','student_phone',
+    'father_name','father_phone','father_occupation','mother_name','mother_phone','mother_occupation',
+    'guardian_name','guardian_relation','guardian_phone','parents_marital_status','family_income_estimate',
+    'chronic_disease','drug_allergy','food_allergy','blood_type','health_coverage',
+    'emergency_contact_name','emergency_contact_phone','notes'];
+  const payload = {};
+  fields.forEach(f => payload[f] = document.getElementById('f-'+f).value);
+  const updatedBy = document.getElementById('f-updated_by').value.trim();
+  if (!updatedBy) { document.getElementById('profile-msg').innerHTML = '<div class="msg error">กรุณากรอกชื่อครูผู้บันทึกก่อน</div>'; return; }
+  sessionStorage.setItem('care_teacher_name', updatedBy);
+
+  const { error } = await sb.rpc('care_upsert_profile', {
+    p_password: _pw, p_student_id: currentId, p_data: payload, p_updated_by: updatedBy
+  });
+  const msg = document.getElementById('profile-msg');
+  if (error) { msg.innerHTML = '<div class="msg error">บันทึกไม่สำเร็จ: ' + esc(error.message) + '</div>'; return; }
+  msg.innerHTML = '<div class="msg ok">บันทึกแล้ว</div>';
+  await loadStudents();
+}
+
+function capturePin(){
+  const disp = document.getElementById('pin-display');
+  if (!navigator.geolocation) { disp.textContent = 'เบราว์เซอร์นี้ไม่รองรับ GPS'; return; }
+  disp.textContent = 'กำลังขอพิกัด...';
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    const { error } = await sb.rpc('care_capture_pin', { p_password: _pw, p_student_id: currentId, p_lat: lat, p_lng: lng });
+    if (error) { disp.textContent = 'บันทึกพิกัดไม่สำเร็จ: ' + error.message; return; }
+    disp.innerHTML = `พิกัดล่าสุด: ${lat}, ${lng}<br><a class="maps-link" target="_blank" href="https://www.google.com/maps?q=${lat},${lng}">📍 เปิดใน Google Maps</a>`;
+    await loadStudents();
+  }, (err) => {
+    disp.textContent = 'ขอพิกัดไม่สำเร็จ (' + err.message + ') — ข้อมูลอื่นยังบันทึกได้ตามปกติ';
+  }, { enableHighAccuracy:true, timeout:15000 });
+}
+
+function openAddTemp(){
+  document.getElementById('temp-name').value = '';
+  document.getElementById('temp-grade').value = '';
+  document.getElementById('addtemp-msg').innerHTML = '';
+  showOnly('pg-addtemp');
+}
+
+async function submitAddTemp(){
+  const name = document.getElementById('temp-name').value.trim();
+  const grade = document.getElementById('temp-grade').value.trim();
+  const msg = document.getElementById('addtemp-msg');
+  if (!name) { msg.innerHTML = '<div class="msg error">กรุณากรอกชื่อ</div>'; return; }
+  const { data, error } = await sb.rpc('care_add_temp_student', { p_password: _pw, p_name: name, p_grade: grade });
+  if (error) { msg.innerHTML = '<div class="msg error">เพิ่มไม่สำเร็จ: ' + esc(error.message) + '</div>'; return; }
+  await loadStudents();
+  openProfile(data);
+}
+
+async function doMergeTemp(){
+  const realId = document.getElementById('merge-target').value;
+  if (!realId) { alert('กรุณาเลือกรายชื่อที่จะจับคู่ก่อน'); return; }
+
+  // MAJOR FIX (scrutinize): เดิม confirm() เป็นข้อความทั่วไป ไม่โชว์ชื่อทั้ง 2 ฝั่งให้เทียบ
+  // เสี่ยงเลือกผิดคนจาก dropdown 237 คน แล้วข้อมูลอ่อนไหวของเด็ก 2 คนปนกันแบบย้อนกลับยาก
+  const tempStu = allStudents.find(x=>x.id===currentId);
+  const realStu = allStudents.find(x=>x.id===realId);
+  const tempLabel = tempStu ? `"${tempStu.name}" (${tempStu.grade||'ไม่ระบุชั้น'})` : currentId;
+  const realLabel = realStu ? `"${realStu.name}" (${realStu.grade||'-'} เลขที่ ${realStu.roll_no||'-'})` : realId;
+  const confirmMsg = `ยืนยันย้ายข้อมูลจาก ${tempLabel}\nไปรวมกับ ${realLabel} ?\n\nตรวจชื่อ+ชั้นทั้ง 2 ฝั่งให้แน่ใจก่อนกด — ย้อนกลับยากถ้าเลือกผิดคน`;
+  if (!confirm(confirmMsg)) return;
+
+  const { error } = await sb.rpc('care_merge_temp', { p_password: _pw, p_temp_id: currentId, p_real_id: realId });
+  if (error) { alert('จับคู่ไม่สำเร็จ: ' + error.message); return; }
+  await loadStudents();
+  openProfile(realId);
+}
+
+async function triggerSync(){
+  document.getElementById('sync-status').textContent = 'กำลังส่งคำขอซิงค์...';
+  const { error } = await sb.rpc('care_trigger_sync', { p_password: _pw });
+  if (error) { document.getElementById('sync-status').textContent = 'ซิงค์ไม่สำเร็จ: ' + error.message; return; }
+  document.getElementById('sync-status').textContent = 'ส่งคำขอซิงค์แล้ว ระบบจะอัปเดตให้ภายในไม่กี่นาที (กดรีเฟรชหน้าอีกครั้งภายหลัง)';
+}
+
+showOnly('pg-login');
+</script>
+</body>
+</html>
