@@ -112,7 +112,13 @@ button {
 .staff-row {
   display: flex; align-items: center; gap: 12px;
   padding: 10px; border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  background: var(--canvas);
+  transition: opacity 0.15s, border-color 0.15s;
 }
+.staff-row.dragging { opacity: 0.4; }
+.staff-row.drag-over { border-color: var(--primary); border-style: dashed; }
+.staff-row-handle { cursor: grab; color: var(--ink-faint); font-size: 18px; flex-shrink: 0; padding: 0 2px; user-select: none; }
+.staff-row-handle:active { cursor: grabbing; }
 .staff-row-photo { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--canvas-soft); }
 .staff-row-photo-placeholder {
   width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
@@ -414,7 +420,7 @@ function renderStaffList() {
     .then(function(r) { return r.json(); })
     .then(function(rows) {
       _staffCache = rows || [];
-      statusEl.textContent = 'ทั้งหมด ' + _staffCache.length + ' คน';
+      statusEl.textContent = 'ทั้งหมด ' + _staffCache.length + ' คน — ลากที่ไอคอน ⠿ เพื่อจัดลำดับใหม่';
       listEl.innerHTML = _staffCache.map(function(p) {
         var photoHtml = p.photo
           ? '<img class="staff-row-photo" src="' + p.photo + '" alt="">'
@@ -422,7 +428,8 @@ function renderStaffList() {
         var metaParts = [p.position];
         if (p.head_of) metaParts.push(p.head_of);
         metaParts.push('ลำดับ ' + p.display_order);
-        return '<div class="staff-row">' +
+        return '<div class="staff-row" draggable="true" data-id="' + p.id + '">' +
+          '<span class="staff-row-handle" aria-hidden="true">⠿</span>' +
           photoHtml +
           '<div class="staff-row-info">' +
             '<div class="staff-row-name">' + escapeHtml(p.full_name) + '</div>' +
@@ -444,10 +451,85 @@ function renderStaffList() {
       listEl.querySelectorAll('.btn-delete').forEach(function(btn) {
         btn.addEventListener('click', function() { handleDeleteStaff(btn.dataset.id); });
       });
+      wireDragToReorder(listEl);
     })
     .catch(function() {
       statusEl.textContent = '❌ โหลดรายชื่อไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วลองรีเฟรชหน้า';
     });
+}
+
+/* ───────────── ลากจัดเรียงลำดับ (drag-and-drop) ─────────────
+   ลากทั้งแถวได้ (จับที่ไอคอน ⠿ หรือส่วนไหนก็ได้ที่ไม่ใช่ปุ่ม) — ใช้เมาส์บนคอมพิวเตอร์
+   หมายเหตุ: HTML5 drag-and-drop แบบ native ไม่รองรับสัมผัสบนมือถือ — ถ้า Pam ใช้ผ่านมือถือเป็นหลัก
+   ให้แก้ไขเลขลำดับตรงในฟอร์ม "แก้ไข" แทนได้เสมอ (ยังใช้ได้ปกติ) */
+var _dragSourceId = null;
+
+function wireDragToReorder(listEl) {
+  var rows = listEl.querySelectorAll('.staff-row');
+  rows.forEach(function(row) {
+    row.addEventListener('dragstart', function() {
+      _dragSourceId = row.dataset.id;
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragend', function() {
+      row.classList.remove('dragging');
+      rows.forEach(function(r) { r.classList.remove('drag-over'); });
+    });
+    row.addEventListener('dragover', function(e) {
+      e.preventDefault(); // จำเป็นเพื่ออนุญาตให้ drop ได้
+      if (row.dataset.id !== _dragSourceId) row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', function() {
+      row.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', function(e) {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      var targetId = row.dataset.id;
+      if (!_dragSourceId || _dragSourceId === targetId) return;
+      reorderStaff(_dragSourceId, targetId);
+    });
+  });
+}
+
+function reorderStaff(sourceId, targetId) {
+  var fromIdx = _staffCache.findIndex(function(p) { return p.id === sourceId; });
+  var toIdx   = _staffCache.findIndex(function(p) { return p.id === targetId; });
+  if (fromIdx === -1 || toIdx === -1) return;
+
+  var newOrder = _staffCache.slice();
+  var moved = newOrder.splice(fromIdx, 1)[0];
+  newOrder.splice(toIdx, 0, moved);
+
+  var statusEl = document.getElementById('staff-list-status');
+  statusEl.textContent = 'กำลังบันทึกลำดับใหม่...';
+
+  // เฉพาะคนที่ display_order เปลี่ยนจริงเท่านั้นที่ต้อง update (ลดจำนวน request)
+  var updates = [];
+  newOrder.forEach(function(person, i) {
+    var newDisplayOrder = i + 1;
+    if (person.display_order !== newDisplayOrder) {
+      updates.push(callRpc('staff_directory_update', {
+        p_password: _sessionPassword,
+        p_id: person.id,
+        p_full_name: person.full_name,
+        p_position: person.position,
+        p_photo: null, // null → RPC coalesce เก็บรูปเดิมไว้ ไม่ต้องส่งรูปซ้ำ
+        p_display_order: newDisplayOrder,
+        p_head_of: person.head_of || null
+      }));
+    }
+  });
+
+  Promise.all(updates).then(function(results) {
+    var failed = results.find(function(r) { return !r.success; });
+    if (failed) {
+      statusEl.textContent = '❌ บันทึกลำดับไม่สำเร็จ: ' + failed.error;
+      renderStaffList(); // โหลดใหม่ให้ตรงกับฐานข้อมูลจริง (กันหน้าจอค้างค่าที่ยังไม่ได้บันทึก)
+      return;
+    }
+    renderStaffList();
+  });
 }
 
 function handleDeleteStaff(id) {
