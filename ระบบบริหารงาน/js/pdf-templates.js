@@ -1,26 +1,24 @@
 // =====================================================================
-// PDF TEMPLATES (เอกสารพัสดุ 16 ชุด) — banthacha-v2 Stage 17 🔴 HIGH RISK
+// DOCUMENT TEMPLATES (เอกสารพัสดุ 16 ชุด) — banthacha-v2 Stage 17 🔴 HIGH RISK
 // สร้างทีละเอกสาร ทดสอบทีละชุดตาม CONSTRUCTION_PLAN ("ห้าม build ข้าม stage" ใช้ตรรกะเดียวกัน
 // กับการห้าม skip stage — ห้ามสร้างครบ 16 ชุดทีเดียวโดยไม่ให้ Pam ตรวจก่อน)
 //
 // generateDoc(docIndex, procItemId) — dispatcher หลัก เรียกจากปุ่มใน Section I
 // ตอนนี้มีแค่ Doc 1 (ขอดำเนิน) ที่ implement จริง — Doc 2-16 alert ว่ายังไม่พร้อม
 //
-// ⚠️ ใช้ thaiText(doc, str, x, y, opts) เท่านั้นสำหรับข้อความไทย (js/pdf-engine.js) ห้ามเรียก
-// doc.text() ตรงๆ กับข้อความไทยเด็ดขาด (ดู BLUEPRINT §6.2 — บั๊กสระ/วรรณยุกต์ซ้อนตำแหน่งผิด)
+// ⚠️ PIVOT (2026-07-09): เปลี่ยนจาก jsPDF วาดเอง (js/pdf-engine.js, thaiText/thaiTextWrapped) มาเป็น
+// สร้าง HTML แล้วสั่ง browser print (window.print()) แทน — jsPDF เดิมต้องเขียนโค้ด custom จัดตำแหน่ง
+// สระ/วรรณยุกต์ไทยเอง (thaiText) และประเมินความกว้างข้อความเอง (doc.getTextWidth ไม่ตรงกับที่วาดจริง)
+// ทำให้เจอบั๊กขอบ/wrap ซ้ำ 4 รอบติดต่อกัน (2026-07-08) — HTML+browser print ให้ browser จัดการ Thai text
+// shaping/wrap/justify เองทั้งหมด (เหมือนหน้าเว็บปกติ) ไม่มีทางล้นขอบอีกในทางทฤษฎี, margin กำหนดด้วย CSS
+// ตรงๆ ไม่ต้องเดา — Doc 2-16 ที่จะสร้างต่อจากนี้ให้ใช้ pattern เดียวกับ generateDoc1 (buildDoc1Html +
+// printHtmlDoc) ไม่ใช้ thaiText/jsPDF อีกต่อไป (ดู Q8-6 ใน BLUEPRINT)
 // =====================================================================
 
 // ชื่อโรงเรียน/เขตพื้นที่ — ใช้ constant กลางแทนพิมพ์ซ้ำในทุก template (16 ชุด) กัน typo/ข้อมูลผิด
 // ซ้ำแบบที่เคยพิมพ์ผิดเป็น "สพป.รบ.2" (ราชบุรี) ทั้งที่จริงคือ สพป.อุทัยธานี เขต 2 — Pam แก้ 2026-07-08
 const SCHOOL_FULL_NAME = 'โรงเรียนบ้านท่าชะอม';
 const SCHOOL_EDU_OFFICE_ABBR = 'สพป.อุทัยธานี เขต 2';
-
-// ขอบซ้าย/ขวาของเนื้อหา (มม.) — เดิมใช้ x=25/185 (เว้นขอบข้างละ 25mm) กว้างเกินไปเทียบกับไฟล์จริง
-// Pam เทียบภาพ screenshot ข้างๆ กันแล้วพบว่าไฟล์จริงเว้นขอบแค่ ~15mm ต่อข้าง (เนื้อหากว้างเกือบเต็มหน้า
-// มากกว่านี้ชัดเจน) ปรับ margin ให้แคบลงตามของจริง — ครุฑยังอยู่ตำแหน่งเดิม (คำนวณจาก page center
-// ไม่ผูกกับ margin พวกนี้) (scrutinize/Pam ทดสอบจริง 2026-07-08)
-const PAGE_LEFT = 15;
-const PAGE_RIGHT = 195;
 
 const PD_DOC_NAMES = {
   1:'ขอดำเนิน', 2:'แนบขอดำเนิน', 3:'ขออนุมัติTOR', 4:'คำสั่งTOR', 5:'เห็นชอบTOR',
@@ -54,51 +52,6 @@ function findDirector(){
   });
 }
 
-// วาดข้อความไทยแบบ auto word-wrap ถ้ายาวเกิน maxWidth (มม.) — body paragraph เดิมเป็น string คงที่
-// ที่ pre-split มือครั้งเดียว พอความยาวจริงขึ้นกับข้อมูล (ชื่อโครงการ/จำนวนเงินเป็นตัวหนังสือ ฯลฯ) ที่ไม่รู้
-// ล่วงหน้าว่ายาวแค่ไหน มีโอกาสล้นขอบกระดาษ (เจอจริงจาก Pam ทดสอบ 2026-07-08 — บรรทัด "และขออนุมัติ...
-// จำนวน...รายการ" วิ่งเลยขอบขวา) ตัดคำที่ space เท่านั้น (ไม่ตัดกลางคำ) คืนค่า y ใหม่หลังวาดบรรทัดสุดท้าย
-// firstLineIndent (มม.) — เลื่อน x เฉพาะบรรทัดแรกเท่านั้น (จำลองการเยื้องย่อหน้า) — ใช้แทนการฝัง space
-// นำหน้าข้อความตรงๆ เพราะ split(' ') จะกิน leading space หายไปตอน wrap (คำว่างไม่ผ่านเงื่อนไข line ที่ยังไม่เริ่ม)
-function thaiTextWrapped(doc, text, x, y, maxWidth, lineHeight, firstLineIndent){
-  lineHeight = lineHeight || 8;
-  const words = String(text).split(' ').filter(function(w){ return w !== ''; });
-  let line = '';
-  let firstLine = true;
-  function curX(){ return x + (firstLine ? (firstLineIndent||0) : 0); }
-  function curAvail(){ return maxWidth - (firstLine ? (firstLineIndent||0) : 0); }
-  function newLine(){
-    if(line){ thaiText(doc, line, curX(), y); y += lineHeight; }
-    line = '';
-    firstLine = false;
-  }
-  for(let i = 0; i < words.length; i++){
-    let word = words[i];
-    // ประโยคไทยส่วนใหญ่ไม่มีการเว้นวรรคระหว่างคำ (ต่างจากอังกฤษ) ดังนั้น "คำ" ที่ได้จาก split(' ') อาจเป็น
-    // ประโยคทั้งท่อนยาวมากที่ไม่มีวรรคเลยแม้แต่ตัวเดียว — ถ้าคำเดี่ยวนี้กว้างเกิน maxWidth เองทั้งบรรทัด
-    // ต้องตัดกลางคำแบบ char-by-char ไม่งั้นจะไม่มีทางแตกบรรทัดได้เลย ล้นขอบกระดาษ (เจอจริงจาก node harness
-    // ทดสอบ 2026-07-08 — "ขออนุมัติตามที่ได้รับอนุญาตให้ดำเนินงานตามโครงการ..." ยาวไม่มีวรรคเลย วิ่งเลยขอบขวา)
-    while(doc.getTextWidth(word) > curAvail()){
-      if(line){ newLine(); continue; }
-      let cut = 1;
-      while(cut < word.length && doc.getTextWidth(word.slice(0, cut + 1)) <= curAvail()){ cut++; }
-      thaiText(doc, word.slice(0, cut), curX(), y);
-      y += lineHeight;
-      firstLine = false;
-      word = word.slice(cut);
-    }
-    const test = line ? (line + ' ' + word) : word;
-    if(line && doc.getTextWidth(test) > curAvail()){
-      newLine();
-      line = word;
-    } else {
-      line = test;
-    }
-  }
-  if(line){ thaiText(doc, line, curX(), y); y += lineHeight; }
-  return y;
-}
-
 // หา staff record ที่ตรงกับ teacherName ของโครงการ เพื่อดึง "ตำแหน่ง" มาใส่เอกสาร (เอกสารจริงมีบรรทัด
 // "ด้วยข้าพเจ้า {ชื่อ} ตำแหน่ง {ตำแหน่ง}" — projects.teacher_name เป็น text อิสระไม่ผูก staff.id
 // ใช้ normalize+exact-match แบบเดียวกับ canEdit() (auth.js) ไม่ใช่ substring แบบ canViewProject()
@@ -108,6 +61,66 @@ function findStaffByTeacherName(teacherName){
   const target = norm(teacherName);
   if(!target) return null;
   return (STAFF_LIST||[]).find(function(s){ return norm(s.prefix + s.name) === target; }) || null;
+}
+
+// escape ข้อความก่อนแทรกเข้า HTML string ตรงๆ — กัน data จาก DB (ชื่อโครงการ/ชื่อคน ฯลฯ) ที่อาจมีอักขระ
+// พิเศษ (<, >, &) ทำให้ HTML พัง หรือแย่กว่านั้นคือ XSS ถ้ามีคนแอบใส่ <script> ไว้ในชื่อโครงการ
+function escHtml(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// สร้างหน้าเอกสารเป็น HTML แล้วสั่งพิมพ์ผ่าน browser (window.print()) แทนการวาด PDF เอง — ใช้ hidden
+// iframe แทนการเปิด window ใหม่ (window.open มักโดน popup blocker แม้เรียกจาก click handler บางเบราว์เซอร์)
+// ฝัง TH Sarabun font เป็น base64 (@font-face, จาก js/pdf-font.js ตัวเดียวกับที่ jsPDF เคยใช้) กัน
+// พึ่งพา Google Fonts ผ่านเน็ตตอนพิมพ์ (ถ้าเน็ตช้า/ขาดตอนพิมพ์ ฟอนต์จะไม่ครบ) — delay 300ms ก่อนสั่ง print
+// เผื่อเวลา browser โหลด/render font ให้เสร็จก่อน (fonts.ready มีปัญหาความเข้ากันได้ใน iframe บางเบราว์เซอร์
+// เก่า จึงใช้ setTimeout ธรรมดาแทน ซึ่งพอสำหรับฟอนต์ที่ฝัง base64 ไว้ในหน้าเดียวกันอยู่แล้ว ไม่ต้องโหลดเน็ต)
+function printHtmlDoc(html){
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.onload = function(){
+    setTimeout(function(){
+      try{
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      }catch(e){
+        alert('เปิดหน้าต่างพิมพ์ไม่สำเร็จ: ' + e.message);
+      }
+      // ลบ iframe หลังพิมพ์เสร็จ (ให้เวลาผู้ใช้กดพิมพ์/ยกเลิกใน dialog ก่อน)
+      setTimeout(function(){ if(iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 1000);
+    }, 300);
+  };
+  document.body.appendChild(iframe);
+  const idoc = iframe.contentWindow.document;
+  idoc.open();
+  idoc.write(html);
+  idoc.close();
+}
+
+// CSS ร่วมของทุกเอกสารราชการ — margin ซ้าย/ขวา 15mm ตามไฟล์อ้างอิงจริงที่ Pam เทียบ screenshot ไว้
+// (เดิม jsPDF ใช้ x=25mm ผิด กว้างเกินไป — ตอนนี้ margin กำหนดด้วย CSS ตรงๆ ไม่ต้องคำนวณ/เดาความกว้างข้อความเอง)
+function officialDocCss(){
+  return '@font-face{font-family:"TH Sarabun New";src:url(data:font/ttf;base64,'+THSARABUN_REGULAR_B64+') format("truetype");font-weight:normal;}'+
+  '@font-face{font-family:"TH Sarabun New";src:url(data:font/ttf;base64,'+THSARABUN_BOLD_B64+') format("truetype");font-weight:bold;}'+
+  '@page{size:A4;margin:0;}'+
+  '*{box-sizing:border-box;}'+
+  'body{margin:0;padding:18mm 15mm 15mm 15mm;font-family:"TH Sarabun New",sans-serif;font-size:16pt;line-height:1.6;color:#000;}'+
+  '.garuda{display:block;margin:0 auto 4mm auto;height:22mm;}'+
+  '.doc-title{text-align:center;font-weight:bold;font-size:20pt;margin-bottom:6mm;}'+
+  '.row{display:flex;}'+
+  '.row .col-r{width:65mm;}'+
+  'hr.sep{border:none;border-top:1px solid #000;margin:3mm 0 5mm 0;}'+
+  'p.body-para{text-indent:8mm;margin:0 0 4mm 0;text-align:justify;}'+
+  '.sig-block{display:flex;justify-content:space-between;margin-top:12mm;}'+
+  '.sig-col{width:47%;}'+
+  '.sig-line{border-bottom:1px solid #000;width:65mm;margin-top:6mm;}'+
+  '.sig-center{text-align:center;margin-top:14mm;}';
 }
 
 // ---------- Doc 1: ขอดำเนิน (บันทึกข้อความขออนุมัติดำเนินการจัดซื้อ/จัดจ้าง) ----------
@@ -124,14 +137,13 @@ async function generateDoc1(procItemId){
   if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return; }
   if(!detail.date_request){ alert('กรุณากรอก "วันที่ขอดำเนินการ" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return; }
 
-  const doc = createDocBase('บันทึกข้อความ');
   const director = findDirector();
   const teacherName = (item.projects && item.projects.teacher_name) || '';
   const proposerStaff = findStaffByTeacherName(teacherName);
   const proposerPosition = proposerStaff ? (proposerStaff.position || '-') : '-';
   // ใช้ชื่อ+คำนำหน้าจาก staff record ที่ match ได้ (format ถูกต้องเสมอ เช่น "นางสาวสุทามาศ")
   // แทน teacher_name ดิบ — teacher_name บางที่เก็บเป็น "ครูสุทามาศ..." (คำนำหน้าไม่เป็นทางการ ดู
-  // auth.js:151-153, Q5-2) ไม่เหมาะพิมพ์บนเอกสารราชการ — fallback เป็น raw text เฉพาะหา staff ไม่เจอ
+  // auth.js:151-153, Q5-2) ไม่เหมาะพิมพ์บนเอกสารราชการ — fallback เป็น raw text ถ้าหาไม่เจอ
   const proposerPrintName = proposerStaff ? (proposerStaff.prefix + proposerStaff.name) : teacherName;
   const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
   // ตัดคำว่า "โครงการ" ที่ขึ้นต้นชื่อโครงการออกถ้ามี (บางโครงการใน DB พิมพ์ชื่อรวมคำนี้ไว้แล้ว บางโครงการไม่มี)
@@ -157,68 +169,31 @@ async function generateDoc1(procItemId){
   // ไม่มี prefix (prefix โผล่เฉพาะใบสั่งซื้อ/สั่งจ้างจริง Doc 13/14) — ตัด prefix ตัวอักษร+จุดออก
   const bareDocNumber = (detail.doc_number || '').replace(/^[ก-๙]+\./, '');
 
-  // แยก "ส่วนราชการ" กับ "ที่/วันที่" เป็นคนละแถว (เดิม commit 0ed91a3 รวมบรรทัดเดียวตามลำดับ text ที่
-  // OCR extract มาจากไฟล์จริง ซึ่งไม่ใช่ตำแหน่ง visual จริง — รวมกันยาว ~60 ตัวอักษรเสี่ยงล้นขอบกระดาษ
-  // กว้าง 160mm ที่ font 16pt — ทั้ง 17 ไฟล์อ้างอิงจริงแยกเป็นคนละแถวเสมอ, scrutinize 2026-07-08)
-  // เนื้อหากว้างสูงสุด (เขตเขียนจริง PAGE_LEFT-PAGE_RIGHT เผื่อ safety margin 5mm) — ทุกบรรทัดที่ยาวขึ้นกับ
-  // ข้อมูล (ชื่อโครงการ/จำนวนเงิน ฯลฯ) ต้องผ่าน thaiTextWrapped ไม่ใช่ thaiText ตรงๆ กันล้นขอบ (scrutinize
-  // + Pam ทดสอบจริง 2026-07-08 พบ "และขออนุมัติ...จำนวน...รายการ" วิ่งเลยขอบขวา)
-  const CONTENT_MAX_WIDTH = (PAGE_RIGHT - PAGE_LEFT) - 5;
-  thaiText(doc, 'ส่วนราชการ  '+SCHOOL_FULL_NAME+' '+SCHOOL_EDU_OFFICE_ABBR, PAGE_LEFT, 52);
-  thaiText(doc, 'ที่  '+bareDocNumber, PAGE_LEFT, 59);
-  thaiText(doc, 'วันที่  '+fmtDateThai(detail.date_request), PAGE_LEFT + 80, 59);
-  let y = thaiTextWrapped(doc, 'เรื่อง  ขออนุมัติดำเนินงานตามโครงการ'+projectName, PAGE_LEFT, 66, CONTENT_MAX_WIDTH, 7);
-  y += 2;
-  doc.line(PAGE_LEFT, y, PAGE_RIGHT, y);
-  y += 7;
-  thaiText(doc, 'เรียน  ผู้อำนวยการ'+SCHOOL_FULL_NAME, PAGE_LEFT, y);
-  y += 10;
+  const sigRight = director
+    ? 'ลงชื่อ .......................................<br>('+escHtml((director.prefix||'')+director.name)+')<br>ผู้อำนวยการ'+escHtml(SCHOOL_FULL_NAME)
+    : 'ลงชื่อ .......................................';
 
-  // ย่อหน้า 1 — ต่อเป็น string เดียวแล้วให้ wrap function จัดบรรทัดเอง (ไม่ pre-split มือแบบเดิมที่แต่ละ
-  // ท่อนอาจยาวเกินบรรทัดได้เอง ไม่ขึ้นกับท่อนอื่น) — ตัด "จัด" ซ้ำหน้า buyOrHire ออก (buyOrHire มีคำว่า
-  // "จัด" อยู่ในตัวเองแล้ว "จัดซื้อ"/"จัดจ้าง" ต่อกับ "ขออนุมัติจัด" เดิมเลยกลายเป็น "ขออนุมัติจัดจัดซื้อ" ซ้ำคำ
-  // — เจอจริงจาก Pam ทดสอบ 2026-07-08)
-  const para1 = 'ด้วยข้าพเจ้า '+proposerPrintName+' ตำแหน่ง '+proposerPosition+' '+SCHOOL_FULL_NAME+
-    ' ขออนุมัติตามที่ได้รับอนุญาตให้ดำเนินงานตามโครงการ'+projectName+' และขออนุมัติ'+buyOrHire+
-    ' จำนวน '+itemCount+' รายการ เป็นเงิน '+fmt(item.amount)+' บาท ('+thaiBahtText(item.amount)+
-    ') เพื่อ'+purpose+' ตามรายละเอียดในแบบประมาณการ'+buyOrHire+'ดังแนบ';
-  y = thaiTextWrapped(doc, para1, PAGE_LEFT, y, CONTENT_MAX_WIDTH, 7, 8);
+  const html = '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">'+
+    '<title>'+escHtml((detail.doc_number||'doc').replace(/[\/\\]/g,'-')+'-'+PD_DOC_NAMES[1])+'</title>'+
+    '<style>'+officialDocCss()+'</style></head><body>'+
+    '<img class="garuda" src="data:image/jpeg;base64,'+GARUDA_B64+'">'+
+    '<div class="doc-title">บันทึกข้อความ</div>'+
+    '<div class="row"><div>ส่วนราชการ&nbsp;&nbsp;'+escHtml(SCHOOL_FULL_NAME)+' '+escHtml(SCHOOL_EDU_OFFICE_ABBR)+'</div></div>'+
+    '<div class="row"><div style="flex:1">ที่&nbsp;&nbsp;'+escHtml(bareDocNumber)+'</div><div class="col-r">วันที่&nbsp;&nbsp;'+escHtml(fmtDateThai(detail.date_request))+'</div></div>'+
+    '<div class="row"><div>เรื่อง&nbsp;&nbsp;ขออนุมัติดำเนินงานตามโครงการ'+escHtml(projectName)+'</div></div>'+
+    '<hr class="sep">'+
+    '<div>เรียน&nbsp;&nbsp;ผู้อำนวยการ'+escHtml(SCHOOL_FULL_NAME)+'</div>'+
+    '<p class="body-para">ด้วยข้าพเจ้า '+escHtml(proposerPrintName)+' ตำแหน่ง '+escHtml(proposerPosition)+' '+escHtml(SCHOOL_FULL_NAME)+
+      ' ขออนุมัติตามที่ได้รับอนุญาตให้ดำเนินงานตามโครงการ'+escHtml(projectName)+' และขออนุมัติ'+buyOrHire+
+      ' จำนวน '+itemCount+' รายการ เป็นเงิน '+fmt(item.amount)+' บาท ('+thaiBahtText(item.amount)+
+      ') เพื่อ'+escHtml(purpose)+' ตามรายละเอียดในแบบประมาณการ'+buyOrHire+'ดังแนบ</p>'+
+    '<p class="body-para">จึงเรียนมาเพื่อโปรดพิจารณาเห็นชอบและอนุมัติ</p>'+
+    '<div class="sig-block">'+
+      '<div class="sig-col">ผู้รับผิดชอบโครงการ<div class="sig-line"></div></div>'+
+      '<div class="sig-col">ความเห็นของผู้อำนวยการ<div style="margin-top:10mm">( ) เห็นชอบ&nbsp;&nbsp;&nbsp;( ) อนุมัติ</div>'+
+        '<div class="sig-center">'+sigRight+'</div></div>'+
+    '</div>'+
+    '</body></html>';
 
-  y += 10;
-  const para2 = 'จึงเรียนมาเพื่อโปรดพิจารณาเห็นชอบและอนุมัติ';
-  y = thaiTextWrapped(doc, para2, PAGE_LEFT, y, CONTENT_MAX_WIDTH, 7, 8);
-
-  // กันเนื้อหายาวเกินหน้ากระดาษดันบล็อกลายเซ็นหลุดออกนอกหน้าไปเงียบๆ (silent failure) — "วัตถุประสงค์"
-  // (tor_objective) เป็น textarea อิสระไม่จำกัดความยาว ถ้ากรอกยาวมาก wrap หลายบรรทัดจน y เกินหน้า A4
-  // (297mm) ได้จริง บล็อกลายเซ็นที่เหลือ (ผู้รับผิดชอบ/ผอ./checkbox) กินพื้นที่ ~53mm — เตือนก่อนแทนที่จะ
-  // ปล่อยให้ PDF ออกมาขาดส่วนลายเซ็นโดยไม่มีใครรู้ (scrutinize 2026-07-08)
-  const SIGNATURE_BLOCK_HEIGHT = 53;
-  if(y + SIGNATURE_BLOCK_HEIGHT > 290){
-    alert('เนื้อหาในเอกสารยาวเกินไป (มักเกิดจากช่อง "วัตถุประสงค์ TOR" ที่กรอกไว้ยาวมาก) ทำให้บล็อกลายเซ็นล้นออกนอกหน้ากระดาษ กรุณาย่อข้อความในฟอร์มให้สั้นลงแล้วลองพิมพ์ใหม่');
-    return;
-  }
-
-  y += 13;
-  // ตัดชื่อโรงเรียนออกจากหัวคอลัมน์นี้ — เอกสารระบุ "เรียน ผู้อำนวยการ{ชื่อโรงเรียน}" ไปแล้วก่อนหน้า ใส่ซ้ำที่นี่
-  // แค่ทำให้บรรทัดยาวเกินความกว้างคอลัมน์ (~90mm) ล้นขอบขวากระดาษ (เจอจริงจาก node harness 2026-07-08)
-  thaiText(doc, 'ผู้รับผิดชอบโครงการ', PAGE_LEFT, y);
-  thaiText(doc, 'ความเห็นของผู้อำนวยการ', PAGE_LEFT + 90, y);
-  doc.line(PAGE_LEFT, y + 3, PAGE_LEFT + 65, y + 3);   // เว้นบรรทัดเซ็นผู้เสนอ (เอกสารจริงไม่มีชื่อพิมพ์กำกับ — ชื่ออยู่ในเนื้อหาแล้ว)
-  y += 10;
-  thaiText(doc, '( ) เห็นชอบ   ( ) อนุมัติ', PAGE_LEFT + 90, y);
-
-  // เส้นเซ็นวาดเสมอ (ไม่ผูกกับ director) — คนจริงยังต้องมีที่เซ็นแม้หา staff record ของ ผอ. ไม่เจอ
-  // (เช่น ช่วงเปลี่ยนตัว ผอ. ข้อมูลว่างชั่วคราว) ส่วนชื่อ/ตำแหน่งพิมพ์กำกับค่อยขึ้นกับว่าหาเจอมั้ย (scrutinize 2026-07-08)
-  y += 14;
-  thaiText(doc, 'ลงชื่อ .......................................', PAGE_LEFT + 90, y);
-  if(director){
-    y += 8;
-    thaiText(doc, '(' + (director.prefix||'') + director.name + ')', PAGE_LEFT + 125, y, {align:'center'});
-    y += 8;
-    thaiText(doc, 'ผู้อำนวยการ'+SCHOOL_FULL_NAME, PAGE_LEFT + 125, y, {align:'center'});
-  }
-
-  // ชื่อไฟล์ยังใช้ doc_number เต็ม (มี prefix ซ./จ.) ตาม BLUEPRINT §6.7 — bareDocNumber ใช้แค่พิมพ์ในเอกสาร
-  const fileName = (detail.doc_number||'doc').replace(/[\/\\]/g,'-') + '-' + PD_DOC_NAMES[1] + '.pdf';
-  doc.save(fileName);
+  printHtmlDoc(html);
 }
