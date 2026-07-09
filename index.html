@@ -44,6 +44,9 @@
   --blue:          #0075de;
   --blue-bg:       #e3f0fc;
   --blue-hover:    #d2e6fa;
+  --pink:          #c0246e;
+  --pink-bg:       #fce4ef;
+  --pink-hover:    #f8d0e3;
 
   --radius-sm:     8px;
   --radius-md:     12px;
@@ -284,11 +287,13 @@ a { color: inherit; text-decoration: none; }
 .band-orange { background: var(--orange-bg); }
 .band-purple { background: var(--purple-bg); }
 .band-blue   { background: var(--blue-bg); }
+.band-pink   { background: var(--pink-bg); }
 .sys-card:not(.sys-card--inactive):hover .band-teal   { background: var(--teal-hover); }
 .sys-card:not(.sys-card--inactive):hover .band-green  { background: var(--green-hover); }
 .sys-card:not(.sys-card--inactive):hover .band-orange { background: var(--orange-hover); }
 .sys-card:not(.sys-card--inactive):hover .band-purple { background: var(--purple-hover); }
 .sys-card:not(.sys-card--inactive):hover .band-blue   { background: var(--blue-hover); }
+.sys-card:not(.sys-card--inactive):hover .band-pink   { background: var(--pink-hover); }
 
 .card-body {
   padding: 14px 16px 16px;
@@ -665,6 +670,24 @@ a { color: inherit; text-decoration: none; }
         <div class="card-body">
           <h2 class="card-title">เก็บค่ารถ</h2>
           <p class="card-desc">ค่ารถรายเดือน/เทอม ติ๊กจ่าย แดชบอร์ดรายชั้น</p>
+          <div class="card-foot">
+            <span class="badge badge-active">ใช้งานได้</span>
+            <span class="card-btn" aria-hidden="true">เปิดระบบ →</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 6: ดูแลช่วยเหลือนักเรียน -->
+      <div class="sys-card"
+           role="button" tabindex="0"
+           data-url="ระบบดูแลช่วยเหลือนักเรียน/index.html"
+           data-title="ระบบดูแลช่วยเหลือนักเรียน"
+           data-sys-id="student-care"
+           aria-label="ระบบดูแลช่วยเหลือนักเรียน — ข้อมูลสุขภาพ ที่อยู่ ผู้ปกครอง">
+        <div class="card-icon-band band-pink" aria-hidden="true">🩺</div>
+        <div class="card-body">
+          <h2 class="card-title">ดูแลช่วยเหลือนักเรียน</h2>
+          <p class="card-desc">ข้อมูลสุขภาพ ที่อยู่ ปักหมุดบ้าน ผู้ปกครอง</p>
           <div class="card-foot">
             <span class="badge badge-active">ใช้งานได้</span>
             <span class="card-btn" aria-hidden="true">เปิดระบบ →</span>

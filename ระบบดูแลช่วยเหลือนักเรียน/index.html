@@ -167,6 +167,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 let _pw = null;
 let allStudents = [];
 let currentId = null;
+let currentLoadedUpdatedAt = null; // ใช้เช็ค conflict ถ้ามีคนอื่นแก้ไปแล้วระหว่างที่เปิดฟอร์มอยู่
 
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function show(id){ document.getElementById(id).classList.remove('hidden'); }
@@ -255,6 +256,7 @@ function openProfile(id){
     'emergency_contact_name','emergency_contact_phone','notes'];
   fields.forEach(f => { document.getElementById('f-'+f).value = s[f] || ''; });
   document.getElementById('f-updated_by').value = sessionStorage.getItem('care_teacher_name') || '';
+  currentLoadedUpdatedAt = s.updated_at || null;
   checkNationalId();
 
   if (s.lat && s.lng) {
@@ -290,12 +292,23 @@ async function saveProfile(){
   sessionStorage.setItem('care_teacher_name', updatedBy);
 
   const { error } = await sb.rpc('care_upsert_profile', {
-    p_password: _pw, p_student_id: currentId, p_data: payload, p_updated_by: updatedBy
+    p_password: _pw, p_student_id: currentId, p_data: payload, p_updated_by: updatedBy,
+    p_expected_updated_at: currentLoadedUpdatedAt
   });
   const msg = document.getElementById('profile-msg');
-  if (error) { msg.innerHTML = '<div class="msg error">บันทึกไม่สำเร็จ: ' + esc(error.message) + '</div>'; return; }
+  if (error) {
+    // ข้อความ error ที่ขึ้นต้นด้วย CONFLICT: มาจากการเช็คว่ามีคนอื่นแก้ไปแล้วระหว่างเปิดหน้านี้อยู่
+    if (String(error.message||'').includes('CONFLICT')) {
+      msg.innerHTML = '<div class="msg error">⚠️ มีคนอื่นแก้ข้อมูลนี้ไปแล้วระหว่างที่คุณเปิดหน้านี้อยู่ — กด "โหลดใหม่" แล้วกรอกอีกครั้งเพื่อไม่ให้ข้อมูลชนกัน <button class="small secondary" onclick="loadStudents().then(()=>openProfile(currentId))">↺ โหลดใหม่</button></div>';
+    } else {
+      msg.innerHTML = '<div class="msg error">บันทึกไม่สำเร็จ: ' + esc(error.message) + '</div>';
+    }
+    return;
+  }
   msg.innerHTML = '<div class="msg ok">บันทึกแล้ว</div>';
   await loadStudents();
+  const refreshed = allStudents.find(x=>x.id===currentId);
+  if (refreshed) currentLoadedUpdatedAt = refreshed.updated_at || null;
 }
 
 function capturePin(){
