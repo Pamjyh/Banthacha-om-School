@@ -268,6 +268,12 @@ async function saveProcItem(){
   const eid=document.getElementById('procEditId').value;
   const projVal=document.getElementById('pProject').value;
   const newStatus=document.getElementById('pStatus').value;
+  const typeVal=document.getElementById('pType').value;
+  // "ลำดับที่" (seq) ตอนนี้คือเลขที่เอกสารทางการตรงๆ (ดู getNextDocNumber, แก้ 2026-07-09 ตามที่ Pam
+  // ยืนยัน) — ถ้าซ้ำกันภายใน type+ปีเดียวกัน จะได้เอกสารราชการ 2 ชุดเลขที่เดียวกัน ต้องกันตั้งแต่ตรงนี้
+  // ก่อนเขียน DB ไม่ใช่ปล่อยไปเจอตอนพิมพ์เอกสารทีหลัง
+  const dupe = PROC.find(function(i){ return i.type===typeVal && i.seq===seq && String(i.id)!==String(eid); });
+  if(dupe){ alert('ลำดับที่ '+seq+' ('+typeVal+') ถูกใช้ไปแล้วกับรายการ "'+dupe.title+'" — เลขนี้จะกลายเป็นเลขที่เอกสารราชการ กรุณาระบุลำดับที่อื่น'); return; }
   const body={
     year_id:CY, seq, type:document.getElementById('pType').value, title,
     project_id:projVal||null,

@@ -73,7 +73,8 @@ async function openDetailForm(procItemId){
       populateStaffSelects(CURRENT_DETAIL.committee_tor, CURRENT_DETAIL.committee_inspect);
     } else {
       // create mode — ยังไม่เคยกรอก แสดง preview เลขที่จะได้ ถ้ากด "บันทึก" ใน Stage 16
-      const next = await getNextDocNumber(CY, item.type);
+      // (เลขที่เอกสาร = seq ของรายการนี้ตรงๆ — ตรงกับ "ลำดับที่" ที่กรอกไว้ตอนเพิ่มรายการ, แก้ 2026-07-09)
+      const next = await getNextDocNumber(CY, item.type, item.seq);
       document.getElementById('pd-docnumber').textContent = next.preview;
       document.getElementById('pd-docnumber-tag').textContent = '(preview — ยังไม่บันทึก)';
       populateVendorSelect(null);
@@ -272,9 +273,9 @@ async function saveDetailForm(){
     if(CURRENT_DETAIL && CURRENT_DETAIL.id){
       await PATCH('procurement_details', 'id=eq.'+CURRENT_DETAIL.id, detailBody);
     } else {
-      // create mode — ออกเลขที่เอกสารจริงตอนนี้ (ไม่ใช่ตอนเปิดฟอร์ม) กัน race condition ถ้ามีคนเปิดฟอร์ม
-      // ค้างไว้นานแล้วคนอื่นออกเลขไปก่อน — ดึงเลขถัดไปสดๆ ตอน save เท่านั้น
-      const next = await getNextDocNumber(CY, CURRENT_PROC_ITEM.type);
+      // create mode — ออกเลขที่เอกสารจริงตอนนี้ (เลขที่เอกสาร = seq ของรายการนี้ตรงๆ ไม่ใช่ตัวนับแยก
+      // ต่างหากแบบเดิม — แก้ 2026-07-09 ตามที่ Pam ยืนยันให้ใช้เลขเดียวกับ "ลำดับที่" ตั้งแต่ตอนเพิ่มรายการ)
+      const next = await getNextDocNumber(CY, CURRENT_PROC_ITEM.type, CURRENT_PROC_ITEM.seq);
       detailBody.doc_number = next.preview;
       const rows = await POST('procurement_details', detailBody);
       CURRENT_DETAIL = (rows && rows[0]) || detailBody;
