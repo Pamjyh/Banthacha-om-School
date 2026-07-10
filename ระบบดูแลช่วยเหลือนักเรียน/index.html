@@ -212,8 +212,13 @@ async function doLogin(){
   const msg = document.getElementById('login-msg');
   msg.innerHTML = '';
   const { data, error } = await sb.rpc('care_login', { p_password: pw });
-  if (error || data !== true) {
-    msg.innerHTML = '<div class="msg error">รหัสผ่านไม่ถูกต้อง</div>';
+  // แยก error จริง (เน็ตหลุด/ระบบมีปัญหา) ออกจากรหัสผิด — ก่อนหน้านี้รวมเป็นข้อความเดียวกันหมด ทำให้วินิจฉัยไม่ได้ว่าจริงๆ ปัญหาคืออะไร
+  if (error) {
+    msg.innerHTML = '<div class="msg error">เชื่อมต่อระบบไม่สำเร็จ: ' + esc(error.message) + ' — ลองใหม่อีกครั้ง หรือเช็คอินเทอร์เน็ต</div>';
+    return;
+  }
+  if (data !== true) {
+    msg.innerHTML = '<div class="msg error">รหัสผ่านไม่ถูกต้อง (ถ้าใส่ผิดติดกัน 5 ครั้ง ระบบจะล็อกชั่วคราว 15 นาทีเพื่อกันการเดารหัส)</div>';
     return;
   }
   _pw = pw; // เก็บใน memory เท่านั้น (ไม่ persist ข้าม reload) -- ข้อมูลอ่อนไหวกว่าระบบอื่น จึงเข้มกว่าระบบออมทรัพย์
