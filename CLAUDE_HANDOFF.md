@@ -281,11 +281,21 @@ Public ยังทำได้: attendance INSERT (เช็คอิน) + lea
 - ผู้รับ: ผอ. คนเดียว — LINE userId `Ubc2482ad1fd25b62114976b7b97f4908` (เปลี่ยนจาก group ID `C45e2d8e51ad3ae86ac2e70dea43df2a7` เดิม)
 - Token: อยู่ใน `send_line_evening_summary()` + `get_line_quota_info()`
 
-**🐛 บั๊ก 3 จุดที่เจอ+แก้ระหว่าง scrutinize (2026-07-10)**: `send_line_leave_result(p_leave_id, p_status)` — ฟังก์ชันแจ้งผลอนุมัติ/ไม่อนุมัติใบลาทาง LINE ที่ frontend เรียกจาก `approveLeave()` (`ระบบลงเวลา/index.html:1154`) **ไม่เคยทำงานได้เลยตั้งแต่สร้าง** เพราะ:
-1. ไม่มี `GRANT EXECUTE` ให้ role `anon` เลย (ระบบนี้ใช้ anon key ล้วน ไม่มี Supabase auth login จริง) → เรียกทุกครั้งได้ permission denied เงียบๆ (มี toast error ที่หน้าจอแต่ถูกมองข้าม) — **แก้แล้ว**: `GRANT EXECUTE ... TO anon`
-2. `to_id` ยังชี้ group ID เก่า (`C45e2d8e51ad3ae86ac2e70dea43df2a7`) ที่บอทไม่เคยเข้าอยู่แล้ว — **แก้แล้ว**: เปลี่ยนเป็น userId ผอ. เดียวกับ `send_line_evening_summary()` (migration `fix_send_line_leave_result_target_and_grant`)
-3. ไม่มี HTTP status check — **แก้แล้ว**: เพิ่ม poll + `RAISE EXCEPTION` แบบเดียวกับ `send_line_evening_summary()`
-ทดสอบ push ตรงด้วย token+userId นี้สำเร็จ (status 200) ก่อนแก้ production function — ยืนยันว่า channel นี้ (คนละ token กับสรุปเย็น) ผอ. ก็เป็นเพื่อนอยู่แล้วเช่นกัน
+**🐛🔴 บั๊กใหญ่ที่เจอ+แก้ระหว่าง scrutinize (2026-07-10) — สรุปเย็นไม่เคยส่งสำเร็จเลยตั้งแต่ 2026-07-02 (7 วันทำการติดต่อกัน) ไม่เกี่ยวกับ pivot เปลี่ยนผู้รับเลย**
+
+**Root cause**: `net.http_post()` (pg_net) enqueue request ลงตารางคิวที่ background worker เห็นได้ **ก็ต่อเมื่อ transaction ที่ enqueue commit แล้วเท่านั้น** — migration `add_error_handling_line_evening_summary` (2026-07-01) เพิ่ม pattern "ยิงแล้ว sleep-loop poll `net._http_response` ภายใน transaction เดียวกัน" ซึ่งรับประกันว่า timeout ทุกครั้ง (worker ไม่มีทางเห็น request เลยตราบใดที่ transaction ยังไม่จบ) แล้วพอ timeout ก็ `RAISE EXCEPTION` → **ทั้ง transaction ROLLBACK รวมถึง request ที่ enqueue ไปด้วย** → ข้อความไม่ถูกส่งจริงเลย ไม่ใช่แค่ไม่รู้ผล ยืนยันด้วยการเรียกฟังก์ชันตรงๆ แล้วเช็ค `net._http_response` = 0 แถวแม้รอ 30+ วิ
+
+พบระหว่าง scrutinize การเปลี่ยนผู้รับ (group→ผอ.) เพราะ cron รอบ 16:45 วันนี้ (ที่ผ่านการแก้ผู้รับไปแล้วตั้งแต่เช้า) ก็ยัง fail ด้วย error เดิม — เช็ค `cron.job_run_details` พบว่า fail ทุกวันทำการตั้งแต่ 07-02 ถึงวันนี้ (รอบสำเร็จล่าสุดคือ 07-01 ก่อน migration ตัวนี้ deploy)
+
+**ผมเองก็สร้างบั๊กเดียวกันซ้ำ**: ตอนแก้ `send_line_leave_result()` รอบแรก (grant/target) ผมเพิ่ม pattern poll+RAISE EXCEPTION แบบเดียวกันเข้าไปด้วย (คิดว่าเป็น best practice) — ทำให้ต่อให้ grant/target ถูกแล้วก็ยังจะไม่ส่งจริงอยู่ดี การ "verify สำเร็จ" ของผมตอนนั้นหลอกตาผมเอง เพราะเช็คผลใน query แยกหลัง DO block จบ (transaction commit ไปแล้วพอดี) ไม่ได้จำลอง context เดียวกับตอนเรียกจริง
+
+**แก้แล้ว** (migration `fix_line_functions_remove_broken_sync_wait`): ทั้ง `send_line_evening_summary()` และ `send_line_leave_result()` กลับไปเป็น `PERFORM net.http_post(...)` แบบ fire-and-forget ล้วน (ไม่ poll/ไม่ RAISE EXCEPTION) — verified จริงด้วยการยิง request แยกแล้วเช็คคนละ query เห็น `status_code:200` + `sentMessages` จาก LINE จริง (req_id 5714)
+
+**เพิ่มใหม่ตามคำขอ Pam**: `send_line_evening_summary()` มี guard `IF EXTRACT(ISODOW FROM today) > 5 THEN RETURN;` ส่งเฉพาะ จ.-ศ. เท่านั้น แม้จะถูกเรียกนอก cron schedule ปกติก็ตาม (defense-in-depth ซ้อนกับ cron `45 9 * * 1-5` ที่มีอยู่แล้ว) — ยืนยันว่า guard ทำงานจริงเพราะบล็อกการทดสอบ manual ของผมเองตอนเวลาไทยข้ามเที่ยงคืนเป็นวันเสาร์พอดี
+
+**Tradeoff ที่ยอมรับ**: fire-and-forget แปลว่าไม่มีทาง diagnoseความล้มเหลวจาก SQL ฝั่งเดียวอีกแล้ว (ถ้า LINE token หมดอายุ/quota หมด จะไม่รู้จนกว่าจะสังเกตว่าข้อความไม่มา) — ยอมรับเพราะทางเลือกเดิม (poll+RAISE) รับประกันว่าไม่ส่งเลย 100% ซึ่งแย่กว่า ถ้าต้องการ monitoring จริงต้องออกแบบ two-phase แบบ `refresh_line_quota_cache()` ไม่ใช่แค่เพิ่ม error handling กลับเข้าไปแบบเดิม (ยังไม่ทำ — ไม่ได้ขอ)
+
+⚠️ **ค้างอยู่**: สรุปเย็นของวันศุกร์ 2026-07-10 ไม่ได้ถูกส่ง (ทั้งจากบั๊กเดิม และตอนแก้เสร็จก็ข้ามเที่ยงคืนเป็นเสาร์แล้ว guard เลยบล็อก manual catch-up) — รอ Pam ตัดสินใจว่าจะให้ยิง catch-up แบบ manual (ข้าม guard ครั้งเดียว) หรือปล่อยผ่านรอรอบจันทร์หน้า
 
 **`get_line_quota_info()` RPC (สร้าง 2026-07-01)**
 - ยิง LINE API `/quota` + `/consumption` ผ่าน pg_net แล้ว poll response
