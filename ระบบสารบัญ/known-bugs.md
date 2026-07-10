@@ -112,6 +112,28 @@ opt.dataset.hasUserId = typeof t === 'string' ? 'true' : (t.hasUserId ? 'true' :
 
 ---
 
+## BUG-D12: quota badge เข้าใจผิดว่า remaining = จำนวนครั้งที่ส่งได้ — 2026-07-08
+**อาการ**: badge บอกเหลือ 9 credit แต่ push จริงได้ 429 ทันที (ยืนยันด้วย log จริงจาก `testSendLineGroup()`)
+**สาเหตุที่แท้จริง**: LINE คิด credit ตาม**จำนวนคนที่ได้รับข้อความจริง** ไม่ใช่ตามจำนวนครั้งที่ยิง API (ยืนยันจาก LINE official docs: developers.line.biz/en/docs/messaging-api/pricing) — push เข้ากลุ่ม 1 ครั้งหักเท่าจำนวนสมาชิกกลุ่มเสมอ (~15-17 คน) ไม่ว่าจะ mention กี่คน ทำให้ "เหลือ 9" ไม่พอส่งแม้แต่ครั้งเดียว
+**แก้**: pivot สถาปัตยกรรมทั้งหมด (D13→D14 ใน decisions.md) จากส่งทันทีเป็นบันทึกคิว+สรุปส่งครั้งเดียวตอน 16:00 (คิด credit ตามจำนวนวันที่มีเอกสาร ไม่ใช่จำนวนเอกสาร) + เพิ่ม `sendsRemaining` ใน `getLineQuota()` (หาร remaining ด้วยจำนวนสมาชิกกลุ่มจริงจาก `/members/count`) ให้ badge โชว์ "ส่งได้อีกกี่วัน" แทนเลขดิบ (D15)
+**สถานะ**: ✅ แก้แล้วใน local Code.gs/index.html — รอ Pam paste+deploy+ตั้ง trigger
+
+---
+
+## BUG-D13: ฟิลด์หมายเหตุหายในสรุปตอนเย็น — เจอตอน scrutinize 2026-07-08 (แก้ก่อน deploy)
+**อาการ**: `queueForDailySummary()` (โค้ดที่เพิ่งเขียนสำหรับ BUG-D12) ไม่รับ `note` เป็น parameter เลย ทั้งที่ `uploadDoc()`/`notifyTeachers()` มี `data.note` อยู่ในมือ — หมายเหตุที่ผู้อัปโหลดกรอกจะหายไปเงียบๆ ทุกครั้ง ไม่ถึงครูเลย
+**แก้**: เพิ่ม `note` เป็น parameter ที่ 5 ของ `queueForDailySummary`, เพิ่มคอลัมน์ที่ 5 ("หมายเหตุ") ในชีต `PendingNotify`, `sendDailySummary()` ต่อท้าย `📝 หมายเหตุ: ...` ถ้ามีค่า
+**สถานะ**: ✅ แก้แล้วก่อน deploy จริง (เจอจาก scrutinize ก่อนใช้งานจริง ไม่ใช่ post-mortem)
+
+---
+
+## BUG-D14: ไม่มี lock ป้องกัน concurrent write บนคิว Sheet — เจอตอน scrutinize 2026-07-08
+**อาการ**: `queueForDailySummary()`/`sendDailySummary()` อ่าน/เขียน Google Sheet เดียวกันไม่มี `LockService` — ถ้า 2 คนอัปโหลดพร้อมกันพอดี มีโอกาส (ต่ำ) ที่แถวหนึ่งหายจาก `appendRow()` ชนกัน
+**แก้**: ห่อ critical section ทั้งสองฟังก์ชันด้วย `LockService.getScriptLock().waitLock(10000)` + `finally { releaseLock() }`
+**สถานะ**: ✅ แก้แล้วก่อน deploy จริง
+
+---
+
 ## ⚠️ Known Risk ที่ยังค้าง
 
 ### RISK-01: ไม่มี auth บน GAS endpoint
