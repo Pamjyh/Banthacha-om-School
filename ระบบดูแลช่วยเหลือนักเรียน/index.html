@@ -168,6 +168,7 @@
         <input id="f-updated_by" placeholder="ชื่อครู/staff ของคุณ">
       </div>
       <button onclick="saveProfile()">💾 บันทึก</button>
+      <button type="button" class="danger" style="width:100%;margin-top:10px" onclick="deleteStudent()">🗑️ ลบข้อมูลนักเรียนนี้ทั้งหมด</button>
     </div>
   </div>
 
@@ -476,6 +477,29 @@ async function saveProfile(){
   await loadStudents();
   const refreshed = allStudents.find(x=>x.id===currentId);
   if (refreshed) currentLoadedUpdatedAt = refreshed.updated_at || null;
+}
+
+async function deleteStudent(){
+  const s = allStudents.find(x=>x.id===currentId);
+  if (!s) return;
+  const deletedBy = document.getElementById('f-updated_by').value.trim();
+  if (!deletedBy) { document.getElementById('profile-msg').innerHTML = '<div class="msg error">กรุณากรอกชื่อครูผู้ลบก่อน (ช่อง "ชื่อครูผู้บันทึก" ด้านบน)</div>'; return; }
+
+  // sync จาก GAS ออมทรัพย์เป็นแบบเพิ่ม/อัปเดตเท่านั้น ไม่เคยลบเอง — ถ้าลบนักเรียนที่ยังมีชื่ออยู่ในชีตออมทรัพย์
+  // รอบ sync ถัดไป (ภายใน 5 นาที) จะดึงชื่อกลับมาใหม่ แต่ข้อมูลสุขภาพ/ที่อยู่/พิกัดที่ลบไปจะไม่กลับมา ต้องเตือนไว้ก่อนลบจริง
+  const warn = s.is_temp
+    ? ''
+    : '\n\nหมายเหตุ: ถ้านักเรียนคนนี้ยังมีชื่อในระบบออมทรัพย์ ชื่ออาจถูกดึงกลับมาใหม่ตอน sync รอบถัดไป (ภายใน 5 นาที) แต่ข้อมูลสุขภาพ/ที่อยู่/พิกัดที่ลบไปจะไม่กลับมา';
+  const ok = confirm('ยืนยันลบข้อมูลนักเรียน "' + s.name + '" ทั้งหมด?\n\nการลบนี้ถาวร กู้คืนไม่ได้ (รวมเบอร์โทร ที่อยู่ ข้อมูลสุขภาพ พิกัด GPS ทั้งหมด)' + warn);
+  if (!ok) return;
+
+  const { error } = await sb.rpc('care_delete_student', { p_password: _pw, p_student_id: currentId, p_deleted_by: deletedBy });
+  if (error) {
+    document.getElementById('profile-msg').innerHTML = '<div class="msg error">ลบไม่สำเร็จ: ' + esc(error.message) + '</div>';
+    return;
+  }
+  alert('ลบข้อมูลนักเรียนแล้ว');
+  goList();
 }
 
 function capturePin(){
