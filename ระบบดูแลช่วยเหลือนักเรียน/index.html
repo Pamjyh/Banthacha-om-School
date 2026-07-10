@@ -42,6 +42,21 @@
   .msg.ok{background:#eafaf1;color:#1e8449}
   #back-btn{background:none;color:#fff;font-size:1.3rem;padding:2px 10px}
   .maps-link{display:inline-block;margin-top:4px;font-size:.85rem;color:var(--pri-dark)}
+  .grade-group{margin-bottom:6px}
+  .grade-header{display:flex;justify-content:space-between;align-items:center;padding:12px 10px;background:#f0eaf5;border-radius:10px;cursor:pointer;font-weight:600;color:var(--pri-dark);user-select:none}
+  .grade-header:hover{background:#e8dff0}
+  .grade-count{font-size:.8rem;color:var(--muted);font-weight:400}
+  .grade-body{padding:2px 4px}
+  .stulist-item .name-row{display:flex;align-items:center;gap:6px;flex:1;min-width:0;cursor:pointer}
+  .call-btn{background:none;border:none;font-size:1.3rem;padding:4px 10px;cursor:pointer;flex:0 0 auto;line-height:1}
+  .call-btn:hover{background:#f0eaf5;border-radius:50%}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+  .modal-box{background:#fff;border-radius:var(--br);padding:20px;max-width:320px;width:100%}
+  .modal-box h3{margin:0 0 14px;font-size:1rem}
+  .call-option{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:10px;background:#faf7fc;margin-bottom:8px;text-decoration:none;color:var(--text)}
+  .call-option:hover{background:#f0eaf5}
+  .call-option .role{font-size:.78rem;color:var(--muted)}
+  .call-option .num{font-weight:600}
 </style>
 </head>
 <body>
@@ -69,13 +84,19 @@
       <button class="small secondary" onclick="triggerSync()">🔄 ซิงค์เดี๋ยวนี้</button>
     </div>
     <div class="card">
-      <div class="row">
-        <input id="search-box" placeholder="ค้นชื่อนักเรียน..." oninput="renderList()">
-        <select id="grade-filter" onchange="renderList()"><option value="">ทุกชั้น</option></select>
-      </div>
+      <input id="search-box" placeholder="🔍 ค้นชื่อนักเรียน (ค้นได้ทุกชั้นทันที)..." oninput="renderList()" autofocus>
       <div id="stu-list"></div>
     </div>
     <button class="secondary" onclick="openAddTemp()">➕ เพิ่มนักเรียนใหม่ (ยังไม่ sync)</button>
+  </div>
+
+  <!-- CALL PICKER MODAL -->
+  <div id="call-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeCallPicker()">
+    <div class="modal-box">
+      <h3 id="call-modal-title"></h3>
+      <div id="call-modal-body"></div>
+      <button class="secondary" style="width:100%" onclick="closeCallPicker()">ปิด</button>
+    </div>
   </div>
 
   <!-- PROFILE -->
@@ -196,11 +217,48 @@ async function loadStudents(){
   const { data, error } = await sb.rpc('care_get_students', { p_password: _pw });
   if (error) { alert('โหลดข้อมูลไม่สำเร็จ: ' + error.message); return; }
   allStudents = data || [];
-  const grades = [...new Set(allStudents.map(s=>s.grade).filter(Boolean))].sort();
-  const sel = document.getElementById('grade-filter');
-  sel.innerHTML = '<option value="">ทุกชั้น</option>' + grades.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('');
   renderList();
   await loadSyncStatus();
+}
+
+let expandedGrades = new Set(); // พับทุกชั้นไว้ก่อนตอนเข้าหน้ารายชื่อ (state อยู่ใน memory เท่านั้น รีเซ็ตทุกครั้งที่ login ใหม่)
+
+// เรียงชั้นแบบธรรมชาติ (ป.1 ก่อน ป.2 ... ป.10 ไม่ควรมาก่อน ป.2)
+function gradeNaturalSort(a, b){
+  const re = /(\d+)/;
+  const am = a.match(re), bm = b.match(re);
+  if (am && bm && a.replace(re,'') === b.replace(re,'')) return parseInt(am[1],10) - parseInt(bm[1],10);
+  return a.localeCompare(b, 'th');
+}
+
+// เรียงเลขที่ในชั้น: มีเลขที่มาก่อน (เรียงจากน้อยไปมาก), ไม่มีเลขที่ (เช่นนักเรียนใหม่ยังไม่ sync) ไปท้ายสุดเรียงตามชื่อ
+function rollNoSort(a, b){
+  const an = parseInt((a.roll_no||'').replace(/\D/g,''), 10);
+  const bn = parseInt((b.roll_no||'').replace(/\D/g,''), 10);
+  const aValid = !isNaN(an), bValid = !isNaN(bn);
+  if (aValid && bValid) return an - bn;
+  if (aValid) return -1;
+  if (bValid) return 1;
+  return (a.name||'').localeCompare(b.name||'', 'th');
+}
+
+function studentRowHtml(s){
+  const hasPhone = s.father_phone || s.mother_phone || s.guardian_phone || s.emergency_contact_phone;
+  return `
+    <div class="stulist-item">
+      <div class="name-row" onclick="openProfile('${esc(s.id)}')">
+        <div>
+          <div class="name">${s.roll_no?esc(s.roll_no)+'. ':''}${esc(s.name)} ${s.is_temp?'<span class="badge temp">ยังไม่ sync</span>':''}</div>
+          <div class="meta">${esc(s.grade||'-')} · ${esc(s.status||'')}</div>
+        </div>
+      </div>
+      ${hasPhone ? `<button class="call-btn" title="โทรหาผู้ปกครองด่วน" onclick="event.stopPropagation();showCallPicker('${esc(s.id)}')">📞</button>` : ''}
+    </div>`;
+}
+
+function toggleGrade(g){
+  if (expandedGrades.has(g)) expandedGrades.delete(g); else expandedGrades.add(g);
+  renderList();
 }
 
 async function loadSyncStatus(){
@@ -218,20 +276,50 @@ async function loadSyncStatus(){
 
 function renderList(){
   const q = document.getElementById('search-box').value.trim().toLowerCase();
-  const gf = document.getElementById('grade-filter').value;
-  const list = allStudents.filter(s =>
-    (!gf || s.grade===gf) && (!q || (s.name||'').toLowerCase().includes(q))
-  );
   const el = document.getElementById('stu-list');
-  if (!list.length){ el.innerHTML = '<p style="color:var(--muted)">ไม่พบนักเรียน</p>'; return; }
-  el.innerHTML = list.map(s => `
-    <div class="stulist-item" onclick="openProfile('${esc(s.id)}')">
-      <div>
-        <div class="name">${s.roll_no?esc(s.roll_no)+'. ':''}${esc(s.name)} ${s.is_temp?'<span class="badge temp">ยังไม่ sync</span>':''}</div>
-        <div class="meta">${esc(s.grade||'-')} · ${esc(s.status||'')}</div>
-      </div>
-    </div>`).join('');
+
+  if (q) {
+    // ค้นชื่อ: แสดงผลลัพธ์รวมทุกชั้นทันที ไม่ต้องกางการ์ดชั้น
+    const list = allStudents.filter(s => (s.name||'').toLowerCase().includes(q)).sort(rollNoSort);
+    el.innerHTML = list.length ? list.map(studentRowHtml).join('') : '<p style="color:var(--muted)">ไม่พบนักเรียน</p>';
+    return;
+  }
+
+  // ไม่ได้ค้น: แสดงเป็นการ์ดแยกชั้น เรียงเลขที่ในชั้น
+  if (!allStudents.length){ el.innerHTML = '<p style="color:var(--muted)">ไม่พบนักเรียน</p>'; return; }
+  const grades = [...new Set(allStudents.map(s=>s.grade||'ไม่ระบุชั้น'))].sort(gradeNaturalSort);
+  el.innerHTML = grades.map(g => {
+    const inGrade = allStudents.filter(s => (s.grade||'ไม่ระบุชั้น')===g).sort(rollNoSort);
+    const isOpen = expandedGrades.has(g);
+    return `
+      <div class="grade-group">
+        <div class="grade-header" onclick="toggleGrade('${esc(g)}')">
+          <span>${isOpen?'▾':'▸'} ${esc(g)}</span>
+          <span class="grade-count">${inGrade.length} คน</span>
+        </div>
+        ${isOpen ? `<div class="grade-body">${inGrade.map(studentRowHtml).join('')}</div>` : ''}
+      </div>`;
+  }).join('');
 }
+
+function showCallPicker(id){
+  const s = allStudents.find(x=>x.id===id);
+  if (!s) return;
+  const options = [
+    ['บิดา', s.father_phone],
+    ['มารดา', s.mother_phone],
+    [s.guardian_relation ? 'ผู้ปกครอง (' + s.guardian_relation + ')' : 'ผู้ปกครอง', s.guardian_phone],
+    ['ผู้ติดต่อฉุกเฉิน' + (s.emergency_contact_name ? ' (' + s.emergency_contact_name + ')' : ''), s.emergency_contact_phone],
+  ].filter(([,phone]) => phone && phone.trim());
+
+  document.getElementById('call-modal-title').textContent = '📞 โทรหาผู้ปกครองของ ' + s.name;
+  document.getElementById('call-modal-body').innerHTML = options.length
+    ? options.map(([role,phone]) => `<a class="call-option" href="tel:${esc(phone.replace(/[^0-9+]/g,''))}"><span class="role">${esc(role)}</span><span class="num">${esc(phone)}</span></a>`).join('')
+    : '<p style="color:var(--muted)">ไม่มีเบอร์โทรบันทึกไว้</p>';
+  show('call-modal');
+}
+
+function closeCallPicker(){ hide('call-modal'); }
 
 function goList(){ showOnly('pg-list'); loadStudents(); }
 
