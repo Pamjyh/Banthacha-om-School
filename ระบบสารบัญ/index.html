@@ -511,7 +511,7 @@
 // ============================================================
 //  CONFIG — แก้ตรงนี้หลัง deploy Apps Script
 // ============================================================
-var API = 'https://script.google.com/macros/s/AKfycbyBXTAlwUSMSgADCby8dTW3hRxTj9gBY_ySWiJObmWDdnxP6OaZW2xRLHEHijcxXZ6qOA/exec';
+var API = 'https://script.google.com/macros/s/AKfycbwpSYF8xdOROGY5tD8rBr3b7khV1bNvg04scUTdRZQXIuDqZ8AjqZWsszNX60NvmME/exec';
 // ตัวอย่าง: 'https://script.google.com/macros/s/AKfy.../exec'
 
 // ============================================================
@@ -589,20 +589,36 @@ function loadLineQuota() {
       var el = document.getElementById('lineQuotaBadge');
       if (!el || !res.ok || res.remaining === null) return;
       var rem = res.remaining, limit = res.limit;
-      var cls = rem > 100 ? 'quota-ok' : (rem > 30 ? 'quota-warn' : 'quota-low');
+      var sendsLeft = (typeof res.sendsRemaining === 'number') ? res.sendsRemaining : null; // null ถ้าดึงจำนวนสมาชิกกลุ่มไม่ได้
+
+      // ใช้ sendsLeft (เหลือ ÷ จำนวนคนในกลุ่ม) เป็นตัวตัดสินสีหลัก ถ้ามี — ตัวเลขนี้คือ
+      // "ส่งสรุปตอนเย็นได้อีกกี่วัน" ที่ตรงกับความจริง ไม่ใช่ rem เฉยๆ ที่เข้าใจผิดได้ง่าย
+      var cls;
+      if (sendsLeft !== null) {
+        cls = sendsLeft > 10 ? 'quota-ok' : (sendsLeft > 3 ? 'quota-warn' : 'quota-low');
+      } else {
+        cls = rem > 100 ? 'quota-ok' : (rem > 30 ? 'quota-warn' : 'quota-low');
+      }
       el.className = 'quota-badge ' + cls;
+
+      var sendsText = sendsLeft !== null
+        ? ' (ส่งสรุปได้อีก ~' + Math.max(sendsLeft, 0) + ' วัน จากกลุ่ม ' + res.groupSize + ' คน)'
+        : '';
       el.innerHTML = rem >= 0
-        ? '💬 LINE เหลือ ' + rem + ' / ' + limit
+        ? '💬 LINE เหลือ ' + rem + ' / ' + limit + sendsText
         : '🚫 LINE เกิน quota (' + Math.abs(rem) + ')';
       el.title = 'ใช้ไปแล้ว ' + res.used + ' ครั้งเดือนนี้';
 
-      // warning ใกล้ปุ่ม submit เมื่อ credits น้อย
+      // warning ใกล้ปุ่ม submit — อิงจาก sendsLeft (จำนวนวันที่ส่งสรุปได้จริง) ถ้ามี
       var warnEl = document.getElementById('quotaWarn');
       if (warnEl) {
-        if (rem <= 0) {
+        if (rem <= 0 || sendsLeft === 0) {
           warnEl.className = 'warn-red';
-          warnEl.textContent = '🚫 LINE quota หมดแล้ว — เอกสารจะถูกบันทึกแต่ครูไม่ได้รับแจ้ง';
-        } else if (rem <= 30) {
+          warnEl.textContent = '🚫 LINE quota หมดแล้ว — เอกสารจะถูกบันทึกคิวไว้ แต่สรุปตอนเย็นส่งไม่ได้';
+        } else if (sendsLeft !== null && sendsLeft <= 3) {
+          warnEl.className = 'warn-red';
+          warnEl.textContent = '⚠️ ส่งสรุปตอนเย็นได้อีกแค่ ~' + sendsLeft + ' วัน (เหลือ ' + rem + ' credits ÷ กลุ่ม ' + res.groupSize + ' คน)';
+        } else if (sendsLeft === null && rem <= 30) {
           warnEl.className = 'warn-red';
           warnEl.textContent = '⚠️ LINE เหลือ ' + rem + ' credits — ใกล้หมดแล้ว';
         } else {
@@ -1094,8 +1110,8 @@ function showSuccess(teachers, url, lineOk, isFolder) {
   var cls   = lineOk ? 'success' : 'error';
   var icon  = lineOk ? '✅' : '⚠️';
   var title = lineOk
-    ? 'อัปโหลดสำเร็จ — แจ้ง ' + esc(nameStr) + ' ทาง LINE แล้ว'
-    : 'อัปโหลดไฟล์สำเร็จ แต่ส่ง LINE ไม่สำเร็จ — กรุณาแจ้งครูด้วยตนเอง';
+    ? 'อัปโหลดสำเร็จ — บันทึกคิวแจ้ง ' + esc(nameStr) + ' แล้ว (สรุปส่ง LINE รวมตอน 16:00)'
+    : 'อัปโหลดไฟล์สำเร็จ แต่บันทึกคิวแจ้งไม่สำเร็จ — กรุณาแจ้งครูด้วยตนเอง';
   var linkText = isFolder ? '🔗 เปิดโฟลเดอร์บน Google Drive' : '🔗 เปิดไฟล์บน Google Drive';
   document.getElementById('resultArea').innerHTML =
     '<div class="result ' + cls + '">' +
