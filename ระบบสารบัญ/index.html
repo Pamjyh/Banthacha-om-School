@@ -511,7 +511,7 @@
 // ============================================================
 //  CONFIG — แก้ตรงนี้หลัง deploy Apps Script
 // ============================================================
-var API = 'https://script.google.com/macros/s/AKfycbyBXTAlwUSMSgADCby8dTW3hRxTj9gBY_ySWiJObmWDdnxP6OaZW2xRLHEHijcxXZ6qOA/exec';
+var API = 'https://script.google.com/macros/s/AKfycbwpSYF8xdOROGY5tD8rBr3b7khV1bNvg04scUTdRZQXIuDqZ8AjqZWsszNX60NvmME/exec';
 // ตัวอย่าง: 'https://script.google.com/macros/s/AKfy.../exec'
 
 // ============================================================
@@ -602,7 +602,7 @@ function loadLineQuota() {
       el.className = 'quota-badge ' + cls;
 
       var sendsText = sendsLeft !== null
-        ? ' (ส่งสรุปได้อีก ~' + Math.max(sendsLeft, 0) + ' วัน จากกลุ่ม ' + res.groupSize + ' คน)'
+        ? ' (ส่งสรุปได้อีก ~' + Math.max(sendsLeft, 0) + ' วัน — DM หา ผอ. คนเดียว)'
         : '';
       el.innerHTML = rem >= 0
         ? '💬 LINE เหลือ ' + rem + ' / ' + limit + sendsText
@@ -617,7 +617,7 @@ function loadLineQuota() {
           warnEl.textContent = '🚫 LINE quota หมดแล้ว — เอกสารจะถูกบันทึกคิวไว้ แต่สรุปตอนเย็นส่งไม่ได้';
         } else if (sendsLeft !== null && sendsLeft <= 3) {
           warnEl.className = 'warn-red';
-          warnEl.textContent = '⚠️ ส่งสรุปตอนเย็นได้อีกแค่ ~' + sendsLeft + ' วัน (เหลือ ' + rem + ' credits ÷ กลุ่ม ' + res.groupSize + ' คน)';
+          warnEl.textContent = '⚠️ ส่งสรุปตอนเย็นได้อีกแค่ ~' + sendsLeft + ' วัน (เหลือ ' + rem + ' credits)';
         } else if (sendsLeft === null && rem <= 30) {
           warnEl.className = 'warn-red';
           warnEl.textContent = '⚠️ LINE เหลือ ' + rem + ' credits — ใกล้หมดแล้ว';
