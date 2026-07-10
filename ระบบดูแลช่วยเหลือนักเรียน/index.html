@@ -86,6 +86,7 @@
 
   <!-- LIST / SEARCH -->
   <div id="pg-list" class="hidden">
+    <div id="list-flash" class="msg ok hidden"></div>
     <div class="sync-bar">
       <span id="sync-status">ยังไม่เคยซิงค์</span>
       <button class="small secondary" onclick="triggerSync()">🔄 ซิงค์เดี๋ยวนี้</button>
@@ -403,6 +404,16 @@ function goList(){
   if (sb2) sb2.focus();
 }
 
+let _listFlashTimer = null;
+function showListFlash(text){
+  const el = document.getElementById('list-flash');
+  if (!el) return;
+  el.textContent = text; // textContent เอง escape ให้อยู่แล้ว ไม่ต้อง esc() ซ้ำ
+  el.classList.remove('hidden');
+  clearTimeout(_listFlashTimer);
+  _listFlashTimer = setTimeout(() => el.classList.add('hidden'), 3500);
+}
+
 function checkNationalId(){
   const v = document.getElementById('f-national_id').value.trim();
   document.getElementById('national-id-warn').classList.toggle('hidden', v === '' || v.length === 13);
@@ -473,10 +484,11 @@ async function saveProfile(){
     }
     return;
   }
-  msg.innerHTML = '<div class="msg ok">บันทึกแล้ว</div>';
-  await loadStudents();
-  const refreshed = allStudents.find(x=>x.id===currentId);
-  if (refreshed) currentLoadedUpdatedAt = refreshed.updated_at || null;
+  // บันทึกสำเร็จ: เด้งกลับหน้ารายชื่อทันทีเพื่อความสะดวก (กรอกคนถัดไปต่อได้เลย) แทนที่จะค้างอยู่หน้าโปรไฟล์
+  const savedStudent = allStudents.find(x=>x.id===currentId);
+  const savedName = savedStudent ? savedStudent.name : '';
+  goList();
+  showListFlash('✅ บันทึกข้อมูล' + (savedName ? ' ' + savedName : '') + ' แล้ว'); // showListFlash ใช้ textContent ไม่ใช่ innerHTML จึงไม่ต้อง esc() ที่นี่
 }
 
 async function deleteStudent(){
