@@ -57,6 +57,13 @@
   .call-option:hover{background:#f0eaf5}
   .call-option .role{font-size:.78rem;color:var(--muted)}
   .call-option .num{font-weight:600}
+  .stats-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .stat-pill{background:#fff;border:1px solid #eadff2;border-radius:12px;padding:8px 10px;font-size:.75rem;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:78px;text-align:center}
+  .stat-pill:hover{background:#faf7fc}
+  .stat-pill.active{background:var(--pri);color:#fff;border-color:var(--pri)}
+  .stat-pill .stat-num{font-size:1.15rem;font-weight:700;color:var(--pri-dark)}
+  .stat-pill.active .stat-num{color:#fff}
+  .badge.health{background:#fdecea;color:#c0392b}
 </style>
 </head>
 <body>
@@ -83,6 +90,7 @@
       <span id="sync-status">ยังไม่เคยซิงค์</span>
       <button class="small secondary" onclick="triggerSync()">🔄 ซิงค์เดี๋ยวนี้</button>
     </div>
+    <div id="stats-bar" class="stats-bar"></div>
     <div class="card">
       <input id="search-box" placeholder="🔍 ค้นชื่อนักเรียน (ค้นได้ทุกชั้นทันที)..." oninput="renderList()">
       <div id="stu-list"></div>
@@ -217,8 +225,51 @@ async function loadStudents(){
   const { data, error } = await sb.rpc('care_get_students', { p_password: _pw });
   if (error) { alert('โหลดข้อมูลไม่สำเร็จ: ' + error.message); return; }
   allStudents = data || [];
+  renderStatsBar();
   renderList();
   await loadSyncStatus();
+}
+
+let statFilter = null; // null | 'no-data' | 'no-phone' | 'no-pin' — กดที่แผ่นสรุปด้านบนเพื่อกรองรายชื่อ
+
+// นิยามเงื่อนไขแต่ละ stat ไว้จุดเดียว — ใช้ร่วมกันทั้ง computeStats(), matchesStatFilter() และ studentRowHtml()'s hasPhone
+// กันไม่ให้ตัวเลขบนแผ่นสรุปกับรายชื่อที่กรองได้จริงเพี้ยนไปจากกัน ถ้ามีคนแก้เงื่อนไขทีหลังแล้วลืมแก้อีกจุด
+function hasAnyParentPhone(s){ return !!(s.father_phone || s.mother_phone || s.guardian_phone || s.emergency_contact_phone); }
+function hasAnyData(s){ return !!s.updated_at; }
+function hasPin(s){ return s.lat != null && s.lng != null; }
+
+function computeStats(){
+  return {
+    total: allStudents.length,
+    noData: allStudents.filter(s => !hasAnyData(s)).length,
+    noPhone: allStudents.filter(s => !hasAnyParentPhone(s)).length,
+    noPin: allStudents.filter(s => !hasPin(s)).length,
+  };
+}
+
+function matchesStatFilter(s){
+  if (statFilter === 'no-data') return !hasAnyData(s);
+  if (statFilter === 'no-phone') return !hasAnyParentPhone(s);
+  if (statFilter === 'no-pin') return !hasPin(s);
+  return true;
+}
+
+function renderStatsBar(){
+  const st = computeStats();
+  const el = document.getElementById('stats-bar');
+  const pill = (key,label,count) => `<div class="stat-pill${statFilter===key?' active':''}" onclick="toggleStatFilter('${key}')"><span>${label}</span><span class="stat-num">${count}</span></div>`;
+  el.innerHTML = `
+    <div class="stat-pill${statFilter===null?' active':''}" onclick="toggleStatFilter(null)"><span>ทั้งหมด</span><span class="stat-num">${st.total}</span></div>
+    ${pill('no-data','ยังไม่มีข้อมูล',st.noData)}
+    ${pill('no-phone','ไม่มีเบอร์ฉุกเฉิน',st.noPhone)}
+    ${pill('no-pin','ยังไม่ปักหมุด',st.noPin)}
+  `;
+}
+
+function toggleStatFilter(key){
+  statFilter = (statFilter === key) ? null : key; // กดซ้ำที่ตัวเดิม = ล้างตัวกรอง
+  renderStatsBar();
+  renderList();
 }
 
 let expandedGrades = new Set(); // พับทุกชั้นไว้ก่อนตอนเข้าหน้ารายชื่อ (state อยู่ใน memory เท่านั้น รีเซ็ตทุกครั้งที่ login ใหม่)
@@ -243,12 +294,14 @@ function rollNoSort(a, b){
 }
 
 function studentRowHtml(s){
-  const hasPhone = s.father_phone || s.mother_phone || s.guardian_phone || s.emergency_contact_phone;
+  const hasPhone = hasAnyParentPhone(s);
+  const healthNotes = [s.drug_allergy, s.food_allergy, s.chronic_disease].filter(v => v && v.trim());
+  const hasHealthFlag = healthNotes.length > 0;
   return `
     <div class="stulist-item">
       <div class="name-row" onclick="openProfile('${esc(s.id)}')">
         <div>
-          <div class="name">${s.roll_no?esc(s.roll_no)+'. ':''}${esc(s.name)} ${s.is_temp?'<span class="badge temp">ยังไม่ sync</span>':''}</div>
+          <div class="name">${s.roll_no?esc(s.roll_no)+'. ':''}${esc(s.name)} ${hasHealthFlag?`<span class="badge health" title="${esc(healthNotes.join(' | '))}">⚠️ สุขภาพ</span>`:''} ${s.is_temp?'<span class="badge temp">ยังไม่ sync</span>':''}</div>
           <div class="meta">${esc(s.grade||'-')} · ${esc(s.status||'')}</div>
         </div>
       </div>
@@ -277,15 +330,16 @@ async function loadSyncStatus(){
 function renderList(){
   const q = document.getElementById('search-box').value.trim().toLowerCase();
   const el = document.getElementById('stu-list');
+  const base = allStudents.filter(matchesStatFilter);
 
-  if (q) {
-    // ค้นชื่อ: แสดงผลลัพธ์รวมทุกชั้นทันที ไม่ต้องกางการ์ดชั้น
-    const list = allStudents.filter(s => (s.name||'').toLowerCase().includes(q)).sort(rollNoSort);
+  if (q || statFilter) {
+    // ค้นชื่อ และ/หรือ กรองจากแผ่นสรุปด้านบน: แสดงผลลัพธ์รวมทุกชั้นทันที ไม่ต้องกางการ์ดชั้น
+    const list = base.filter(s => !q || (s.name||'').toLowerCase().includes(q)).sort(rollNoSort);
     el.innerHTML = list.length ? list.map(studentRowHtml).join('') : '<p style="color:var(--muted)">ไม่พบนักเรียน</p>';
     return;
   }
 
-  // ไม่ได้ค้น: แสดงเป็นการ์ดแยกชั้น เรียงเลขที่ในชั้น
+  // ไม่ได้ค้น ไม่ได้กรอง: แสดงเป็นการ์ดแยกชั้น เรียงเลขที่ในชั้น
   if (!allStudents.length){ el.innerHTML = '<p style="color:var(--muted)">ไม่พบนักเรียน</p>'; return; }
   const grades = [...new Set(allStudents.map(s=>s.grade||'ไม่ระบุชั้น'))].sort(gradeNaturalSort);
   el.innerHTML = grades.map(g => {
