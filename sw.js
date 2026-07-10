@@ -2,7 +2,13 @@
 // Service Worker — โรงเรียนบ้านท่าชะอม
 // v1.0 — cache-first static, network-only API
 // =====================================================================
-const CACHE_NAME = 'banthacha-om-v3'; // v3: เพิ่มฟีเจอร์ทำเนียบบุคลากร (2026-07-09)
+const CACHE_NAME = 'banthacha-om-v4'; // v4: Doc 1 HTML+print pivot + doc_number=seq fix (2026-07-10)
+// ⚠️ พบว่า sw.js ใช้ stale-while-revalidate ทุกไฟล์ same-origin (ยกเว้น NO_CACHE_PATHS/HOSTS) รวมถึง
+// js/pdf-templates.js ด้วย — คืน cache เก่าทันทีเสมอ ค่อย update cache ใน background ไว้ใช้รอบถัดไป
+// ทำให้ push โค้ดใหม่ขึ้น GitHub Pages ไม่พอ ต้อง hard refresh ก็ยังไม่เห็นของใหม่ในรอบเดียว (Pam เจอจริง
+// 2026-07-10 — กด "1. ขอดำเนิน" ยังโหลด jsPDF เก่าอยู่ทั้งที่ push โค้ด HTML+print ไปแล้ว) ต้อง bump
+// CACHE_NAME ทุกครั้งที่แก้ไฟล์ static (js/*, index.html ฯลฯ) ที่ต้องการให้ผู้ใช้เห็นทันที ไม่งั้น SW จะ
+// เสิร์ฟของเก่าเงียบๆ ต่อไปเรื่อยๆ จนกว่า cache จะถูกล้าง
 
 // ไฟล์ที่ pre-cache ตอน install
 const PRE_CACHE = [
