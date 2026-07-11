@@ -19,11 +19,12 @@
   input,select,textarea{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:1rem;font-family:inherit;margin-bottom:10px}
   textarea{min-height:70px}
   label{font-size:.85rem;color:var(--muted);display:block;margin-bottom:4px}
-  button{background:var(--pri);color:#fff;border:none;border-radius:50px;padding:11px 20px;font-size:1rem;cursor:pointer;font-family:inherit}
+  /* ปุ่มทั่วไปสูงขึ้นเล็กน้อย (จาก 11px เป็น 14px padding บน-ล่าง) ให้ได้ขนาดแตะที่นิ้วโป้งกดง่ายบนมือถือ (แนะนำขั้นต่ำ ~44px) */
+  button{background:var(--pri);color:#fff;border:none;border-radius:50px;padding:14px 20px;font-size:1rem;cursor:pointer;font-family:inherit;min-height:44px}
   button:hover{background:var(--pri-dark)}
   button.secondary{background:#eee;color:#333}
   button.danger{background:var(--danger)}
-  button.small{padding:6px 14px;font-size:.85rem}
+  button.small{padding:6px 14px;font-size:.85rem;min-height:36px}
   .row{display:flex;gap:8px;flex-wrap:wrap}
   .row>*{flex:1}
   .hidden{display:none !important}
@@ -64,6 +65,14 @@
   .stat-pill .stat-num{font-size:1.15rem;font-weight:700;color:var(--pri-dark)}
   .stat-pill.active .stat-num{color:#fff}
   .badge.health{background:#fdecea;color:#c0392b}
+  /* PIN pad login — pw-input ยังเป็น input จริงเหมือนเดิม (พิมพ์คีย์บอร์ดจากคอมยังใช้ได้ปกติ)
+     แค่ทำให้หน้าตาเป็นจุดโต ๆ แบบ iPhone passcode + เพิ่มปุ่มตัวเลขให้กดด้วยนิ้วบนมือถือ */
+  #pw-input{text-align:center;font-size:1.8rem;letter-spacing:.4em;padding:14px 10px}
+  .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  .pin-key{aspect-ratio:1;border-radius:50%;font-size:1.5rem;background:#f0eaf5;color:var(--pri-dark);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:0}
+  .pin-key:hover{background:#e8dff0}
+  .pin-key-ok{background:var(--pri);color:#fff}
+  .pin-key-ok:hover{background:var(--pri-dark)}
 </style>
 </head>
 <body>
@@ -78,10 +87,23 @@
 
   <!-- LOGIN -->
   <div id="pg-login" class="card">
-    <p>ใส่รหัสผ่านครู/staff เพื่อเข้าใช้งาน</p>
-    <input type="password" id="pw-input" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
+    <p>ใส่รหัสผ่านครู/staff เพื่อเข้าใช้งาน (พิมพ์คีย์บอร์ดหรือกดปุ่มด้านล่างก็ได้)</p>
+    <input type="password" id="pw-input" placeholder="รหัสผ่าน" inputmode="numeric" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
     <div id="login-msg"></div>
-    <button onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div class="pin-pad">
+      <button type="button" class="pin-key" onclick="pinPress('1')">1</button>
+      <button type="button" class="pin-key" onclick="pinPress('2')">2</button>
+      <button type="button" class="pin-key" onclick="pinPress('3')">3</button>
+      <button type="button" class="pin-key" onclick="pinPress('4')">4</button>
+      <button type="button" class="pin-key" onclick="pinPress('5')">5</button>
+      <button type="button" class="pin-key" onclick="pinPress('6')">6</button>
+      <button type="button" class="pin-key" onclick="pinPress('7')">7</button>
+      <button type="button" class="pin-key" onclick="pinPress('8')">8</button>
+      <button type="button" class="pin-key" onclick="pinPress('9')">9</button>
+      <button type="button" class="pin-key" onclick="pinBackspace()">⌫</button>
+      <button type="button" class="pin-key" onclick="pinPress('0')">0</button>
+      <button type="button" class="pin-key pin-key-ok" onclick="doLogin()">✓</button>
+    </div>
   </div>
 
   <!-- LIST / SEARCH -->
@@ -207,6 +229,17 @@ function showOnly(id){
   ['pg-login','pg-list','pg-profile','pg-addtemp'].forEach(p=> p===id ? show(p) : hide(p));
   document.getElementById('back-btn').classList.toggle('hidden', id==='pg-login' || id==='pg-list');
   document.getElementById('page-title').textContent = id==='pg-profile' ? 'โปรไฟล์นักเรียน' : id==='pg-addtemp' ? 'เพิ่มนักเรียนใหม่' : 'ระบบดูแลช่วยเหลือนักเรียน';
+}
+
+// ปุ่มตัวเลขบนจอ (PIN pad) เขียนลง pw-input ตัวเดียวกับที่คีย์บอร์ดคอมพิมพ์ได้ปกติ — ไม่ได้แยก state ใหม่
+// เพื่อให้ทั้งพิมพ์จากคอมและกดจากมือถือ sync กันเสมอ ไม่มีทางเพี้ยนคนละค่า
+// ตั้งใจไม่เรียก .focus() หลังกด เพราะถ้า focus ช่อง input ที่ inputmode="numeric" มือถือจะเด้งคีย์บอร์ดจอเล็กซ้อนขึ้นมาทับปุ่มที่เพิ่งสร้างเอง
+function pinPress(digit){
+  document.getElementById('pw-input').value += digit;
+}
+function pinBackspace(){
+  const el = document.getElementById('pw-input');
+  el.value = el.value.slice(0, -1);
 }
 
 async function doLogin(){
