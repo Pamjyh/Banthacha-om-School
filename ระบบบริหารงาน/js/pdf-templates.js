@@ -142,22 +142,27 @@ function officialDocCss(){
   '.row{display:flex;}'+
   '.row .col-r{width:65mm;}'+
   'hr.sep{border:none;border-top:1px solid #000;margin:3mm 0 5mm 0;}'+
-  'p.body-para{text-indent:8mm;margin:0 0 4mm 0;text-align:justify;}'+
+  'p.body-para{text-indent:8mm;margin:0 0 2.5mm 0;text-align:justify;}'+
   '.sig-block{display:flex;justify-content:space-between;margin-top:12mm;}'+
   '.sig-col{width:47%;}'+
   '.sig-line{border-bottom:1px solid #000;width:65mm;margin-top:6mm;}'+
-  '.sig-center{text-align:center;margin-top:14mm;}'+
+  '.sig-center{text-align:center;margin-top:8mm;}'+
   // ตาราง "แบบประมาณการ" (Doc 2 เป็นต้นไป) — เอกสารราชการไทยใช้ตารางเส้นขอบเต็มเป็นมาตรฐาน
-  '.doc-title2{text-align:center;font-weight:bold;margin-bottom:6mm;}'+
-  'table.sub-table{width:100%;border-collapse:collapse;margin-top:4mm;}'+
-  'table.sub-table th,table.sub-table td{border:1px solid #000;padding:1.5mm 2.5mm;}'+
+  // ⚠️ line-height/padding/font-size ลดจากเดิม (Pam เจอ Doc 2-3 ล้นไปหน้า 2 — 2026-07-10) เดิม table
+  // ไม่ override line-height เลยสืบทอด 1.6 จาก body มาด้วย ทำให้แต่ละแถวสูงเกินจำเป็นมาก (แถวเดียวก็กิน
+  // ที่เกือบเท่าข้อความ 2 บรรทัด) ลดเหลือ 1.2 + padding แคบลง + font เล็กลงเล็กน้อย (ตารางเอกสารราชการ
+  // ทั่วไปตัวเล็กกว่าเนื้อหาอยู่แล้วเป็นปกติ) ประหยัดพื้นที่แนวตั้งได้มากสุดในบรรดาจุดที่แก้รอบนี้
+  '.doc-title2{text-align:center;font-weight:bold;margin-bottom:4mm;}'+
+  'table.sub-table{width:100%;border-collapse:collapse;margin-top:3mm;font-size:14pt;line-height:1.2;}'+
+  'table.sub-table th,table.sub-table td{border:1px solid #000;padding:0.8mm 2mm;}'+
   'table.sub-table th{text-align:center;font-weight:bold;}'+
   'table.sub-table td.tc{text-align:center;}'+
   'table.sub-table td.tr{text-align:right;}'+
   'table.sub-table td.total-label{text-align:right;font-weight:bold;}'+
   // แถวลายเซ็น 3 คน (Doc 3 เป็นต้นไป) — เจ้าหน้าที่/หัวหน้าเจ้าหน้าที่ วางคู่กันแถวบน ผอ. อยู่กึ่งกลางแถวล่าง
-  // (ตามลำดับการอนุมัติจริง: เจ้าหน้าที่เสนอ → หัวหน้าเจ้าหน้าที่เห็นชอบ → ผอ.อนุมัติ)
-  '.sig-row3{display:flex;justify-content:space-around;margin-top:14mm;text-align:center;}'+
+  // (ตามลำดับการอนุมัติจริง: เจ้าหน้าที่เสนอ → หัวหน้าเจ้าหน้าที่เห็นชอบ → ผอ.อนุมัติ) margin-top ลดจาก 14mm
+  // เหลือ 7mm ด้วยเหตุผลเดียวกับตาราง (กัน Doc 3 ล้นหน้า 2)
+  '.sig-row3{display:flex;justify-content:space-around;margin-top:7mm;text-align:center;}'+
   '.sig-col3{width:42%;}';
 }
 
@@ -399,8 +404,8 @@ async function generateDoc3(procItemId){
     torRows +
     '<p class="body-para" style="text-indent:0;margin-top:4mm">จึงเรียนมาเพื่อโปรดพิจารณาอนุมัติและมอบงานพัสดุเป็นผู้ดำเนินการจัด'+buyOrHireShort+'ต่อไป</p>'+
     '<div class="sig-row3">'+
-      '<div class="sig-col3">เจ้าหน้าที่<div class="sig-line" style="margin:6mm auto"></div>('+escHtml(officerPrintName)+')</div>'+
-      '<div class="sig-col3">หัวหน้าเจ้าหน้าที่<div class="sig-line" style="margin:6mm auto"></div>('+escHtml(headPrintName)+')<br>'+
+      '<div class="sig-col3">เจ้าหน้าที่<div class="sig-line" style="margin:3mm auto"></div>('+escHtml(officerPrintName)+')</div>'+
+      '<div class="sig-col3">หัวหน้าเจ้าหน้าที่<div class="sig-line" style="margin:3mm auto"></div>('+escHtml(headPrintName)+')<br>'+
         '( ) เห็นชอบ&nbsp;&nbsp;&nbsp;( ) อนุมัติ</div>'+
     '</div>'+
     '<div class="sig-center">ลงชื่อ .......................................<br>'+
