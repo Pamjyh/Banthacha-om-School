@@ -68,8 +68,10 @@
   /* PIN pad login — pw-input ยังเป็น input จริงเหมือนเดิม (พิมพ์คีย์บอร์ดจากคอมยังใช้ได้ปกติ)
      แค่ทำให้หน้าตาเป็นจุดโต ๆ แบบ iPhone passcode + เพิ่มปุ่มตัวเลขให้กดด้วยนิ้วบนมือถือ */
   #pw-input{text-align:center;font-size:1.8rem;letter-spacing:.4em;padding:14px 10px}
-  .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
-  .pin-key{aspect-ratio:1;border-radius:50%;font-size:1.5rem;background:#f0eaf5;color:var(--pri-dark);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:0}
+  /* เดิมปุ่มยืดเต็มความกว้างการ์ด (1fr) บนมือถือเลยกลายเป็นวงกลมใหญ่เกิน ~90-100px กดแล้วรู้สึกไม่แม่น
+     เปลี่ยนเป็นขนาดคงที่ 70px (ใกล้เคียงปุ่มโทรศัพท์จริง) แล้วจัดกึ่งกลางแทน */
+  .pin-pad{display:grid;grid-template-columns:repeat(3,70px);justify-content:center;gap:14px;margin-top:16px}
+  .pin-key{width:70px;height:70px;border-radius:50%;font-size:1.4rem;background:#f0eaf5;color:var(--pri-dark);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:0}
   .pin-key:hover{background:#e8dff0}
   .pin-key-ok{background:var(--pri);color:#fff}
   .pin-key-ok:hover{background:var(--pri-dark)}
