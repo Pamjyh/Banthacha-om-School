@@ -270,39 +270,40 @@ async function saveDetailForm(){
 
   show('loadingOverlay','flex');
   try{
-    if(CURRENT_DETAIL && CURRENT_DETAIL.id){
-      await PATCH('procurement_details', 'id=eq.'+CURRENT_DETAIL.id, detailBody);
-    } else {
-      // create mode — ออกเลขที่เอกสารจริงตอนนี้ (เลขที่เอกสาร = seq ของรายการนี้ตรงๆ ไม่ใช่ตัวนับแยก
-      // ต่างหากแบบเดิม — แก้ 2026-07-09 ตามที่ Pam ยืนยันให้ใช้เลขเดียวกับ "ลำดับที่" ตั้งแต่ตอนเพิ่มรายการ)
+    // RLS fix (2026-07-11): fn_save_procurement_detail เป็น upsert เดียว (เช็ค PATCH/POST เองฝั่ง server
+    // จาก procurement_item_id) — ไม่ต้องแยก branch create/edit ฝั่ง client อีกต่อไป
+    // doc_number ส่งไปเสมอ แต่ RPC จะใช้แค่ตอน insert (create mode) เท่านั้น ตอน update จะเมิน param นี้
+    let docNumberForCreate = null;
+    if(!(CURRENT_DETAIL && CURRENT_DETAIL.id)){
       const next = await getNextDocNumber(CY, CURRENT_PROC_ITEM.type, CURRENT_PROC_ITEM.seq);
-      detailBody.doc_number = next.preview;
-      const rows = await POST('procurement_details', detailBody);
-      CURRENT_DETAIL = (rows && rows[0]) || detailBody;
+      docNumberForCreate = next.preview;
     }
+    const authP = currentAuthParams();
+    CURRENT_DETAIL = await RPC('fn_save_procurement_detail', {
+      p_procurement_item_id: CURRENT_PROC_ITEM.id, ...authP,
+      p_vendor_id: detailBody.vendor_id, p_committee_tor: detailBody.committee_tor, p_committee_inspect: detailBody.committee_inspect,
+      p_tor_objective: detailBody.tor_objective, p_tor_qualification: detailBody.tor_qualification,
+      p_budget_source: detailBody.budget_source, p_vat_applicable: detailBody.vat_applicable,
+      p_withholding_tax: detailBody.withholding_tax, p_penalty_rate_percent: detailBody.penalty_rate_percent,
+      p_date_request: detailBody.date_request, p_date_approve_tor: detailBody.date_approve_tor,
+      p_date_order_tor: detailBody.date_order_tor, p_date_agree_tor: detailBody.date_agree_tor,
+      p_date_request_buy: detailBody.date_request_buy, p_date_announce: detailBody.date_announce,
+      p_date_order: detailBody.date_order, p_date_due: detailBody.date_due,
+      p_date_deliver: detailBody.date_deliver, p_date_withdraw: detailBody.date_withdraw,
+      p_doc_number: docNumberForCreate
+    });
 
-    const insertPayload = CURRENT_SUB_ITEMS.map(function(r, i){
+    // fn_replace_procurement_sub_items ลบชุดเก่า+ใส่ชุดใหม่ในทรานแซกชันเดียวฝั่ง server (atomic จริง) —
+    // ไม่มีสถานะ "บันทึกสำเร็จแต่ลบชุดเก่าไม่สำเร็จ" ให้ต้องดักแยกแบบเดิมอีกต่อไป ถ้าพังคือพังทั้งก้อน ไม่มี partial state
+    const itemsPayload = CURRENT_SUB_ITEMS.map(function(r){
       return {
-        procurement_item_id: CURRENT_PROC_ITEM.id, seq: i+1,
         description: r.description||'', unit: r.unit||'',
         quantity: Number(r.quantity)||0, unit_price: Number(r.unit_price)||0, amount: Number(r.amount)||0
       };
     });
-    if(insertPayload.length) await POST('procurement_sub_items', insertPayload);
-
-    // scrutinize finding (2026-07-07, MAJOR): ขั้นตอน DEL นี้แยก try/catch ของตัวเองโดยตั้งใจ — ไม่รวมกับ
-    // try ด้านบน เพราะถึงตรงนี้ procurement_details + รายการย่อยชุดใหม่ "บันทึกสำเร็จแล้วจริง" ถ้า DEL ชุดเก่า
-    // พังตรงนี้ (เช่น network สะดุด) ไม่ควรบอกผู้ใช้ว่า "บันทึกไม่สำเร็จ" (เข้าใจผิด+เสี่ยงกด "บันทึก" ซ้ำ
-    // ทำให้ CURRENT_SUB_ITEMS_ORIGINAL_IDS ที่เป็น snapshot เก่ายิ่ง insert ซ้ำสะสมใน DB โดยไม่มีใครรู้)
-    // ต้องแจ้งเฉพาะเจาะจงว่า "บันทึกสำเร็จ แต่ลบชุดเก่าไม่สำเร็จ" แล้ว reload ให้เห็นแถวซ้ำเป็น signal ทันที
-    try{
-      if(CURRENT_SUB_ITEMS_ORIGINAL_IDS.length) await DEL('procurement_sub_items', 'id=in.('+CURRENT_SUB_ITEMS_ORIGINAL_IDS.join(',')+')');
-    }catch(delErr){
-      hide('loadingOverlay');
-      alert('บันทึกข้อมูลหลักสำเร็จ แต่ลบรายการย่อยชุดเก่าไม่สำเร็จ ('+delErr.message+')\nอาจมีรายการย่อยซ้ำ — กรุณาตรวจสอบและลบแถวที่ซ้ำเองก่อนบันทึกซ้ำ');
-      await openDetailForm(CURRENT_PROC_ITEM.id); // reload ให้เห็นสภาพจริงใน DB (รวมแถวซ้ำถ้ามี) แทนที่จะค้าง view เดิม
-      return;
-    }
+    await RPC('fn_replace_procurement_sub_items', {
+      p_procurement_item_id: CURRENT_PROC_ITEM.id, ...authP, p_items: itemsPayload
+    });
 
     hide('loadingOverlay');
     showToast('บันทึกเอกสารพัสดุสำเร็จ ✓');

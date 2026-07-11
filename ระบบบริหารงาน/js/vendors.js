@@ -121,8 +121,14 @@ async function saveVendorItem(){
   const editId = document.getElementById('vendorEditId').value;
   show('loadingOverlay','flex');
   try{
-    if(editId) await PATCH('vendors', 'id=eq.'+editId, body);
-    else await POST('vendors', body);
+    await RPC('fn_save_vendor', {
+      p_id: editId || null, ...currentAuthParams(),
+      p_name: body.name, p_contact_name: body.contact_name, p_type: body.type, p_tax_id: body.tax_id,
+      p_address_no: body.address_no, p_moo: body.moo, p_tambon: body.tambon, p_amphoe: body.amphoe,
+      p_province: body.province, p_postcode: body.postcode, p_phone: body.phone,
+      p_bank_acct_no: body.bank_acct_no, p_bank_acct_name: body.bank_acct_name,
+      p_bank_name: body.bank_name, p_bank_branch: body.bank_branch
+    });
     VENDORS_LIST = await GET('vendors','select=*&order=name') || [];
     hide('loadingOverlay');
     renderVendorsTable();

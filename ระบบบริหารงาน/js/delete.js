@@ -11,14 +11,14 @@ async function confirmDel(){
   try{
     if(type==='proc'){
       if(!canEditModule('procurement')){ hide('loadingOverlay'); alert('คุณไม่มีสิทธิ์ลบรายการพัสดุนี้'); closeConfirm(); return; }
-      await DEL('finance_transactions',`procurement_id=eq.${id}`);
-      await DEL('procurement_items',`id=eq.${id}`);
+      // fn_delete_procurement_item ลบ finance_transactions ที่ผูกอยู่ให้ในตัวเดียวกัน (atomic)
+      await RPC('fn_delete_procurement_item', { p_id: id, ...currentAuthParams() });
       FINANCE_LOADED=false;
     }
     else if(type==='project'){
       const proj = PROJECTS.find(function(x){ return x.id===id; });
       if(proj && !canEdit(proj.teacher_name)){ hide('loadingOverlay'); alert('คุณไม่มีสิทธิ์ลบโครงการนี้'); closeConfirm(); return; }
-      await DEL('projects',`id=eq.${id}`); FINANCE_LOADED=false;
+      await RPC('fn_delete_project', { p_id: id, ...currentAuthParams() }); FINANCE_LOADED=false;
     }
     else if(type==='finance_transaction'){
       if(!canEditModule('finance')){ hide('loadingOverlay'); alert('คุณไม่มีสิทธิ์ลบรายการการเงินนี้'); closeConfirm(); return; }
@@ -26,16 +26,16 @@ async function confirmDel(){
       // (ป้องกันพัสดุแสดง "เบิกแล้ว" ทั้งที่ไม่มี finance record รองรับแล้ว)
       var linkedTx = FINANCE_TRANSACTIONS.find(function(t){ return String(t.id)===String(id); });
       if(linkedTx && linkedTx.procurement_id){
-        await PATCH('procurement_items','id=eq.'+linkedTx.procurement_id,{withdraw_status:'ยังไม่เบิก', withdraw_no:null});
+        await RPC('fn_update_procurement_withdraw', { p_id: linkedTx.procurement_id, ...currentAuthParams(), p_status:'ยังไม่เบิก', p_withdraw_no:null });
         var linkedProc = PROC.find(function(i){ return i.id===linkedTx.procurement_id; });
         if(linkedProc){ linkedProc.withdraw_status='ยังไม่เบิก'; linkedProc.withdraw_no=null; }
       }
-      await DEL('finance_transactions',`id=eq.${id}`);
+      await RPC('fn_delete_finance_transaction', { p_id: id, ...currentAuthParams() });
       FINANCE_LOADED=false;
     }
     else if(type==='external_transaction'){
       if(!canEditModule('finance')){ hide('loadingOverlay'); alert('คุณไม่มีสิทธิ์ลบรายการเงินนอกนี้'); closeConfirm(); return; }
-      await DEL('external_transactions',`id=eq.${id}`); EXT_LOADED=false;
+      await RPC('fn_delete_external_transaction', { p_id: id, ...currentAuthParams() }); EXT_LOADED=false;
     }
     if(type==='finance_transaction'){
       await loadFinanceData();

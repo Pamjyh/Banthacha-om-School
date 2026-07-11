@@ -3,9 +3,11 @@
 // เดิม: ต้องกรอกรหัสผ่านรวมก่อน ถึงจะเจอ Teacher Selector ("คุณคือใคร")
 // ใหม่: เจอ Teacher Selector ได้ทันทีโดยไม่ต้องมีรหัสผ่านเลย — การเลือกตัวตนเองคือ "login"
 // สิทธิ์แก้ไขจริงมาจาก canEdit()/canEditModule() (ตามตัวตน+flag ที่เลือก) ไม่ใช่รหัสผ่านรวมอีกต่อไป
-// จุดเดียวที่ยังมีรหัส/PIN คือตัวตน "ผู้ดูแลระบบ" (ADMIN_PIN_KEY ด้านล่าง) และหน้า "⚙️ จัดการข้อมูล"
+// จุดเดียวที่ยังมีรหัส/PIN คือตัวตน "ผู้ดูแลระบบ" (ADMIN_PIN_SESSION_KEY ด้านล่าง) และหน้า "⚙️ จัดการข้อมูล"
 // ที่ยังผูกกับตัวตน ADMIN เท่านั้น (ดู isAdminIdentity())
 // IS_ADMIN ตอนนี้แปลว่า "เลือกตัวตนใน Teacher Selector แล้ว" (ไม่ว่าครูคนไหนหรือ ADMIN) ไม่ใช่ "ผ่านรหัสผ่านแล้ว"
+// RLS fix (2026-07-11): PIN ของ ADMIN ตอนนี้ verify กับ database จริงผ่าน RPC (ดู currentAuthParams(),
+// fn_validate_admin_pin) ไม่ใช่ localStorage ของเครื่องเดียวแบบเดิมอีกต่อไป — ดู RLS_FIX_BLUEPRINT.md
 // =====================================================================
 
 async function hashPw(pw){
@@ -44,7 +46,18 @@ function isAdminIdentity(){
 // นี่คือจุดเข้าระบบเดียวตอนนี้ (2026-07-07 ตัดรหัสผ่านรวมออกแล้ว) — เลือกว่า "คุณคือใคร?" เก็บใน sessionStorage (หมดเมื่อปิด tab)
 // ใช้กำหนดว่าใครแก้ไข/ลบโครงการของใครได้บ้าง ผ่าน canEdit() ด้านล่าง
 const CURRENT_STAFF_KEY = 'current_staff_id'; // sessionStorage: uuid ของ staff หรือ 'ADMIN'
-const ADMIN_PIN_KEY     = 'school_admin2_hash'; // localStorage — รหัสผู้ดูแลระบบ ใช้เฉพาะตอนเลือกตัวตน "ผู้ดูแลระบบ" เท่านั้น
+// RLS fix (2026-07-11): PIN ผู้ดูแลระบบย้ายจาก localStorage (เครื่องเดียว) ไปเก็บกลางใน database
+// (ตาราง app_settings ผ่าน RPC fn_validate_admin_pin/fn_set_admin_pin) — server เท่านั้นที่รู้ค่าจริง
+// ตัวแปรนี้เก็บแค่ hash ที่ "verify ผ่านแล้ว" ของ session ปัจจุบัน ใช้แนบไปกับทุก RPC call ที่ต้องการสิทธิ์ ADMIN
+// เก็บใน sessionStorage (หมดอายุเมื่อปิด tab) ไม่ใช่ localStorage — เพราะไม่ใช่ความลับที่ควรอยู่ถาวรในเครื่อง
+const ADMIN_PIN_SESSION_KEY = 'admin_pin_hash_session';
+
+// helper กลาง — ทุกไฟล์ที่เรียก RPC เขียน/ลบข้อมูล ใช้ตัวนี้แนบ {p_staff_id, p_pin_hash} เสมอ
+function currentAuthParams(){
+  const id = sessionStorage.getItem(CURRENT_STAFF_KEY) || '';
+  const pin = id === 'ADMIN' ? (sessionStorage.getItem(ADMIN_PIN_SESSION_KEY) || '') : null;
+  return { p_staff_id: id, p_pin_hash: pin };
+}
 
 function openTeacherSelector(){
   const sel = document.getElementById('teacherSelectDropdown');
@@ -75,8 +88,7 @@ function toggleTeacherAdminPin(){
   document.getElementById('teacherAdminPinError').textContent = '';
   if(sel.value === 'ADMIN'){
     row.style.display = '';
-    const stored = localStorage.getItem(ADMIN_PIN_KEY);
-    document.getElementById('teacherAdminPinLabel').textContent = stored ? 'รหัสผู้ดูแลระบบ' : 'ยังไม่เคยตั้งรหัส — กดยืนยันเพื่อตั้งรหัสใหม่';
+    document.getElementById('teacherAdminPinLabel').textContent = 'รหัสผู้ดูแลระบบ';
     document.getElementById('teacherAdminPin').value = '';
   } else {
     row.style.display = 'none';
@@ -95,17 +107,27 @@ function closeAdminPinSetupModal(){
   document.getElementById('adminPin2Overlay').classList.remove('open');
 }
 
+// เปลี่ยนรหัสผู้ดูแลระบบ — ต้อง login เป็น ADMIN อยู่แล้ว (มี hash ที่ verify ผ่านใน session)
+// ปุ่มเปิด modal นี้ (⚙️ จัดการข้อมูล) ก็ admin-only + isAdminIdentity() อยู่แล้ว กันซ้อนอีกชั้นตรงนี้
 async function saveAdminPin(){
   const pin  = document.getElementById('adminPin2-input').value.trim();
   const pin2 = document.getElementById('adminPin2-confirm').value.trim();
   const errEl = document.getElementById('adminPin2-error');
+  if(!isAdminIdentity()){ errEl.textContent = 'ต้อง login เป็นผู้ดูแลระบบก่อน'; return; }
   if(!pin)       { errEl.textContent = 'กรุณาระบุรหัส'; return; }
+  if(pin.length < 4){ errEl.textContent = 'รหัสควรมีอย่างน้อย 4 หลัก'; return; }
   if(pin !== pin2){ errEl.textContent = 'รหัสไม่ตรงกัน'; return; }
-  const h = await hashPw(pin);
-  localStorage.setItem(ADMIN_PIN_KEY, h);
-  closeAdminPinSetupModal();
-  showToast('ตั้งรหัสผู้ดูแลระบบสำเร็จ ✓');
-  finalizeTeacherSelection('ADMIN'); // ตั้งเสร็จ → เข้าเป็นผู้ดูแลระบบให้เลย ไม่ต้องกรอกซ้ำ
+  const oldHash = sessionStorage.getItem(ADMIN_PIN_SESSION_KEY) || '';
+  const newHash = await hashPw(pin);
+  try{
+    const ok = await RPC('fn_set_admin_pin', { p_new_hash: newHash, p_old_hash: oldHash });
+    if(!ok){ errEl.textContent = 'เปลี่ยนรหัสไม่สำเร็จ — session อาจหมดอายุ กรุณาออกแล้วเข้าสู่ระบบใหม่'; return; }
+    sessionStorage.setItem(ADMIN_PIN_SESSION_KEY, newHash);
+    closeAdminPinSetupModal();
+    showToast('เปลี่ยนรหัสผู้ดูแลระบบสำเร็จ ✓');
+  }catch(e){
+    errEl.textContent = 'เปลี่ยนรหัสไม่สำเร็จ: ' + e.message;
+  }
 }
 
 async function confirmTeacherSelection(){
@@ -114,14 +136,17 @@ async function confirmTeacherSelection(){
   if(!val){ showToast('กรุณาเลือกชื่อของท่านก่อน'); return; }
 
   if(val === 'ADMIN'){
-    // Stage 13C: "ผู้ดูแลระบบ" ต้องผ่าน PIN แยกต่างหาก (ไม่ใช่แค่รู้รหัส login ทั่วไป)
-    const stored = localStorage.getItem(ADMIN_PIN_KEY);
-    if(!stored){ openAdminPinSetupModal(); return; } // ครั้งแรก — ตั้งก่อน แล้ว modal นั้นจะ finalize ให้เอง
+    // RLS fix (2026-07-11): PIN เช็คกับ database จริงผ่าน RPC (server-side) แทน localStorage —
+    // ป้องกันคนที่รู้แค่ "รู้ URL เว็บ" เขียนข้อมูลตรงได้โดยไม่ผ่านชั้นนี้เลย (ดู RLS_FIX_BLUEPRINT.md)
     const pin = document.getElementById('teacherAdminPin').value;
     const errEl = document.getElementById('teacherAdminPinError');
     if(!pin){ errEl.textContent = 'กรุณากรอกรหัส'; return; }
     const h = await hashPw(pin);
-    if(h !== stored){ errEl.textContent = 'รหัสไม่ถูกต้อง'; document.getElementById('teacherAdminPin').select(); return; }
+    let ok = false;
+    try{ ok = await RPC('fn_validate_admin_pin', { p_hash: h }); }
+    catch(e){ errEl.textContent = 'ตรวจสอบรหัสไม่ได้: ' + e.message; return; }
+    if(!ok){ errEl.textContent = 'รหัสไม่ถูกต้อง'; document.getElementById('teacherAdminPin').select(); return; }
+    sessionStorage.setItem(ADMIN_PIN_SESSION_KEY, h); // เก็บ hash ที่ verify แล้วไว้แนบกับทุก RPC call ระหว่าง session นี้
   }
 
   finalizeTeacherSelection(val);

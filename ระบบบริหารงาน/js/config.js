@@ -43,3 +43,27 @@ const GET  = (t,q)     => sb('GET',t,{query:q});
 const POST = (t,b)     => sb('POST',t,{body:b});
 const PATCH= (t,q,b)   => sb('PATCH',t,{query:q,body:b});
 const DEL  = (t,q)     => sb('DELETE',t,{query:q});
+
+// RLS fix (2026-07-11): ทุกการเขียน/ลบข้อมูลต้องผ่าน RPC (SECURITY DEFINER function บน server)
+// แทนการยิง POST/PATCH/DELETE ตรงด้วย anon key — RPC เช็คสิทธิ์ฝั่ง server จริง ไม่ใช่แค่ client
+async function RPC(fnName, params={}){
+  const cfg = getConfig();
+  if(!cfg) throw new Error('No config');
+  const res = await fetch(`${cfg.url}/rest/v1/rpc/${fnName}`, {
+    method: 'POST',
+    headers:{
+      'apikey': cfg.key,
+      'Authorization': `Bearer ${cfg.key}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(params)
+  });
+  if(!res.ok){
+    const err = await res.json().catch(()=>({message:res.statusText}));
+    // RPC ที่ raise exception 'forbidden' ฝั่ง Postgres จะมาโผล่ตรงนี้ — แปลเป็นข้อความอ่านง่าย
+    const msg = (err.message||'').includes('forbidden') ? 'คุณไม่มีสิทธิ์ทำรายการนี้' : (err.message||res.statusText);
+    throw new Error(msg);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}

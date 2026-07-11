@@ -67,12 +67,14 @@ async function saveStaffItem(){
   const canFin  = document.getElementById('staffCanFin').checked;
 
   const editId = document.getElementById('staffEditId').value;
-  const body = { prefix, name, position, can_edit_procurement: canProc, can_edit_finance: canFin };
 
   show('loadingOverlay','flex');
   try{
-    if(editId) await PATCH('staff', 'id=eq.'+editId, body);
-    else await POST('staff', body);
+    await RPC('fn_save_staff', {
+      p_id: editId || null, ...currentAuthParams(),
+      p_prefix: prefix, p_name: name, p_position: position,
+      p_can_edit_procurement: canProc, p_can_edit_finance: canFin
+    });
     STAFF_LIST = await GET('staff','select=*&order=prefix,name') || [];
     hide('loadingOverlay');
     renderStaffTable();
@@ -93,7 +95,7 @@ async function toggleStaffActive(id, currentlyActive){
   if(!isAdminIdentity()){ alert('เฉพาะผู้ดูแลระบบเท่านั้นที่จัดการข้อมูลบุคลากรได้'); return; }
   show('loadingOverlay','flex');
   try{
-    await PATCH('staff', 'id=eq.'+id, { is_active: !currentlyActive });
+    await RPC('fn_toggle_staff_active', { p_id: id, ...currentAuthParams(), p_is_active: !currentlyActive });
     STAFF_LIST = await GET('staff','select=*&order=prefix,name') || [];
     hide('loadingOverlay');
     renderStaffTable();

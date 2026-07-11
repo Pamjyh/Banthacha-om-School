@@ -197,24 +197,18 @@ async function confirmImport(){
   show('loadingOverlay','flex');
 
   var ok = 0; var fail = 0;
+  var authP = currentAuthParams();
   for(var i=0; i<IMPORT_ROWS.length; i++){
     var r = IMPORT_ROWS[i];
     if(!r.title) continue;
-    var body = {
-      year_id:         CY,
-      seq:             r.seq || (i+1),
-      type:            r.type,
-      title:           r.title,
-      project_id:      r.project_id || null,
-      person:          r.person || null,
-      report_date:     r.report_date || null,
-      amount:          r.amount || 0,
-      withdraw_status: r.withdraw_status,
-      withdraw_no:     r.withdraw_no || null,
-      remark:          r.remark || null
-    };
     try{
-      await POST('procurement_items', body);
+      await RPC('fn_save_procurement_item', {
+        p_id: null, ...authP,
+        p_year_id: CY, p_seq: r.seq || (i+1), p_type: r.type, p_title: r.title,
+        p_project_id: r.project_id || null, p_person: r.person || null, p_budget_source: null,
+        p_report_date: r.report_date || null, p_amount: r.amount || 0,
+        p_withdraw_status: r.withdraw_status, p_withdraw_no: r.withdraw_no || null, p_remark: r.remark || null
+      });
       ok++;
     }catch(e){
       fail++;
@@ -412,19 +406,16 @@ async function confirmExcelImport(){
   show('loadingOverlay','flex');
 
   var ok=0; var fail=0; var firstErr='';
+  var authP = currentAuthParams();
   for(var i=0; i<matched.length; i++){
     var r = matched[i];
     try{
-      await POST('finance_transactions',{
-        year_id:          CY,
-        transaction_date: date,
-        transaction_type: 'ยอดยกมา',
-        fund_category_id: r.fund_id,
-        holding_type:     r.holding_type,
-        amount:           r.amount,
-        description:      'ยอดยกมา (นำเข้าจาก Excel)',
-        project_id:       null,
-        remark:           'import: '+r.fund_name
+      await RPC('fn_save_finance_transaction', {
+        p_id: null, ...authP,
+        p_year_id: CY, p_transaction_date: date, p_transaction_type: 'ยอดยกมา',
+        p_fund_category_id: r.fund_id, p_project_id: null, p_procurement_id: null,
+        p_holding_type: r.holding_type, p_document_no: null,
+        p_description: 'ยอดยกมา (นำเข้าจาก Excel)', p_amount: r.amount, p_remark: 'import: '+r.fund_name
       });
       ok++;
     }catch(e){ fail++; if(!firstErr) firstErr = e.message; }

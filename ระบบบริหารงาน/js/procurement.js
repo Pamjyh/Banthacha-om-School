@@ -180,24 +180,25 @@ function matchFundCategory(src){
 }
 
 async function createWithdrawTransaction(item){
-  const body={
-    year_id:CY,
-    fund_category_id: matchFundCategory(item.budget_source),
-    project_id: item.project_id||null,
-    procurement_id: item.id,
-    transaction_date: new Date().toISOString().split('T')[0],
-    transaction_type:'จ่าย',
-    holding_type:'เงินฝากธนาคาร',
-    document_no: item.withdraw_no||null,
-    description: item.title,
-    amount: item.amount
-  };
-  await POST('finance_transactions',body);
+  await RPC('fn_save_finance_transaction', {
+    p_id: null, ...currentAuthParams(),
+    p_year_id: CY,
+    p_fund_category_id: matchFundCategory(item.budget_source),
+    p_project_id: item.project_id||null,
+    p_procurement_id: item.id,
+    p_transaction_date: new Date().toISOString().split('T')[0],
+    p_transaction_type: 'จ่าย',
+    p_holding_type: 'เงินฝากธนาคาร',
+    p_document_no: item.withdraw_no||null,
+    p_description: item.title,
+    p_amount: item.amount,
+    p_remark: null
+  });
   FINANCE_LOADED=false;
 }
 
 async function deleteWithdrawTransaction(procId){
-  await DEL('finance_transactions',`procurement_id=eq.${procId}&transaction_type=eq.จ่าย`);
+  await RPC('fn_delete_finance_by_procurement', { p_procurement_id: procId, ...currentAuthParams(), p_type: 'จ่าย' });
   FINANCE_LOADED=false;
 }
 
@@ -207,7 +208,7 @@ async function toggleStatus(id, current){
   if(!canEditModule('procurement')){ alert('คุณไม่มีสิทธิ์แก้ไขหน้าพัสดุ'); return; }
   const newStatus = current==='เบิกแล้ว'?'ยังไม่เบิก':'เบิกแล้ว';
   try{
-    await PATCH('procurement_items',`id=eq.${id}`,{withdraw_status:newStatus});
+    await RPC('fn_set_procurement_status', { p_id: id, ...currentAuthParams(), p_status: newStatus });
     const item = PROC.find(i=>i.id===id);
     if(item){
       item.withdraw_status = newStatus;
@@ -287,16 +288,23 @@ async function saveProcItem(){
   };
   show('loadingOverlay','flex');
   try{
+    const rpcParams = {
+      ...currentAuthParams(),
+      p_year_id: body.year_id, p_seq: body.seq, p_type: body.type, p_title: body.title,
+      p_project_id: body.project_id, p_person: body.person, p_budget_source: body.budget_source,
+      p_report_date: body.report_date, p_amount: body.amount, p_withdraw_status: body.withdraw_status,
+      p_withdraw_no: body.withdraw_no, p_remark: body.remark
+    };
     if(eid){
-      await PATCH('procurement_items',`id=eq.${eid}`,body);
+      await RPC('fn_save_procurement_item', { p_id: eid, ...rpcParams });
       // sync finance: ลบเก่าก่อนเสมอ ป้องกัน double-write แล้วสร้างใหม่ถ้าเบิกแล้ว
       await deleteWithdrawTransaction(eid);
       if(newStatus==='เบิกแล้ว') await createWithdrawTransaction({...body, id:eid});
     } else {
-      // POST returns created record (return=representation)
-      const created = await POST('procurement_items',body);
-      if(newStatus==='เบิกแล้ว' && created && created[0]){
-        await createWithdrawTransaction({...body, id:created[0].id});
+      // RPC คืนแถวเดียว (ไม่ใช่ array แบบ POST เดิม)
+      const created = await RPC('fn_save_procurement_item', { p_id: null, ...rpcParams });
+      if(newStatus==='เบิกแล้ว' && created && created.id){
+        await createWithdrawTransaction({...body, id:created.id});
       }
     }
     await loadAll(); closeProcForm();

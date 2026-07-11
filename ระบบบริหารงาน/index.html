@@ -588,6 +588,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
         <h2 class="page-title">จัดการข้อมูล</h2>
         <p class="page-sub">บุคลากร ร้านค้า และข้อมูลอ้างอิงอื่นๆ ของระบบ</p>
       </div>
+      <button class="btn-sm" onclick="openAdminPinSetupModal()">🔑 เปลี่ยนรหัสผู้ดูแลระบบ</button>
     </div>
 
     <div class="tab-bar">
@@ -1126,11 +1127,11 @@ body:not(.is-admin) .admin-only { display: none !important; }
   </div>
 </div>
 
-<!-- ======= ADMIN PIN SETUP MODAL (Stage 13C — ครั้งแรกที่เลือก "ผู้ดูแลระบบ") ======= -->
+<!-- ======= ADMIN PIN SETUP MODAL (เปลี่ยน/ตั้งรหัสผู้ดูแลระบบ — ต้อง login เป็น ADMIN อยู่แล้วถึงเปิดได้) ======= -->
 <div class="overlay" id="adminPin2Overlay">
   <div class="modal" style="max-width:380px">
     <div class="modal-head">
-      <h2>ตั้งรหัสผู้ดูแลระบบ</h2>
+      <h2>เปลี่ยนรหัสผู้ดูแลระบบ</h2>
       <button class="modal-x" onclick="closeAdminPinSetupModal()">✕</button>
     </div>
     <p style="font-size:13px;color:var(--muted);margin:0 0 14px">
@@ -1138,7 +1139,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
     </p>
     <div class="form-grid">
       <div class="fg form-full">
-        <label>รหัสผู้ดูแลระบบ <span style="color:var(--arc)">*</span></label>
+        <label>รหัสผู้ดูแลระบบใหม่ <span style="color:var(--arc)">*</span></label>
         <input class="fc" type="password" id="adminPin2-input">
       </div>
       <div class="fg form-full">
@@ -1148,7 +1149,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
       <div class="fg form-full" id="adminPin2-error" style="color:var(--arc);font-size:12px"></div>
     </div>
     <div class="modal-foot">
-      <button class="btn-sm" style="padding:10px 24px;width:100%" onclick="saveAdminPin()">ตั้งรหัสและเข้าสู่ระบบ</button>
+      <button class="btn-sm" style="padding:10px 24px;width:100%" onclick="saveAdminPin()">บันทึกรหัสใหม่</button>
     </div>
   </div>
 </div>

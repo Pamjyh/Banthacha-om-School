@@ -132,11 +132,14 @@ async function saveProjItem(){
     const existing = PROJECTS.find(x=>x.id===eid);
     if(existing && !canEdit(existing.teacher_name)){ alert('คุณไม่มีสิทธิ์แก้ไขโครงการนี้'); return; }
   }
-  const body={year_id:CY,name,teacher_name:document.getElementById('projTeacher').value.trim(),budget_amount:parseFloat(document.getElementById('projBudget').value)||0};
+  const teacherName = document.getElementById('projTeacher').value.trim();
+  const budgetAmount = parseFloat(document.getElementById('projBudget').value)||0;
   show('loadingOverlay','flex');
   try{
-    if(eid) await PATCH('projects',`id=eq.${eid}`,body);
-    else await POST('projects',body);
+    await RPC('fn_save_project', {
+      p_id: eid || null, ...currentAuthParams(),
+      p_year_id: CY, p_name: name, p_teacher_name: teacherName, p_budget_amount: budgetAmount
+    });
     await loadAll(); closeProjForm();
   }catch(e){ hide('loadingOverlay'); alert('บันทึกไม่ได้: '+e.message); }
 }

@@ -539,11 +539,11 @@ async function saveExtTransaction(){
 
   show('loadingOverlay','flex');
   try{
-    if(editId){
-      await PATCH('external_transactions','id=eq.'+editId, payload);
-    } else {
-      await POST('external_transactions', payload);
-    }
+    await RPC('fn_save_external_transaction', {
+      p_id: editId || null, ...currentAuthParams(),
+      p_transaction_date: payload.transaction_date, p_type: payload.type,
+      p_category_id: payload.category_id, p_amount: payload.amount, p_note: payload.note
+    });
     EXT_LOADED = false;
     await loadExternalData();
     closeExtForm();
@@ -619,7 +619,7 @@ async function saveExtCategory(){
 
   show('loadingOverlay','flex');
   try{
-    await POST('external_categories',{ name: name, type: type, sort_order: EXT_CATEGORIES.length+1 });
+    await RPC('fn_save_external_category', { ...currentAuthParams(), p_name: name, p_type: type, p_sort_order: EXT_CATEGORIES.length+1 });
     EXT_CATEGORIES = await GET('external_categories','select=*&order=sort_order') || [];
     hide('loadingOverlay');
     renderExtCatList();
@@ -637,7 +637,7 @@ async function deleteExtCategory(id){
   if(!confirm('ต้องการลบหมวดนี้?\n(รายการที่อยู่ในหมวดนี้จะยังคงอยู่ แต่ไม่มีหมวด)')) return;
   show('loadingOverlay','flex');
   try{
-    await DEL('external_categories','id=eq.'+id);
+    await RPC('fn_delete_external_category', { p_id: id, ...currentAuthParams() });
     EXT_CATEGORIES = await GET('external_categories','select=*&order=sort_order') || [];
     hide('loadingOverlay');
     renderExtCatList();

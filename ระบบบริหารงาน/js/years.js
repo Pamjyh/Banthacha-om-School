@@ -30,11 +30,14 @@ function renderYearList(){
 function openYearModal(){ renderYearList(); document.getElementById('yearOverlay').classList.add('open'); setTimeout(()=>document.getElementById('newYear').focus(),100); }
 function closeYearModal(){ document.getElementById('yearOverlay').classList.remove('open'); }
 
+// RLS fix (2026-07-11): ลบปีงบยกระดับเป็น Tier 2 (ต้อง Admin PIN) — เดิมกันแค่ adminGuard() (เลือกตัวตนแล้ว)
+// ทั้งที่ลบปีงบ = ลบโครงการ/พัสดุ/การเงินทั้งปีทิ้งแบบ cascade เป็น one-way door จริง (ตัดสินใจ Pam 2026-07-11)
 async function deleteYear(id, yearBe){
   if(!adminGuard()) return;
+  if(!isAdminIdentity()){ alert('เฉพาะผู้ดูแลระบบเท่านั้นที่ลบปีงบประมาณได้'); return; }
   if(!confirm(`ลบปีงบประมาณ ${yearBe}?\n⚠️ ข้อมูลโครงการ พัสดุ และการเงินในปีนี้จะถูกลบทั้งหมด`)) return;
   try{
-    await DEL('years',`id=eq.${id}`);
+    await RPC('fn_delete_year', { p_id: id, ...currentAuthParams() });
     await loadYears();
     await loadAll();
     renderYearList();
@@ -46,8 +49,9 @@ async function addYear(){
   if(!y||y<2560||y>2599){ alert('กรุณาระบุปีงบประมาณ พ.ศ. (2560–2599)'); return; }
   const exists = YEARS.find(r=>r.year_be===y);
   if(exists){ CY=exists.id; CYbe=exists.year_be; renderYearSel(); await loadAll(); closeYearModal(); return; }
-  const r = await POST('years',{year_be:y});
-  if(r&&r[0]){ CY=r[0].id; CYbe=r[0].year_be; }
+  if(!isAdminIdentity()){ alert('เฉพาะผู้ดูแลระบบเท่านั้นที่เพิ่มปีงบประมาณได้'); return; }
+  const r = await RPC('fn_save_year', { ...currentAuthParams(), p_year_be: y });
+  if(r){ CY=r.id; CYbe=r.year_be; }
   await loadYears();
   await loadAll();
   closeYearModal();

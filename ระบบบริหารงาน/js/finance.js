@@ -374,18 +374,30 @@ async function saveFinanceTransaction(keepOpen){
       var oldTx = FINANCE_TRANSACTIONS.find(function(t){ return String(t.id)===String(editId); });
       var oldProcId = oldTx ? oldTx.procurement_id : null;
       if(oldProcId && oldProcId !== procId){
-        await PATCH('procurement_items','id=eq.'+oldProcId,{withdraw_status:'ยังไม่เบิก', withdraw_no: null});
+        await RPC('fn_update_procurement_withdraw', { p_id: oldProcId, ...currentAuthParams(), p_status:'ยังไม่เบิก', p_withdraw_no:null });
         var oldItem = PROC.find(function(i){ return i.id===oldProcId; });
         if(oldItem){ oldItem.withdraw_status='ยังไม่เบิก'; oldItem.withdraw_no=null; }
       }
-      await PATCH('finance_transactions', 'id=eq.'+editId, payload);
+      await RPC('fn_save_finance_transaction', {
+        p_id: editId, ...currentAuthParams(),
+        p_year_id: payload.year_id, p_transaction_date: payload.transaction_date, p_transaction_type: payload.transaction_type,
+        p_fund_category_id: payload.fund_category_id, p_project_id: payload.project_id, p_procurement_id: payload.procurement_id,
+        p_holding_type: payload.holding_type, p_document_no: payload.document_no, p_description: payload.description,
+        p_amount: payload.amount, p_remark: payload.remark
+      });
     } else {
-      await POST('finance_transactions', payload);
+      await RPC('fn_save_finance_transaction', {
+        p_id: null, ...currentAuthParams(),
+        p_year_id: payload.year_id, p_transaction_date: payload.transaction_date, p_transaction_type: payload.transaction_type,
+        p_fund_category_id: payload.fund_category_id, p_project_id: payload.project_id, p_procurement_id: payload.procurement_id,
+        p_holding_type: payload.holding_type, p_document_no: payload.document_no, p_description: payload.description,
+        p_amount: payload.amount, p_remark: payload.remark
+      });
     }
     // auto-update withdraw_status ของ procurement item
     if(procId){
       var docVal = docNo || null;
-      await PATCH('procurement_items','id=eq.'+procId,{withdraw_status:'เบิกแล้ว', withdraw_no: docVal});
+      await RPC('fn_update_procurement_withdraw', { p_id: procId, ...currentAuthParams(), p_status:'เบิกแล้ว', p_withdraw_no: docVal });
       var procItem = PROC.find(function(i){ return i.id===procId; });
       if(procItem){ procItem.withdraw_status='เบิกแล้ว'; procItem.withdraw_no=docVal; }
     }
