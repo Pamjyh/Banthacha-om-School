@@ -4,7 +4,7 @@
 // กับการห้าม skip stage — ห้ามสร้างครบ 16 ชุดทีเดียวโดยไม่ให้ Pam ตรวจก่อน)
 //
 // generateDoc(docIndex, procItemId) — dispatcher หลัก เรียกจากปุ่มใน Section I
-// ตอนนี้มีแค่ Doc 1 (ขอดำเนิน) ที่ implement จริง — Doc 2-16 alert ว่ายังไม่พร้อม
+// ตอนนี้มี Doc 1 (ขอดำเนิน) + Doc 2 (แนบขอดำเนิน) implement จริง — Doc 3-16 alert ว่ายังไม่พร้อม
 //
 // ⚠️ PIVOT (2026-07-09): เปลี่ยนจาก jsPDF วาดเอง (js/pdf-engine.js, thaiText/thaiTextWrapped) มาเป็น
 // สร้าง HTML แล้วสั่ง browser print (window.print()) แทน — jsPDF เดิมต้องเขียนโค้ด custom จัดตำแหน่ง
@@ -16,9 +16,14 @@
 // =====================================================================
 
 // ชื่อโรงเรียน/เขตพื้นที่ — ใช้ constant กลางแทนพิมพ์ซ้ำในทุก template (16 ชุด) กัน typo/ข้อมูลผิด
-// ซ้ำแบบที่เคยพิมพ์ผิดเป็น "สพป.รบ.2" (ราชบุรี) ทั้งที่จริงคือ สพป.อุทัยธานี เขต 2 — Pam แก้ 2026-07-08
+// ซ้ำแบบที่เคยพิมพ์ผิดเป็น "สพป.รบ.2" (ราชบุรี) ทั้งที่จริงคือ อุทัยธานี เขต 2 — Pam แก้ 2026-07-08
+// แก้อีกรอบ 2026-07-10: ตอนอ่านไฟล์อ้างอิงจริงของ Doc 2 (แนบขอดำเนิน) พบว่าเอกสารจริงสะกดชื่อเขตแบบ
+// เต็ม "สำนักงานเขตพื้นที่การศึกษาประถมศึกษาอุทัยธานี เขต 2" ไม่ใช่แบบย่อ "สพป." ที่ผมเดา/ใช้มาตลอด
+// Doc 1 (ตรวจ "1 ขอดำเนิน.pdf" อ้างอิงตัวเองซ้ำอีกที) — ยืนยันเดียวกัน แก้เป็นชื่อเต็มให้ตรงของจริง
 const SCHOOL_FULL_NAME = 'โรงเรียนบ้านท่าชะอม';
-const SCHOOL_EDU_OFFICE_ABBR = 'สพป.อุทัยธานี เขต 2';
+const SCHOOL_EDU_OFFICE_FULL = 'สำนักงานเขตพื้นที่การศึกษาประถมศึกษาอุทัยธานี เขต 2';
+// กลุ่มงานที่รับผิดชอบงานพัสดุ — โผล่ในหัวเอกสาร Doc 2 (แนบขอดำเนิน) ตามไฟล์อ้างอิงจริง
+const SCHOOL_ADMIN_GROUP = 'กลุ่มงานบริหารงานทั่วไป';
 
 const PD_DOC_NAMES = {
   1:'ขอดำเนิน', 2:'แนบขอดำเนิน', 3:'ขออนุมัติTOR', 4:'คำสั่งTOR', 5:'เห็นชอบTOR',
@@ -34,11 +39,9 @@ function printDoc(docIndex){
 }
 
 async function generateDoc(docIndex, procItemId){
-  if(docIndex !== 1){
-    alert('เอกสารชุดนี้ (#'+docIndex+' '+(PD_DOC_NAMES[docIndex]||'')+') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
-    return;
-  }
-  await generateDoc1(procItemId);
+  if(docIndex === 1) return await generateDoc1(procItemId);
+  if(docIndex === 2) return await generateDoc2(procItemId);
+  alert('เอกสารชุดนี้ (#'+docIndex+' '+(PD_DOC_NAMES[docIndex]||'')+') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
 }
 
 // หา staff ที่ตำแหน่งเป็นผู้อำนวยการ (ไม่ hardcode ชื่อ — ถ้าเปลี่ยนตัว ผอ. แค่แก้ข้อมูลใน "จัดการข้อมูล")
@@ -126,7 +129,15 @@ function officialDocCss(){
   '.sig-block{display:flex;justify-content:space-between;margin-top:12mm;}'+
   '.sig-col{width:47%;}'+
   '.sig-line{border-bottom:1px solid #000;width:65mm;margin-top:6mm;}'+
-  '.sig-center{text-align:center;margin-top:14mm;}';
+  '.sig-center{text-align:center;margin-top:14mm;}'+
+  // ตาราง "แบบประมาณการ" (Doc 2 เป็นต้นไป) — เอกสารราชการไทยใช้ตารางเส้นขอบเต็มเป็นมาตรฐาน
+  '.doc-title2{text-align:center;font-weight:bold;margin-bottom:6mm;}'+
+  'table.sub-table{width:100%;border-collapse:collapse;margin-top:4mm;}'+
+  'table.sub-table th,table.sub-table td{border:1px solid #000;padding:1.5mm 2.5mm;}'+
+  'table.sub-table th{text-align:center;font-weight:bold;}'+
+  'table.sub-table td.tc{text-align:center;}'+
+  'table.sub-table td.tr{text-align:right;}'+
+  'table.sub-table td.total-label{text-align:right;font-weight:bold;}';
 }
 
 // ---------- Doc 1: ขอดำเนิน (บันทึกข้อความขออนุมัติดำเนินการจัดซื้อ/จัดจ้าง) ----------
@@ -184,7 +195,7 @@ async function generateDoc1(procItemId){
     '<style>'+officialDocCss()+'</style></head><body>'+
     '<img class="garuda" src="data:image/jpeg;base64,'+GARUDA_B64+'">'+
     '<div class="doc-title">บันทึกข้อความ</div>'+
-    '<div class="row"><div>ส่วนราชการ&nbsp;&nbsp;'+escHtml(SCHOOL_FULL_NAME)+' '+escHtml(SCHOOL_EDU_OFFICE_ABBR)+'</div></div>'+
+    '<div class="row"><div>ส่วนราชการ&nbsp;&nbsp;'+escHtml(SCHOOL_FULL_NAME)+' '+escHtml(SCHOOL_EDU_OFFICE_FULL)+'</div></div>'+
     '<div class="row"><div style="flex:1">ที่&nbsp;&nbsp;'+escHtml(bareDocNumber)+'</div><div class="col-r">วันที่&nbsp;&nbsp;'+escHtml(fmtDateThai(detail.date_request))+'</div></div>'+
     '<div class="row"><div>เรื่อง&nbsp;&nbsp;ขออนุมัติดำเนินงานตามโครงการ'+escHtml(projectName)+'</div></div>'+
     '<hr class="sep">'+
@@ -199,6 +210,72 @@ async function generateDoc1(procItemId){
       '<div class="sig-col">ความเห็นของผู้อำนวยการ<div style="margin-top:10mm">( ) เห็นชอบ&nbsp;&nbsp;&nbsp;( ) อนุมัติ</div>'+
         '<div class="sig-center">'+sigRight+'</div></div>'+
     '</div>'+
+    '</body></html>';
+
+  printHtmlDoc(html);
+}
+
+// ---------- Doc 2: แนบขอดำเนิน (แบบประมาณการจัดซื้อ/จัดจ้าง แนบท้าย Doc 1) ----------
+// รูปแบบอ้างอิงจากไฟล์จริง "2 แนบขอดำเนิน.pdf" ที่ Pam อัปใน Google Drive (Q8-4) — ตารางรายการย่อย
+// (ลำดับที่/รายละเอียด/จำนวน/หน่วย/ราคาต่อหน่วย/จำนวนเงิน) + รวมเงินท้ายตาราง + ลงชื่อผู้รับผิดชอบโครงการ
+// คนเดียว (ไม่มีบล็อกความเห็น ผอ. เหมือน Doc 1 — ของจริงมีแค่ลายเซ็นผู้เสนอ)
+async function generateDoc2(procItemId){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item) return alert('ไม่พบรายการพัสดุนี้');
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return; }
+  if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return; }
+
+  const teacherName = (item.projects && item.projects.teacher_name) || '';
+  const proposerStaff = findStaffByTeacherName(teacherName);
+  const proposerPrintName = proposerStaff ? (proposerStaff.prefix + proposerStaff.name) : teacherName;
+  const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
+  const buyOrHireShort = item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง'; // หัวตาราง "...ที่จะซื้อ/จะจ้าง" ตามไฟล์จริง
+  const projectNameRaw = (item.projects && item.projects.name) || '-';
+  const projectName = projectNameRaw.replace(/^โครงการ\s*/, '');
+  const purpose = detail.tor_objective || item.title || '-';
+
+  // ดึงรายการย่อยสดจาก DB เสมอ (เหตุผลเดียวกับ itemCount ใน Doc 1 — ไม่เชื่อ CURRENT_SUB_ITEMS ที่อาจ
+  // ยังไม่บันทึก) ต่างจาก Doc 1 ตรงที่ Doc 2 ต้องใช้ "ทั้งแถว" ไม่ใช่แค่นับจำนวน
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.'+procItemId+'&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return;
+  }
+
+  // รวมเงินจากแถวจริงในตารางนี้ (ไม่ใช้ item.amount) — ตารางต้องรวมยอดของตัวเองให้ตรงกับแถวที่แสดง แม้ปกติ
+  // ควรเท่ากับ item.amount อยู่แล้ว (คำนวณจาก sub-items เดียวกันตอนบันทึก) แต่ถ้าไม่ตรงกันด้วยเหตุผลใดก็ตาม
+  // ตารางต้องซื่อสัตย์กับแถวที่ตัวเองแสดง ไม่ใช่โชว์ยอดจากที่อื่นที่ผู้ดูตารางตรวจสอบไม่ได้
+  const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
+
+  const rows = subItems.map(function(r, i){
+    return '<tr><td class="tc">'+(i + 1)+'</td><td>'+escHtml(r.description)+'</td>'+
+      '<td class="tc">'+(Number(r.quantity) || 0)+'</td><td class="tc">'+escHtml(r.unit)+'</td>'+
+      '<td class="tr">'+fmt(r.unit_price)+'</td><td class="tr">'+fmt(r.amount)+'</td></tr>';
+  }).join('');
+
+  const html = '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8">'+
+    '<title>'+escHtml((detail.doc_number||'doc').replace(/[\/\\]/g,'-')+'-'+PD_DOC_NAMES[2])+'</title>'+
+    '<style>'+officialDocCss()+'</style></head><body>'+
+    '<img class="garuda" src="data:image/jpeg;base64,'+GARUDA_B64+'">'+
+    '<div class="doc-title2">แบบประมาณการ'+buyOrHire+' แนบท้ายแบบขออนุมัติ'+buyOrHire+'<br>'+
+      'การ'+buyOrHire+escHtml(purpose)+' ในโครงการ'+escHtml(projectName)+'<br>'+
+      escHtml(SCHOOL_ADMIN_GROUP)+' '+escHtml(SCHOOL_FULL_NAME)+' '+escHtml(SCHOOL_EDU_OFFICE_FULL)+'</div>'+
+    '<table class="sub-table"><thead><tr>'+
+      '<th>ลำดับที่</th><th>รายละเอียดของพัสดุที่จะ'+buyOrHireShort+'</th><th>จำนวน</th><th>หน่วย</th>'+
+      '<th>ราคาต่อหน่วย</th><th>จำนวนเงิน</th>'+
+    '</tr></thead><tbody>'+
+      rows +
+      '<tr><td colspan="5" class="total-label">จำนวนเงินทั้งสิ้น</td><td class="tr">'+fmt(totalAmount)+'</td></tr>'+
+    '</tbody></table>'+
+    '<div class="sig-center" style="margin-top:20mm">ลงชื่อ .......................................<br>'+
+      '('+escHtml(proposerPrintName)+')<br>ผู้รับผิดชอบโครงการ</div>'+
     '</body></html>';
 
   printHtmlDoc(html);
