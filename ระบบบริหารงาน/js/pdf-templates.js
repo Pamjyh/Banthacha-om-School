@@ -141,27 +141,31 @@ function officialDocCss(){
   '@font-face{font-family:"TH Sarabun New";src:url(data:font/ttf;base64,'+THSARABUN_BOLD_B64+') format("truetype");font-weight:bold;}'+
   '@page{size:A4;margin:0;}'+
   '*{box-sizing:border-box;}'+
-  'body{margin:0;padding:18mm 15mm 15mm 15mm;font-family:"TH Sarabun New",sans-serif;font-size:16pt;line-height:1.6;color:#000;}'+
+  // ⚠️ line-height 1.6→1.25 (2026-07-11, Pam เจอ Doc 4 ล้นหน้า 2 + "บรรทัดห่าง") — รอบก่อน (2026-07-10)
+  // แก้แค่ line-height ของ table.sub-table แต่ "body" ตัวหลักซึ่งเป็นเนื้อหาส่วนใหญ่ของ Doc 3/4 (ย่อหน้า
+  // บันทึกข้อความ/คำสั่งยาวๆ) ยังเหลือ 1.6 อยู่เดิม เอกสารราชการไทยจริงใช้ระยะบรรทัดค่อนข้างชิด (ใกล้เคียง
+  // single-spacing) ไม่ใช่ 1.6 แบบเว็บทั่วไป — 1.25 ยังเผื่อที่ให้สระ/วรรณยุกต์ไทยพอสมควร แต่ชิดกว่าเดิมมาก
+  'body{margin:0;padding:18mm 15mm 15mm 15mm;font-family:"TH Sarabun New",sans-serif;font-size:16pt;line-height:1.25;color:#000;}'+
   // ⚠️ ต้องกำหนดทั้ง width และ height — ไฟล์ครุฑจริงมี native ratio 163:177 (~0.92) ไม่ตรงกับ 18:22 (~0.82)
   // ที่ jsPDF เดิมเคยใช้ ถ้ากำหนดแค่ height ตัวเดียว browser จะ auto-scale width ตาม native ratio แทน
   // ทำให้ครุฑกว้างขึ้น ~13% จากที่ Pam เคยเห็น (scrutinize 2026-07-09) — ล็อกทั้งคู่ให้ตรงสัดส่วนเดิม
-  '.garuda{display:block;margin:0 auto 4mm auto;width:18mm;height:22mm;}'+
-  '.doc-title{text-align:center;font-weight:bold;font-size:20pt;margin-bottom:6mm;}'+
+  '.garuda{display:block;margin:0 auto 3mm auto;width:18mm;height:22mm;}'+
+  '.doc-title{text-align:center;font-weight:bold;font-size:20pt;margin-bottom:4mm;}'+
   '.row{display:flex;}'+
   '.row .col-r{width:65mm;}'+
-  'hr.sep{border:none;border-top:1px solid #000;margin:3mm 0 5mm 0;}'+
-  'p.body-para{text-indent:8mm;margin:0 0 2.5mm 0;text-align:justify;}'+
-  '.sig-block{display:flex;justify-content:space-between;margin-top:12mm;}'+
+  'hr.sep{border:none;border-top:1px solid #000;margin:2mm 0 3mm 0;}'+
+  'p.body-para{text-indent:8mm;margin:0 0 2mm 0;text-align:justify;}'+
+  '.sig-block{display:flex;justify-content:space-between;margin-top:9mm;}'+
   '.sig-col{width:47%;}'+
-  '.sig-line{border-bottom:1px solid #000;width:65mm;margin-top:6mm;}'+
-  '.sig-center{text-align:center;margin-top:8mm;}'+
+  '.sig-line{border-bottom:1px solid #000;width:65mm;margin-top:5mm;}'+
+  '.sig-center{text-align:center;margin-top:6mm;}'+
   // ตาราง "แบบประมาณการ" (Doc 2 เป็นต้นไป) — เอกสารราชการไทยใช้ตารางเส้นขอบเต็มเป็นมาตรฐาน
   // ⚠️ line-height/padding/font-size ลดจากเดิม (Pam เจอ Doc 2-3 ล้นไปหน้า 2 — 2026-07-10) เดิม table
   // ไม่ override line-height เลยสืบทอด 1.6 จาก body มาด้วย ทำให้แต่ละแถวสูงเกินจำเป็นมาก (แถวเดียวก็กิน
   // ที่เกือบเท่าข้อความ 2 บรรทัด) ลดเหลือ 1.2 + padding แคบลง + font เล็กลงเล็กน้อย (ตารางเอกสารราชการ
   // ทั่วไปตัวเล็กกว่าเนื้อหาอยู่แล้วเป็นปกติ) ประหยัดพื้นที่แนวตั้งได้มากสุดในบรรดาจุดที่แก้รอบนี้
-  '.doc-title2{text-align:center;font-weight:bold;margin-bottom:4mm;}'+
-  'table.sub-table{width:100%;border-collapse:collapse;margin-top:3mm;font-size:14pt;line-height:1.2;}'+
+  '.doc-title2{text-align:center;font-weight:bold;margin-bottom:3mm;}'+
+  'table.sub-table{width:100%;border-collapse:collapse;margin-top:2mm;font-size:14pt;line-height:1.15;}'+
   'table.sub-table th,table.sub-table td{border:1px solid #000;padding:0.8mm 2mm;}'+
   'table.sub-table th{text-align:center;font-weight:bold;}'+
   'table.sub-table td.tc{text-align:center;}'+
@@ -170,7 +174,7 @@ function officialDocCss(){
   // แถวลายเซ็น 3 คน (Doc 3 เป็นต้นไป) — เจ้าหน้าที่/หัวหน้าเจ้าหน้าที่ วางคู่กันแถวบน ผอ. อยู่กึ่งกลางแถวล่าง
   // (ตามลำดับการอนุมัติจริง: เจ้าหน้าที่เสนอ → หัวหน้าเจ้าหน้าที่เห็นชอบ → ผอ.อนุมัติ) margin-top ลดจาก 14mm
   // เหลือ 7mm ด้วยเหตุผลเดียวกับตาราง (กัน Doc 3 ล้นหน้า 2)
-  '.sig-row3{display:flex;justify-content:space-around;margin-top:7mm;text-align:center;}'+
+  '.sig-row3{display:flex;justify-content:space-around;margin-top:5mm;text-align:center;}'+
   '.sig-col3{width:42%;}';
 }
 
@@ -308,7 +312,7 @@ async function generateDoc2(procItemId){
       rows +
       '<tr><td colspan="5" class="total-label">จำนวนเงินทั้งสิ้น</td><td class="tr">'+fmt(totalAmount)+'</td></tr>'+
     '</tbody></table>'+
-    '<div class="sig-center" style="margin-top:20mm">ลงชื่อ .......................................<br>'+
+    '<div class="sig-center" style="margin-top:12mm">ลงชื่อ .......................................<br>'+
       '('+escHtml(proposerPrintName)+')<br>ผู้รับผิดชอบโครงการ</div>'+
     '</body></html>';
 
@@ -500,11 +504,11 @@ async function generateDoc4(procItemId){
     '<p class="body-para">จึงแต่งตั้งคณะกรรมการกำหนดรายละเอียดคุณลักษณะเฉพาะและราคากลางของพัสดุรายการ'+escHtml(itemTitle)+
       ' โดยวิธีเฉพาะเจาะจง ประกอบด้วย</p>'+
     torRows +
-    '<p class="body-para" style="text-indent:0;margin-top:4mm">ผู้กำหนดขอบเขต (TOR) ที่ได้รับแต่งตั้งมีอำนาจหน้าที่จัดทำรายละเอียดคุณลักษณะเฉพาะและราคากลาง ของ'+
+    '<p class="body-para" style="text-indent:0;margin-top:2mm">ผู้กำหนดขอบเขต (TOR) ที่ได้รับแต่งตั้งมีอำนาจหน้าที่จัดทำรายละเอียดคุณลักษณะเฉพาะและราคากลาง ของ'+
       escHtml(itemTitle)+' จำนวน '+itemCount+' รายการ และกำหนดหลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอ โดยให้มีรายละเอียดเป็นไปตามกฎหมาย ระเบียบ และคำสั่งที่เกี่ยวข้อง</p>'+
     '<p class="body-para">ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป</p>'+
-    '<p class="body-para" style="text-indent:0;text-align:center;margin-top:4mm">สั่ง ณ วันที่ '+escHtml(fmtDateThai(detail.date_order_tor))+'</p>'+
-    '<div class="sig-center" style="margin-top:10mm">'+sigCenter+'</div>'+
+    '<p class="body-para" style="text-indent:0;text-align:center;margin-top:2mm">สั่ง ณ วันที่ '+escHtml(fmtDateThai(detail.date_order_tor))+'</p>'+
+    '<div class="sig-center" style="margin-top:6mm">'+sigCenter+'</div>'+
     '</body></html>';
 
   printHtmlDoc(html);
