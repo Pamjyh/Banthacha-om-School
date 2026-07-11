@@ -54,11 +54,9 @@ async function connectSupabase(){
 async function loadYears(){
   YEARS = await GET('years','select=*&order=year_be.desc');
   if(!YEARS||!YEARS.length){
-    // Create default year — เกิดได้แค่ตอนติดตั้งใหม่ (ตาราง years ว่างเปล่า) ยังไม่มีใคร login เลย
-    // fn_save_year มี bootstrap path รองรับกรณีตารางว่างโดยเฉพาะ (ไม่ต้องมี staff/pin)
-    const y = new Date().getFullYear()+543;
-    const r = await RPC('fn_save_year', { p_staff_id: null, p_pin_hash: null, p_year_be: y });
-    YEARS = r ? [r] : [{id:1,year_be:y}];
+    // ตาราง years ว่างเปล่า — ไม่ auto-สร้างให้อีกต่อไป (เดิมมี bootstrap RPC ที่ไม่ต้องยืนยันตัวตน เป็นช่องโหว่)
+    // ต้องให้ ADMIN login แล้วเพิ่มปีงบเองผ่านหน้าจัดการปี
+    throw new Error('ยังไม่มีปีงบประมาณในระบบ กรุณาให้ผู้ดูแลระบบเข้าสู่ระบบแล้วเพิ่มปีงบก่อน');
   }
   renderYearSel();
   if(!CY){ CY=YEARS[0].id; CYbe=YEARS[0].year_be; }
