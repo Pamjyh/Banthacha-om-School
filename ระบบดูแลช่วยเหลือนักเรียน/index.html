@@ -92,19 +92,21 @@
     <p>ใส่รหัสผ่านครู/staff เพื่อเข้าใช้งาน (พิมพ์คีย์บอร์ดหรือกดปุ่มด้านล่างก็ได้)</p>
     <input type="password" id="pw-input" placeholder="รหัสผ่าน" inputmode="numeric" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
     <div id="login-msg"></div>
+    <!-- onmousedown="event.preventDefault()" กัน browser (Chrome/Firefox/Edge) ดึง focus ไปที่ปุ่มตอนคลิกเมาส์
+         ถ้าไม่กัน แล้วผู้ใช้คลิกเลขด้วยเมาส์แล้วกด Enter ตามความเคยชิน จะไปกดปุ่มตัวเลขซ้ำแทนที่จะ submit -->
     <div class="pin-pad">
-      <button type="button" class="pin-key" onclick="pinPress('1')">1</button>
-      <button type="button" class="pin-key" onclick="pinPress('2')">2</button>
-      <button type="button" class="pin-key" onclick="pinPress('3')">3</button>
-      <button type="button" class="pin-key" onclick="pinPress('4')">4</button>
-      <button type="button" class="pin-key" onclick="pinPress('5')">5</button>
-      <button type="button" class="pin-key" onclick="pinPress('6')">6</button>
-      <button type="button" class="pin-key" onclick="pinPress('7')">7</button>
-      <button type="button" class="pin-key" onclick="pinPress('8')">8</button>
-      <button type="button" class="pin-key" onclick="pinPress('9')">9</button>
-      <button type="button" class="pin-key" onclick="pinBackspace()">⌫</button>
-      <button type="button" class="pin-key" onclick="pinPress('0')">0</button>
-      <button type="button" class="pin-key pin-key-ok" onclick="doLogin()">✓</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinPress('1')">1</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinPress('2')">2</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinPress('3')">3</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinPress('4')">4</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinPress('5')">5</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinPress('6')">6</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinPress('7')">7</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinPress('8')">8</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinPress('9')">9</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinBackspace()">⌫</button>
+      <button type="button" class="pin-key" onmousedown="event.preventDefault()" onclick="pinPress('0')">0</button>
+      <button type="button" class="pin-key pin-key-ok" onmousedown="event.preventDefault()" onclick="doLogin()">✓</button>
     </div>
   </div>
 
