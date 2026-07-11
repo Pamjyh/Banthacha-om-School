@@ -137,13 +137,15 @@ function readRoster(ss) {
   const iName  = find(['ชื่อ-สกุล','ชื่อ สกุล','ชื่อ']);
   const iGrade = find(['ชั้นปัจจุบัน','ชั้น']);
   const iStat  = find(['สถานะ']);
+  const iRoll  = find(['เลขที่']); // คอลัมน์เลขที่ — ต่อท้ายชีตโดยระบบออมทรัพย์ (ระบบค่ารถอ่านอย่างเดียว)
   const list = all.slice(1)
     .filter(r => r[iId])
     .filter(r => iStat < 0 || String(r[iStat] || '').trim() !== 'จบการศึกษา')
     .map(r => ({
       id:    String(r[iId]),
       name:  iName  >= 0 ? String(r[iName]  || '') : '',
-      grade: iGrade >= 0 ? String(r[iGrade] || '') : ''
+      grade: iGrade >= 0 ? String(r[iGrade] || '') : '',
+      rollNo: iRoll >= 0 ? String(r[iRoll]  || '') : ''
     }));
   try { cache.put('cf_roster', JSON.stringify(list), 300); } catch(e) {}
   return list;
@@ -152,6 +154,17 @@ function readRoster(ss) {
 function gradeOrderVal(g) {
   var i = GRADES.indexOf(g);
   return i < 0 ? 99 : i;
+}
+
+// เรียงตามเลขที่ก่อน (แบบเดียวกับระบบออมทรัพย์) — คนไม่มีเลขที่ตกท้ายสุด เรียงชื่อแทน
+function cmpByRoll(a, b) {
+  var ra = parseInt(a.rollNo, 10), rb = parseInt(b.rollNo, 10);
+  var raOk = a.rollNo !== '' && a.rollNo != null && !isNaN(ra);
+  var rbOk = b.rollNo !== '' && b.rollNo != null && !isNaN(rb);
+  if (raOk && rbOk) return ra - rb;
+  if (raOk && !rbOk) return -1;
+  if (!raOk && rbOk) return 1;
+  return a.name.localeCompare(b.name, 'th');
 }
 
 // ============================================================
@@ -184,7 +197,7 @@ function getRiders(p) {
   const riders = readRiders(ss);
 
   let list = roster.map(s => ({
-    id: s.id, name: s.name, grade: s.grade,
+    id: s.id, name: s.name, grade: s.grade, rollNo: s.rollNo,
     rides: !!riders[s.id],
     route: riders[s.id] ? riders[s.id].route : ''
   }));
@@ -192,7 +205,7 @@ function getRiders(p) {
   if (p.onlyRiders === '1') list = list.filter(s => s.rides);
   list.sort((a, b) => {
     var g = gradeOrderVal(a.grade) - gradeOrderVal(b.grade);
-    return g !== 0 ? g : a.name.localeCompare(b.name, 'th');
+    return g !== 0 ? g : cmpByRoll(a, b);
   });
   return { ok: true, students: list };
 }
@@ -310,7 +323,7 @@ function getFareGrid(p) {
       pm[m] = ok; if (ok) cnt++;
     });
     return {
-      id: s.id, name: s.name, grade: s.grade,
+      id: s.id, name: s.name, grade: s.grade, rollNo: s.rollNo,
       rides: isRider,
       route: isRider ? riders[s.id].route : '',
       months: pm,
@@ -323,7 +336,7 @@ function getFareGrid(p) {
   if (p.grade) list = list.filter(s => s.grade === p.grade);
   list.sort((a, b) => {
     var g = gradeOrderVal(a.grade) - gradeOrderVal(b.grade);
-    return g !== 0 ? g : a.name.localeCompare(b.name, 'th');
+    return g !== 0 ? g : cmpByRoll(a, b);
   });
 
   return { ok: true, year, term, monthList: months, farePerMonth: FARE_PER_MONTH, students: list };
@@ -472,14 +485,14 @@ function getDashboard(p) {
     const pm = {};
     months.forEach(m => { pm[m] = !!(paid[sid] && paid[sid][m]); });
     g.students.push({
-      id: sid, name: s.name, route: riders[sid].route,
+      id: sid, name: s.name, rollNo: s.rollNo, route: riders[sid].route,
       paidCount: cnt, paidAmount: amt, complete: cnt === months.length,
       months: pm
     });
   });
 
   Object.keys(grades).forEach(g => {
-    grades[g].students.sort((a, b) => a.name.localeCompare(b.name, 'th'));
+    grades[g].students.sort(cmpByRoll);
   });
 
   const activeGrades = GRADES.map(g => grades[g]).filter(g => g.riders > 0);
