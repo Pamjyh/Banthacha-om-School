@@ -231,6 +231,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 2) return await buildDoc2(procItemId, opts);
   if(docIndex === 3) return await buildDoc3(procItemId, opts);
   if(docIndex === 4) return await buildDoc4(procItemId, opts);
+  if(docIndex === 5) return await buildDoc5(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -238,7 +239,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -562,4 +563,93 @@ async function buildDoc4(procItemId, opts){
   ]);
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[4] + '.docx' };
+}
+
+// ---------- Doc 5: เห็นชอบ TOR (ขอความเห็นชอบรายละเอียดคุณลักษณะเฉพาะและราคากลาง) ----------
+// รูปแบบอ้างอิงจากไฟล์จริง "5 เห็นชอบ.pdf" — บันทึกข้อความอ้างอิงคำสั่ง Doc 4 (เลขที่เดียวกัน คนละวันที่:
+// ที่/วันที่ของ Doc 5 เองใช้ date_agree_tor ส่วนวันที่ที่อ้างถึงคำสั่ง Doc 4 ใช้ date_order_tor)
+// แล้วรายงานราคากลางที่คำนวณได้ ให้ "ผู้กำหนดรายละเอียด" (คนใน committee_tor ที่มี role
+// "ผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ" — คนเดียวกับที่ใช้ใน Doc3/Doc4) ลงชื่อฝั่งซ้าย + ผู้อำนวยการ
+// เห็นชอบฝั่งขวา (checkbox เหมือน Doc1/Doc3) — ⚠️ ไฟล์อ้างอิงเขียน "จะซื้อ" ตายตัว (ตัวอย่างจริงเป็นงานจ้าง)
+// ปรับให้ใช้ buyOrHireShort ตาม item.type แทน (ธรรมเนียมเดียวกับที่แก้ Doc4 "ครุภัณฑ์"→"พัสดุ")
+async function buildDoc5(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return null; }
+  if(!detail.date_order_tor){ alert('กรุณากรอก "วันที่คำสั่งแต่งตั้งกรรมการ TOR" ในฟอร์มก่อนพิมพ์เอกสารนี้ (เอกสารนี้อ้างอิงคำสั่งดังกล่าว)'); return null; }
+  if(!detail.date_agree_tor){ alert('กรุณากรอก "วันที่เห็นชอบ TOR" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
+  const buyOrHireShort = item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง';
+  const bareDocNumber = (detail.doc_number || '').replace(/^[ก-๙]+\./, '');
+  const itemTitle = item.title || '-';
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
+
+  // ผู้กำหนดรายละเอียด = คนใน committee_tor ที่มี role "ผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ" (เดียวกับ Doc3/4)
+  // fallback: คนแรกที่มี staff_id ถ้าไม่พบ role ตรงเป๊ะ (กันเคสข้อมูลเก่า/พิมพ์ role ต่างเล็กน้อย)
+  const committeeTor = detail.committee_tor || [];
+  const designerEntry = committeeTor.find(function(c){ return c && c.staff_id && (c.role || '').indexOf('ผู้กำหนดรายละเอียด') >= 0; })
+    || committeeTor.filter(function(c){ return c && c.staff_id; })[0];
+  if(!designerEntry){
+    alert('กรุณาระบุ "คณะกรรมการกำหนด TOR" (ผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ) ในฟอร์มก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const designerStaff = (STAFF_LIST || []).find(function(x){ return String(x.id) === String(designerEntry.staff_id); });
+  const designerPrintName = designerStaff ? (designerStaff.prefix + designerStaff.name) : '-';
+
+  const director = findDirector();
+  const directorSigRuns = director
+    ? multiLineRuns(['ลงชื่อ .......................................', '(' + (director.prefix || '') + director.name + ')', 'ผู้อำนวยการ' + SCHOOL_FULL_NAME])
+    : [ tr('ลงชื่อ .......................................') ];
+
+  const sigTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    rows: [ new TableRow({ children: [
+      new TableCell({ width: { size: 47, type: WidthType.PERCENTAGE }, children: [
+        para('ผู้กำหนดรายละเอียด', { after: 0 }),
+        para('ลงชื่อ .......................................', { before: 6, after: 0 }),
+        para('(' + designerPrintName + ')', { after: 0 })
+      ] }),
+      new TableCell({ width: { size: 53, type: WidthType.PERCENTAGE }, children: [
+        para('( )  เห็นชอบ      ( )  อนุมัติ', { after: 0 }),
+        para(directorSigRuns, { align: AlignmentType.CENTER, before: 4, after: 0 }),
+        para('วันที่ ' + fmtDateThai(detail.date_agree_tor), { align: AlignmentType.CENTER, after: 0 })
+      ] })
+    ] }) ]
+  });
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 29, after: 3, exactLinePt: 35 }),
+    headerLine('ส่วนราชการ  ', SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL),
+    titleRow('ที่  ', bareDocNumber, 'วันที่  ', fmtDateThai(detail.date_agree_tor)),
+    headerLine('เรื่อง  ', 'ขอความเห็นชอบรายละเอียดคุณลักษณะเฉพาะและราคากลางของ' + buyOrHire + itemTitle),
+    hrPara(),
+    para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 2 }),
+    bodyPara('ตามคำสั่ง' + SCHOOL_FULL_NAME + ' ที่ ' + bareDocNumber + ' ลงวันที่ ' + fmtDateThai(detail.date_order_tor) +
+      ' เรื่อง แต่งตั้งผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ (TOR หรือ Spec) การ' + buyOrHire + itemTitle + ' นั้น'),
+    bodyPara('บัดนี้ คณะกรรมการจัดทำราคากลาง ได้ดำเนินการจัดทำรายละเอียดคุณลักษณะเฉพาะพัสดุและราคากลางของงานพัสดุที่จะ' +
+      buyOrHireShort + 'ดังกล่าวเสร็จเรียบร้อยแล้ว ราคากลางที่คำนวณได้ เป็นเงิน ' + fmt(totalAmount) + ' บาท (' + thaiBahtText(totalAmount) +
+      ') ตามรายละเอียดคุณลักษณะเฉพาะและการคำนวณราคากลางที่แนบ'),
+    bodyPara('จึงเรียนมาเพื่อโปรดพิจารณาเห็นชอบ'),
+    para('', { after: 3 }),
+    sigTable
+  ];
+
+  return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[5] + '.docx' };
 }
