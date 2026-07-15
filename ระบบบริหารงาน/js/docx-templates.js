@@ -84,9 +84,13 @@ function para(runsOrText, opts){
 }
 
 // ย่อหน้าเนื้อหาบันทึกข้อความปกติ — ย่อหน้าแรก 8mm + justify (เทียบเท่า p.body-para เดิมใน HTML)
+// ⚠️ align: LEFT ไม่ใช่ JUSTIFIED (2026-07-11, Pam เจอตัวหนังสือห่างมากใน Word จริง) — ภาษาไทยไม่มี
+// ช่องว่างระหว่างคำตามธรรมชาติ (เว้นวรรคใช้แบ่งวลี/ประโยคเท่านั้น) ย่อหน้าพวกนี้มีแค่ไม่กี่ช่องว่างที่ผมแทรกเอง
+// ระหว่างต่อ field (ชื่อ/ตำแหน่ง/ชื่อโรงเรียน) พอสั่ง justify Word จะยืดช่องว่างไม่กี่จุดนั้นให้เต็มบรรทัด
+// กลายเป็นช่องว่างใหญ่ผิดปกติ (เอกสารราชการไทยจริงใช้ชิดซ้าย+ย่อหน้าแรกเยื้อง ไม่ justify ด้วยเหตุผลเดียวกันนี้)
 function bodyPara(text, opts){
   opts = opts || {};
-  return para(text, Object.assign({ align: AlignmentType.JUSTIFIED, indent: !opts.noIndent, after: 1.5 }, opts));
+  return para(text, Object.assign({ align: AlignmentType.LEFT, indent: !opts.noIndent, after: 1.5 }, opts));
 }
 
 // เส้นคั่นบางๆ ใต้หัวเอกสาร (เทียบเท่า hr.sep เดิม)
