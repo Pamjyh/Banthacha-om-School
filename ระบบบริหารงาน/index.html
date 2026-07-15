@@ -1270,25 +1270,26 @@ body:not(.is-admin) .admin-only { display: none !important; }
 
     <!-- Section I: พิมพ์เอกสาร PDF 16 ชุด — Stage 17 (HIGH RISK, สร้างทีละชุด) -->
     <div class="table-card" style="padding:16px 20px;margin-bottom:16px">
-      <strong style="font-size:14px;display:block;margin-bottom:4px">🖨️ พิมพ์เอกสาร</strong>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">ต้องกด "บันทึก" ให้เรียบร้อยก่อน — เอกสารดึงข้อมูลจากที่บันทึกไว้ล่าสุดใน DB เท่านั้น ตอนนี้พร้อมใช้งานเฉพาะเอกสาร #1-4 ชุดอื่นกำลังทยอยสร้าง</div>
+      <strong style="font-size:14px;display:block;margin-bottom:4px">📄 ดาวน์โหลดเอกสาร (Word)</strong>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">ต้องกด "บันทึก" ให้เรียบร้อยก่อน — เอกสารดึงข้อมูลจากที่บันทึกไว้ล่าสุดใน DB เท่านั้น ดาวน์โหลดเป็นไฟล์ .docx เปิด/แก้ไข/พิมพ์ใน Word ได้ทันที ตอนนี้พร้อมใช้งานเฉพาะเอกสาร #1-4 ชุดอื่นกำลังทยอยสร้าง</div>
+      <button class="btn-sm" style="width:100%;margin-bottom:10px" onclick="downloadAllDocs()">⬇️ ดาวน์โหลดรวมทั้งชุด (#1-4 เป็นไฟล์เดียว)</button>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
-        <button class="btn-outline-sm" onclick="printDoc(1)">1. ขอดำเนิน</button>
-        <button class="btn-outline-sm" onclick="printDoc(2)">2. แนบขอดำเนิน</button>
-        <button class="btn-outline-sm" onclick="printDoc(3)">3. ขออนุมัติ TOR</button>
-        <button class="btn-outline-sm" onclick="printDoc(4)">4. คำสั่ง TOR</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(5)">5. เห็นชอบ TOR</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(6)">6. ขอบเขตงาน</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(7)">7. แนบ TOR</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(8)">8. ขอซื้อจ้าง</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(9)">9. แนบท้าย</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(10)">10. พิจารณา</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(11)">11. คำสั่งตรวจรับ</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(12)">12. ประกาศผู้ชนะ</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(13)">13. สั่งซื้อจ้าง</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(14)">14. แนบซื้อ</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(15)">15. ตรวจรับ</button>
-        <button class="btn-outline-sm" style="opacity:.4" onclick="printDoc(16)">16. เบิก</button>
+        <button class="btn-outline-sm" onclick="downloadDoc(1)">1. ขอดำเนิน</button>
+        <button class="btn-outline-sm" onclick="downloadDoc(2)">2. แนบขอดำเนิน</button>
+        <button class="btn-outline-sm" onclick="downloadDoc(3)">3. ขออนุมัติ TOR</button>
+        <button class="btn-outline-sm" onclick="downloadDoc(4)">4. คำสั่ง TOR</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(5)">5. เห็นชอบ TOR</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(6)">6. ขอบเขตงาน</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(7)">7. แนบ TOR</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(8)">8. ขอซื้อจ้าง</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(9)">9. แนบท้าย</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(10)">10. พิจารณา</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(11)">11. คำสั่งตรวจรับ</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(12)">12. ประกาศผู้ชนะ</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(13)">13. สั่งซื้อจ้าง</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(14)">14. แนบซื้อ</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(15)">15. ตรวจรับ</button>
+        <button class="btn-outline-sm" style="opacity:.4" onclick="downloadDoc(16)">16. เบิก</button>
       </div>
     </div>
 
@@ -1334,11 +1335,12 @@ body:not(.is-admin) .admin-only { display: none !important; }
 <script src="./js/external.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="./js/pdf-font.js"></script>
+<!-- PIVOT 2026-07-11: เอกสารพัสดุเปลี่ยนจาก HTML+browser print (jsPDF/pdf-font.js เดิม) เป็นสร้างไฟล์
+     .docx จริงด้วย docx library — ให้ Word จัดหน้ากระดาษเอง ตัดปัญหาการเดา CSS ทิ้งทั้งหมด (ดู
+     js/docx-templates.js หัวไฟล์) — เก็บ pdf-engine.js ไว้แค่ตัวเดียวเพื่อใช้ GARUDA_B64 (รูปครุฑ) -->
+<script src="https://cdn.jsdelivr.net/npm/docx@9.7.1/dist/index.iife.js"></script>
 <script src="./js/pdf-engine.js"></script>
-<script src="./js/pdf-templates.js"></script>
+<script src="./js/docx-templates.js"></script>
 <script src="./js/auth.js"></script>
 <script src="./js/init.js"></script>
 <script src="./js/events.js"></script>
