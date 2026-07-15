@@ -2,7 +2,7 @@
 // Service Worker — โรงเรียนบ้านท่าชะอม
 // v1.0 — cache-first static, network-only API
 // =====================================================================
-const CACHE_NAME = 'banthacha-om-v10'; // v10: PIVOT .docx จริง + แก้ align LEFT (2026-07-11) — ⚠️ ลืม bump ตอน commit 88b05a4/b79609b ทำให้ index.html เก่ายังถูกเสิร์ฟอยู่ (Pam เจอ "ไม่มีปุ่มดาวน์โหลด docx")
+const CACHE_NAME = 'banthacha-om-v11'; // v11: จัดรูปแบบตามมาตรฐานงานสารบรรณจริง (ระเบียบสำนักนายกฯ 2526) (2026-07-15)
 // ⚠️ พบว่า sw.js ใช้ stale-while-revalidate ทุกไฟล์ same-origin (ยกเว้น NO_CACHE_PATHS/HOSTS) รวมถึง
 // js/pdf-templates.js ด้วย — คืน cache เก่าทันทีเสมอ ค่อย update cache ใน background ไว้ใช้รอบถัดไป
 // ทำให้ push โค้ดใหม่ขึ้น GitHub Pages ไม่พอ ต้อง hard refresh ก็ยังไม่เห็นของใหม่ในรอบเดียว (Pam เจอจริง
