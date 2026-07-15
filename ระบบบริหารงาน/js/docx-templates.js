@@ -36,12 +36,20 @@ const PD_DOC_NAMES = {
 // ===================== docx library shortcuts + helper builders =====================
 // window.docx โหลดจาก CDN ใน index.html — ดึงคลาสที่ใช้บ่อยมาเป็นตัวแปรสั้นๆ
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  ImageRun, AlignmentType, WidthType, BorderStyle, VerticalAlign } = docx;
+  ImageRun, AlignmentType, WidthType, BorderStyle, VerticalAlign, TabStopType, Tab } = docx;
 
 const DOCX_FONT = 'TH Sarabun New';
 function mm(n){ return Math.round(n * 56.6929); } // mm -> twips (หน่วยระยะใน docx)
 function pxFromMm(n){ return Math.round(n * 3.7795); } // mm -> px @96dpi (สำหรับขนาดรูปภาพ)
 function hp(pt){ return pt * 2; } // font size point -> half-point (หน่วยขนาดฟอนต์ใน docx)
+
+// ⚠️ ค่ามาตรฐานเอกสารราชการไทย (2026-07-15) — อ่านจาก "ผนวก คำแนะนำและแบบมาตรฐานการพิมพ์หนังสือราชการ
+// ภาษาไทยด้วยโปรแกรมการพิมพ์ในเครื่องคอมพิวเตอร์" ท้ายระเบียบสำนักนายกรัฐมนตรีว่าด้วยงานสารบรรณ พ.ศ. 2526
+// (Pam ขอให้ศึกษาก่อนแก้ หลังเจอ Doc พิมพ์แล้วดูไม่เป็นทางการ) แทนที่จะเดาจากไฟล์อ้างอิงอย่างเดียวแบบเดิม —
+// รอบนี้แก้ตามมาตรฐานจริง: ระยะขอบ, ระยะย่อหน้า, ขนาดครุฑ/ตำแหน่ง, ขนาดตัวอักษรหัวเรื่อง ล้วนอิงจากนี้
+const OFFICIAL_MARGIN_MM = { top: 25, bottom: 20, left: 30, right: 20 }; // ซ้าย 3ซม./ขวา 2ซม./บน 2.5ซม./ล่าง~2ซม.
+const PARA_INDENT_MM = 25; // ย่อหน้าข้อความ 2.5 ซม. ตามมาตรฐาน (ไม่ใช่ 8mm ที่เคยเดาไว้)
+const ORDER_DATE_INDENT_MM = 50; // "สั่ง ณ วันที่..." ของ Doc คำสั่ง เยื้อง 5 ซม. (เพิ่มจากย่อหน้าปกติ 1 เท่า)
 
 const NONE_BORDER = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
 const NO_BORDERS = { top: NONE_BORDER, bottom: NONE_BORDER, left: NONE_BORDER, right: NONE_BORDER, insideHorizontal: NONE_BORDER, insideVertical: NONE_BORDER };
@@ -78,12 +86,17 @@ function para(runsOrText, opts){
     alignment: opts.align || AlignmentType.LEFT,
     spacing: { before: mm(opts.before || 0), after: mm(opts.after == null ? 1.5 : opts.after) }
   };
-  if(opts.indent) p.indent = { firstLine: mm(8) };
+  // ย่อหน้าแรก 2.5 ซม. ตามมาตรฐานราชการ (ปรับจาก 8mm ที่เคยเดาไว้ผิด — ดู PARA_INDENT_MM ด้านบน)
+  if(opts.indent) p.indent = { firstLine: mm(PARA_INDENT_MM) };
+  if(opts.leftIndent) p.indent = { left: mm(opts.leftIndent) };
+  if(opts.tabStops) p.tabStops = opts.tabStops;
   if(opts.pageBreakBefore) p.pageBreakBefore = true;
+  // ระยะบรรทัดตายตัว (ไม่ใช่ทวีคูณจากขนาดฟอนต์) — ใช้กับหัวข้อ "บันทึกข้อความ" ที่มาตรฐานกำหนดตัวเลขตายตัวไว้
+  if(opts.exactLinePt) p.spacing.line = opts.exactLinePt * 20, p.spacing.lineRule = 'exact';
   return new Paragraph(p);
 }
 
-// ย่อหน้าเนื้อหาบันทึกข้อความปกติ — ย่อหน้าแรก 8mm + justify (เทียบเท่า p.body-para เดิมใน HTML)
+// ย่อหน้าเนื้อหาบันทึกข้อความปกติ — ย่อหน้าแรกเยื้อง 2.5 ซม. ตามมาตรฐานราชการ
 // ⚠️ align: LEFT ไม่ใช่ JUSTIFIED (2026-07-11, Pam เจอตัวหนังสือห่างมากใน Word จริง) — ภาษาไทยไม่มี
 // ช่องว่างระหว่างคำตามธรรมชาติ (เว้นวรรคใช้แบ่งวลี/ประโยคเท่านั้น) ย่อหน้าพวกนี้มีแค่ไม่กี่ช่องว่างที่ผมแทรกเอง
 // ระหว่างต่อ field (ชื่อ/ตำแหน่ง/ชื่อโรงเรียน) พอสั่ง justify Word จะยืดช่องว่างไม่กี่จุดนั้นให้เต็มบรรทัด
@@ -91,6 +104,25 @@ function para(runsOrText, opts){
 function bodyPara(text, opts){
   opts = opts || {};
   return para(text, Object.assign({ align: AlignmentType.LEFT, indent: !opts.noIndent, after: 1.5 }, opts));
+}
+
+// หัวข้อแบบ "label ตัวหนา 20pt + ข้อมูลปกติ 16pt" บนบรรทัดเดียวกัน (เทียบเท่า "ส่วนราชการ/ที่/วันที่/เรื่อง"
+// ตามมาตรฐาน — ๓.๒.๒ "คำว่า ส่วนราชการ ที่ วันที่ เรื่อง พิมพ์ด้วยอักษรตัวหนาขนาด ๒๐ พอยท์" ส่วนข้อมูลเป็น 16pt ปกติ)
+function headerLine(label, value, opts){
+  opts = opts || {};
+  return para([ tr(label, { bold: true, size: 20 }), tr(value, { size: 16 }) ],
+    Object.assign({ after: opts.after == null ? 1 : opts.after }, opts));
+}
+
+// แถว "ที่ .... / วันที่ ...." บรรทัดเดียวกัน ใช้ tab stop แทน table เดิม (ตรงกับที่มาตรฐานกำหนดให้อยู่
+// บรรทัดเดียวกันโดยเว้นระยะด้วย tab ไม่ใช่ตาราง — table เดิมโชว์ cell-end marker แปลกๆ ตอนเปิด Word จริง
+// ตามที่ Pam เจอ "คำขาดๆ") tab stop ตั้งไว้กลางความกว้างหน้าใช้งาน (~16 ซม.) ให้ "วันที่" เริ่มไม่ชิดกับ "ที่" เกินไป
+function titleRow(leftLabel, leftValue, rightLabel, rightValue){
+  return para(
+    [ tr(leftLabel, { bold: true, size: 20 }), tr(leftValue, { size: 16 }), new Tab(),
+      tr(rightLabel, { bold: true, size: 20 }), tr(rightValue, { size: 16 }) ],
+    { after: 1, tabStops: [ { type: TabStopType.LEFT, position: mm(85) } ] }
+  );
 }
 
 // เส้นคั่นบางๆ ใต้หัวเอกสาร (เทียบเท่า hr.sep เดิม)
@@ -102,27 +134,21 @@ function hrPara(){
   });
 }
 
-// รูปครุฑกึ่งกลางบนสุดของทุกเอกสาร — pageBreakBefore ใช้ตอนรวมหลายเอกสารเป็นไฟล์เดียว (downloadAllDocs)
-// เพื่อบังคับให้เอกสารถัดไปเริ่มหน้าใหม่เสมอ (เอกสารแรกไม่ต้องตั้งค่านี้)
+// รูปครุฑ — ขนาด/ตำแหน่งต่างกันตามชนิดเอกสารจริงตามมาตรฐาน (2026-07-15):
+//   kind='memo'  (บันทึกข้อความ — Doc 1/2/3): สูง 1.5 ซม. ชิดขอบบนด้านซ้าย (ไม่ใช่กึ่งกลาง)
+//   kind='order' (คำสั่ง/หนังสือภายนอก — Doc 4): สูง 3 ซม. กึ่งกลางหน้า
+// อัตราส่วนรูปจริง 163:177 (~0.921) ล็อกทั้ง width/height ตามอัตราส่วนนี้เสมอ (scrutinize 2026-07-09 เดิม)
+// pageBreakBefore ใช้ตอนรวมหลายเอกสารเป็นไฟล์เดียว (downloadAllDocs) บังคับเอกสารถัดไปขึ้นหน้าใหม่เสมอ
 function garudaPara(opts){
   opts = opts || {};
+  const kind = opts.garudaKind || 'memo';
+  const heightMm = kind === 'order' ? 30 : 15;
+  const widthMm = heightMm * (163 / 177);
   return new Paragraph({
-    alignment: AlignmentType.CENTER,
+    alignment: kind === 'order' ? AlignmentType.CENTER : AlignmentType.LEFT,
     pageBreakBefore: !!opts.pageBreakBefore,
     spacing: { after: mm(3) },
-    children: [ new ImageRun({ type: 'jpg', data: base64ToUint8Array(GARUDA_B64), transformation: { width: pxFromMm(18), height: pxFromMm(22) } }) ]
-  });
-}
-
-// แถว 2 คอลัมน์ไม่มีเส้นขอบ (เทียบเท่า .row สำหรับ "ที่.../วันที่..." ที่ต้องอยู่บรรทัดเดียวกัน)
-function twoColRow(leftText, rightText){
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: NO_BORDERS,
-    rows: [ new TableRow({ children: [
-      new TableCell({ width: { size: 60, type: WidthType.PERCENTAGE }, children: [ para(leftText, { after: 0 }) ] }),
-      new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, children: [ para(rightText, { after: 0 }) ] })
-    ] }) ]
+    children: [ new ImageRun({ type: 'jpg', data: base64ToUint8Array(GARUDA_B64), transformation: { width: pxFromMm(widthMm), height: pxFromMm(heightMm) } }) ]
   });
 }
 
@@ -168,7 +194,7 @@ function buildDocxFile(children, filename){
       properties: {
         page: {
           size: { width: 11906, height: 16838 }, // A4 (twips)
-          margin: { top: mm(18), bottom: mm(15), left: mm(15), right: mm(15) }
+          margin: { top: mm(OFFICIAL_MARGIN_MM.top), bottom: mm(OFFICIAL_MARGIN_MM.bottom), left: mm(OFFICIAL_MARGIN_MM.left), right: mm(OFFICIAL_MARGIN_MM.right) }
         }
       },
       children: children
@@ -302,11 +328,12 @@ async function buildDoc1(procItemId, opts){
   });
 
   const children = [
-    garudaPara(opts),
-    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 20, after: 4 }),
-    para('ส่วนราชการ  ' + SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { after: 1 }),
-    twoColRow('ที่  ' + bareDocNumber, 'วันที่  ' + fmtDateThai(detail.date_request)),
-    para('เรื่อง  ขออนุมัติดำเนินงานตามโครงการ' + projectName, { after: 1 }),
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    // "บันทึกข้อความ" ตัวหนา 29pt ระยะบรรทัดตายตัว 35pt ตามมาตรฐาน (๓.๒.๑)
+    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 29, after: 3, exactLinePt: 35 }),
+    headerLine('ส่วนราชการ  ', SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL),
+    titleRow('ที่  ', bareDocNumber, 'วันที่  ', fmtDateThai(detail.date_request)),
+    headerLine('เรื่อง  ', 'ขออนุมัติดำเนินงานตามโครงการ' + projectName),
     hrPara(),
     para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 2 }),
     bodyPara('ด้วยข้าพเจ้า ' + proposerPrintName + ' ตำแหน่ง ' + proposerPosition + ' ' + SCHOOL_FULL_NAME +
@@ -352,7 +379,7 @@ async function buildDoc2(procItemId, opts){
   const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
 
   const children = [
-    garudaPara(opts),
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
     para('แบบประมาณการ' + buyOrHire + ' แนบท้ายแบบขออนุมัติ' + buyOrHire, { align: AlignmentType.CENTER, bold: true, after: 0 }),
     para('การ' + buyOrHire + purpose + ' ในโครงการ' + projectName, { align: AlignmentType.CENTER, bold: true, after: 0 }),
     para(SCHOOL_ADMIN_GROUP + ' ' + SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { align: AlignmentType.CENTER, bold: true, after: 3 }),
@@ -438,11 +465,11 @@ async function buildDoc3(procItemId, opts){
     : [ tr('ลงชื่อ .......................................') ];
 
   const children = [
-    garudaPara(opts),
-    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 20, after: 4 }),
-    para('ส่วนราชการ  ' + SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { after: 1 }),
-    twoColRow('ที่  ' + bareDocNumber, 'วันที่  ' + fmtDateThai(detail.date_approve_tor)),
-    para('เรื่อง  ขออนุมัติแต่งตั้งผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ', { after: 1 }),
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 29, after: 3, exactLinePt: 35 }),
+    headerLine('ส่วนราชการ  ', SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL),
+    titleRow('ที่  ', bareDocNumber, 'วันที่  ', fmtDateThai(detail.date_approve_tor)),
+    headerLine('เรื่อง  ', 'ขออนุมัติแต่งตั้งผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ'),
     hrPara(),
     para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 2 }),
     bodyPara('ตามที่' + SCHOOL_ADMIN_GROUP + ' ' + SCHOOL_FULL_NAME + ' มีความประสงค์จะขอทำการ' + buyOrHire + (item.title || '') +
@@ -511,7 +538,7 @@ async function buildDoc4(procItemId, opts){
     : [ tr('ลงชื่อ .......................................') ];
 
   const children = [
-    garudaPara(opts),
+    garudaPara(Object.assign({ garudaKind: 'order' }, opts)),
     para('คำสั่ง' + SCHOOL_FULL_NAME, { align: AlignmentType.CENTER, bold: true, size: 20, after: 0 }),
     para('ที่ ' + bareDocNumber, { align: AlignmentType.CENTER, bold: true, size: 20, after: 4 }),
     para('เรื่อง แต่งตั้งผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ (TOR หรือ Spec) การ' + buyOrHire + itemTitle, { align: AlignmentType.CENTER, bold: true, after: 3 }),
@@ -525,7 +552,8 @@ async function buildDoc4(procItemId, opts){
     bodyPara('ผู้กำหนดขอบเขต (TOR) ที่ได้รับแต่งตั้งมีอำนาจหน้าที่จัดทำรายละเอียดคุณลักษณะเฉพาะและราคากลาง ของ' +
       itemTitle + ' จำนวน ' + itemCount + ' รายการ และกำหนดหลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอ โดยให้มีรายละเอียดเป็นไปตามกฎหมาย ระเบียบ และคำสั่งที่เกี่ยวข้อง', { noIndent: true, before: 2 }),
     bodyPara('ทั้งนี้ ตั้งแต่บัดนี้เป็นต้นไป'),
-    para('สั่ง ณ วันที่ ' + fmtDateThai(detail.date_order_tor), { align: AlignmentType.CENTER, before: 2, after: 0 }),
+    // "สั่ง ณ วันที่..." เยื้อง 5 ซม. (ไม่ใช่กึ่งกลาง) ตามมาตรฐาน — ๓.๓ "ให้มีระยะย่อหน้าเท่ากับ ๕ เซนติเมตร"
+    para('สั่ง ณ วันที่ ' + fmtDateThai(detail.date_order_tor), { align: AlignmentType.LEFT, leftIndent: ORDER_DATE_INDENT_MM, before: 2, after: 0 }),
     para('', { after: 6 }),
     para(directorSigRuns, { align: AlignmentType.CENTER, after: 0 })
   ]);
