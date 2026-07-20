@@ -36,9 +36,27 @@ const PD_DOC_NAMES = {
 // ===================== docx library shortcuts + helper builders =====================
 // window.docx โหลดจาก CDN ใน index.html — ดึงคลาสที่ใช้บ่อยมาเป็นตัวแปรสั้นๆ
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-  ImageRun, AlignmentType, WidthType, BorderStyle, VerticalAlign, TabStopType, Tab } = docx;
+  ImageRun, AlignmentType, WidthType, BorderStyle, VerticalAlign, TabStopType, Tab, OnOffElement } = docx;
 
 const DOCX_FONT = 'TH Sarabun New';
+
+// ⚠️ Thai Complex-Script formatting ครบชุด (2026-07-20) — Pam เปิด Word จริงเจอตัวหนังสือห่างกันมาก +
+// font box โชว์ "Angsana New" ขนาด 10 แทน TH Sarabun New 16pt ทั้งที่โค้ดตั้ง font/size ทุก run แล้ว
+// ตรวจด้วย skill thai-font-normalize (fix-thai-font --check) พบว่า Word ต้องการ "complex-script"
+// (cs) formatting ครบ 3 อย่างพร้อมกันถึงจะ "เชื่อ" font/size ที่ตั้งไว้ ไม่งั้น fallback ไปใช้ default
+// style (Angsana New 10pt เดิมของ Word) สำหรับ "วัดความกว้าง" ตอนจัด layout/thaiDistribute — ทำให้
+// วาดด้วยฟอนต์ใหญ่ (16pt) แต่คำนวณระยะห่างจากฟอนต์เล็ก (10pt Angsana) เกิดช่องว่างมหาศาลระหว่างตัวอักษร:
+//   1. w:szCs (sizeComplexScript) — ขนาดฟอนต์ฝั่ง complex-script แยกจาก w:sz ปกติ
+//   2. w:lang w:bidi="th-TH" (language.bidirectional) — บอก Word ว่านี่คือภาษาที่ใช้ complex-script
+//   3. <w:cs/> toggle จริง (ไม่มี option ตรงใน docx.js API — ต้อง push OnOffElement('w:cs', true)
+//      เข้า run.properties เองหลังสร้าง TextRun ดู trThaiCs() ด้านล่าง)
+// + Document.styles.default.document.run ต้องตั้งค่าเดียวกันเป็นค่า default ทั้งไฟล์ (docDefaults ใน
+// styles.xml) กัน paragraph mark/ย่อหน้าว่างที่ไม่มี run ชัดเจน fallback เป็น Angsana New เช่นกัน
+function trThaiCs(run){
+  run.properties.push(new OnOffElement('w:cs', true));
+  return run;
+}
+const THAI_LANG = { value: 'th-TH', eastAsia: 'th-TH', bidirectional: 'th-TH' };
 function mm(n){ return Math.round(n * 56.6929); } // mm -> twips (หน่วยระยะใน docx)
 function pxFromMm(n){ return Math.round(n * 3.7795); } // mm -> px @96dpi (สำหรับขนาดรูปภาพ)
 function hp(pt){ return pt * 2; } // font size point -> half-point (หน่วยขนาดฟอนต์ใน docx)
@@ -64,12 +82,15 @@ function base64ToUint8Array(b64){
 }
 
 // TextRun เดียว (หรือหลายบรรทัดต่อกันด้วย break — ดู multiLineRuns) — ขนาด/ฟอนต์มาตรฐานเอกสารราชการ
+// ⚠️ ตั้ง complex-script formatting ครบชุด (sizeComplexScript/language/cs toggle) ทุก run เสมอ — ดูเหตุผล
+// เต็มที่ comment เหนือ trThaiCs() ด้านบน (2026-07-20 แก้ตัวหนังสือห่างกันผิดปกติใน Word จริง)
 function tr(text, opts){
   opts = opts || {};
-  const o = { text: String(text == null ? '' : text), font: DOCX_FONT, size: hp(opts.size || 16) };
-  if(opts.bold) o.bold = true;
+  const sz = hp(opts.size || 16);
+  const o = { text: String(text == null ? '' : text), font: DOCX_FONT, size: sz, sizeComplexScript: sz, language: THAI_LANG };
+  if(opts.bold){ o.bold = true; o.boldComplexScript = true; }
   if(opts.brk) o.break = opts.brk;
-  return new TextRun(o);
+  return trThaiCs(new TextRun(o));
 }
 
 // รวมหลายบรรทัดเป็น TextRun ชุดเดียวในย่อหน้าเดียวกัน (เทียบเท่า "line1<br>line2<br>line3" เดิม)
@@ -193,6 +214,17 @@ function subItemsTable(subItems, buyOrHireShort, totalAmount){
 // สร้างไฟล์ .docx จาก children array แล้วสั่งดาวน์โหลด (ทำงานเฉพาะใน browser จริง — ไม่ใช่ระหว่างเทส Node)
 function buildDocxFile(children, filename){
   const doc = new Document({
+    // ⚠️ docDefaults (styles.xml) — ตั้ง TH Sarabun New + complex-script ครบชุดเป็นค่า default ทั้งไฟล์
+    // กัน paragraph mark/เนื้อหาที่ไม่มี run ชัดเจน (เช่นย่อหน้าว่าง) fallback เป็น Angsana New 10pt ของ Word
+    // (ดู comment เต็มที่ trThaiCs() ด้านบน — ตรวจยืนยันด้วย skill thai-font-normalize แล้วว่าจำเป็นคู่กับ
+    // การตั้งค่าระดับ run ใน tr())
+    styles: {
+      default: {
+        document: {
+          run: { font: DOCX_FONT, size: hp(16), sizeComplexScript: hp(16), language: THAI_LANG }
+        }
+      }
+    },
     sections: [ {
       properties: {
         page: {
