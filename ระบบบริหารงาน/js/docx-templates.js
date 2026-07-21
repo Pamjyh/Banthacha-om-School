@@ -283,6 +283,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 4) return await buildDoc4(procItemId, opts);
   if(docIndex === 5) return await buildDoc5(procItemId, opts);
   if(docIndex === 6) return await buildDoc6(procItemId, opts);
+  if(docIndex === 7) return await buildDoc7(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -290,7 +291,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -832,4 +833,88 @@ async function buildDoc6(procItemId, opts){
   ]);
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[6] + '.docx' };
+}
+
+// ---------- Doc 7: แนบ TOR (รายละเอียดแนบท้ายขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ) ----------
+// รูปแบบอ้างอิงจากไฟล์จริง "7 แนบ TOR.pdf" (OCR ตกวรรณยุกต์/สระหนักมาก ต้องสะกดใหม่เองทั้งหมดจากบริบท) —
+// เป็นตารางรายการย่อยแนบท้าย Doc6 เหมือน Doc2 เป็นตารางแนบท้าย Doc1: หัวเรื่อง 3 บรรทัดรูปแบบเดียวกับ
+// Doc6 (แค่บรรทัดแรกเปลี่ยนเป็น "รายละเอียดแนบท้าย...") + ตารางรายการย่อย (ใช้ subItemsTable() ตัวเดียวกับ
+// Doc2/3/4 — คอลัมน์ตรงกันเป๊ะ: ลำดับที่/รายละเอียด/จำนวน/หน่วย/ราคาต่อหน่วย/จำนวนเงิน) + บรรทัดรวมภาษี
+// มูลค่าเพิ่ม+จำนวนเงินตัวอักษร (pattern เดียวกับ Doc3) + ลายเซ็น 3 คนแบบเดียวกับ Doc6 (sigRow3)
+async function buildDoc7(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return null; }
+
+  const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
+  const buyOrHireShort = item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง';
+  const projectNameRaw = (item.projects && item.projects.name) || '-';
+  const projectName = projectNameRaw.replace(/^โครงการ\s*/, '');
+  const itemTitle = item.title || '-';
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
+  const vatText = detail.vat_applicable ? fmt(totalAmount * 0.07) : '-';
+
+  const committeeTor = detail.committee_tor || [];
+  const designerEntry = committeeTor.find(function(c){ return c && c.staff_id && (c.role || '').indexOf('ผู้กำหนดรายละเอียด') >= 0; })
+    || committeeTor.filter(function(c){ return c && c.staff_id; })[0];
+  if(!designerEntry){
+    alert('กรุณาระบุ "คณะกรรมการกำหนด TOR" (ผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ) ในฟอร์มก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const designerStaff = (STAFF_LIST || []).find(function(x){ return String(x.id) === String(designerEntry.staff_id); });
+  const designerPrintName = designerStaff ? (designerStaff.prefix + designerStaff.name) : '-';
+
+  const officer = findStaffByName(PROCUREMENT_OFFICER_NAME);
+  const officerPrintName = officer ? (officer.prefix + officer.name) : PROCUREMENT_OFFICER_NAME;
+  const director = findDirector();
+  const directorSigRuns = director
+    ? multiLineRuns(['ลงชื่อ .......................................', '(' + (director.prefix || '') + director.name + ')', 'ผู้อำนวยการ' + SCHOOL_FULL_NAME])
+    : [ tr('ลงชื่อ .......................................') ];
+
+  const sigRow3 = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    rows: [ new TableRow({ children: [
+      new TableCell({ width: { size: 34, type: WidthType.PERCENTAGE }, children: [
+        para('ผู้กำหนดรายละเอียด', { align: AlignmentType.CENTER, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 5, after: 0 }),
+        para('(' + designerPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
+      ] }),
+      new TableCell({ width: { size: 33, type: WidthType.PERCENTAGE }, children: [
+        para('เจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 5, after: 0 }),
+        para('(' + officerPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
+      ] }),
+      new TableCell({ width: { size: 33, type: WidthType.PERCENTAGE }, children: [
+        para('( )  เห็นชอบ      ( )  อนุมัติ', { align: AlignmentType.CENTER, after: 0 }),
+        para(directorSigRuns, { align: AlignmentType.CENTER, before: 4, after: 0 })
+      ] })
+    ] }) ]
+  });
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    para('รายละเอียดแนบท้ายขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ', { align: AlignmentType.CENTER, bold: true, after: 0 }),
+    para('การ' + buyOrHire + itemTitle + ' ในโครงการ' + projectName, { align: AlignmentType.CENTER, bold: true, after: 0 }),
+    para(SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { align: AlignmentType.CENTER, bold: true, after: 3 }),
+    subItemsTable(subItems, buyOrHireShort, totalAmount),
+    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(totalAmount) + ')', { noIndent: true, before: 2, after: 4 }),
+    sigRow3
+  ];
+
+  return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[7] + '.docx' };
 }
