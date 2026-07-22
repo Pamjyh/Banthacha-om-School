@@ -184,7 +184,7 @@ function titleRow(leftLabel, leftValue, rightLabel, rightValue){
 function hrPara(){
   return new Paragraph({
     border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: '000000' } },
-    spacing: { before: mm(1), after: mm(2) },
+    spacing: { before: mm(1), after: mm(1.5) },
     children: []
   });
 }
@@ -202,7 +202,7 @@ function garudaPara(opts){
   return new Paragraph({
     alignment: kind === 'order' ? AlignmentType.CENTER : AlignmentType.LEFT,
     pageBreakBefore: !!opts.pageBreakBefore,
-    spacing: { after: mm(3) },
+    spacing: { after: mm(2) },
     children: [ new ImageRun({ type: 'jpg', data: base64ToUint8Array(GARUDA_B64), transformation: { width: pxFromMm(widthMm), height: pxFromMm(heightMm) } }) ]
   });
 }
@@ -985,7 +985,7 @@ async function buildDoc8(procItemId, opts){
     return null;
   }
   const inspectParas = inspectCommittee.map(function(c, i){
-    return para((i + 1) + '. ' + c.name + ' ตำแหน่ง ' + c.position + ' ' + c.role, { noIndent: true, after: 0.5 });
+    return para((i + 1) + '. ' + c.name + ' ตำแหน่ง ' + c.position + ' ' + c.role, { noIndent: true, after: 0.2 });
   });
 
   const officer = findStaffByName(PROCUREMENT_OFFICER_NAME);
@@ -993,59 +993,66 @@ async function buildDoc8(procItemId, opts){
   const head = findStaffByName(PROCUREMENT_HEAD_NAME);
   const headPrintName = head ? (head.prefix + head.name) : PROCUREMENT_HEAD_NAME;
   const director = findDirector();
-  const directorSigRuns = director
-    ? multiLineRuns(['ลงชื่อ .......................................', '(' + (director.prefix || '') + director.name + ')', 'ผู้อำนวยการ' + SCHOOL_FULL_NAME])
-    : [ tr('ลงชื่อ .......................................') ];
+  // ⚠️ รวม checkbox+ลายเซ็น+วันที่ ผอ. เป็นย่อหน้าเดียว (2026-07-22, Pam ยืนยัน Word จริงล้นไปหน้า 2
+  // "9 บรรทัดครับ") — เดิมแยก 4 ย่อหน้า (checkbox/ลงชื่อ+ชื่อ+ตำแหน่ง/วันที่) ผ่าน spacer 2 อัน คั่นหน้า-หลัง
+  // sigRow รวมกันเป็นย่อหน้าเดียวด้วย multiLineRuns ตัดช่องว่างระหว่างย่อหน้าที่ Word แทรกเองทิ้งไปหลายบรรทัด
+  // ⚠️ รอบ 3 (2026-07-22) — รวมบรรทัดชื่อ+ตำแหน่งเป็นบรรทัดเดียว (พบว่ายังพอมีที่ว่างกว้างพอ ไม่ทำให้ตัดคำ)
+  // ลดจาก 5 บรรทัดเหลือ 4 บรรทัด ประหยัดพื้นที่แนวตั้งเพิ่มอีกเล็กน้อย
+  const directorBlockRuns = director
+    ? multiLineRuns(['( )  เห็นชอบ      ( )  อนุมัติ', 'ลงชื่อ .......................................',
+        '(' + (director.prefix || '') + director.name + ')  ผู้อำนวยการ' + SCHOOL_FULL_NAME,
+        'วันที่ ' + fmtDateThai(detail.date_request_buy)])
+    : multiLineRuns(['( )  เห็นชอบ      ( )  อนุมัติ', 'ลงชื่อ .......................................']);
 
   const sigRow = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: NO_BORDERS,
+    // ⚠️ cellMargin top/bottom:0 (2026-07-22) — docx.js ค่า default ~100 twips (~1.76mm) ต่อ cell ตัดออก
+    // เพราะเราคุมระยะห่างภายใน cell เองผ่าน para 'before' อยู่แล้ว ไม่ต้องการ margin ซ้ำซ้อน
+    cellMargin: { top: 0, bottom: 0, left: 100, right: 100 },
     rows: [ new TableRow({ children: [
       new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
         para('เจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
-        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 3, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 1, after: 0 }),
         para('(' + officerPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
       ] }),
       new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
         para('หัวหน้าเจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
-        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 3, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 1, after: 0 }),
         para('(' + headPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
       ] })
     ] }) ]
   });
 
+  // ⚠️ รอบ 2 (2026-07-22) — Pam ยืนยัน Word จริงล้นไปหน้า 2 พอดี "9 บรรทัดครับ" รอบแรก (รวมย่อหน้า
+  // checkbox+ลายเซ็นเป็นก้อนเดียว) ยังไม่พอ ตัดเพิ่มอีก: after ของ list เลข 1-8/1-2 ทั้งหมด 0.5mm->0.2mm,
+  // cellMargin ตาราง sigRow, before ของเส้นลงชื่อในตาราง 3mm->1mm, before ของ directorBlockRuns 2mm->0.5mm
   const children = [
     garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
-    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 29, after: 2, exactLinePt: 35 }),
-    headerLine('ส่วนราชการ  ', SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL),
+    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 29, after: 1.5, exactLinePt: 35 }),
+    headerLine('ส่วนราชการ  ', SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { after: 0.5 }),
     titleRow('ที่  ', bareDocNumber, 'วันที่  ', fmtDateThai(detail.date_request_buy)),
-    headerLine('เรื่อง  ', 'รายงานขอ' + buyOrHireShort + itemTitle),
+    headerLine('เรื่อง  ', 'รายงานขอ' + buyOrHireShort + itemTitle, { after: 0.5 }),
     hrPara(),
-    para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 1 }),
+    para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 0.5 }),
     bodyPara('ด้วย ' + SCHOOL_ADMIN_GROUP + ' ' + SCHOOL_FULL_NAME + ' มีความประสงค์จะขอทำการ' + buyOrHire + itemTitle +
       ' จำนวน ' + subItems.length + ' รายการ เพื่อ' + purpose + ' ซึ่งได้รับอนุมัติเงินจากงาน/โครงการ' + projectName +
-      ' จำนวน ' + totalAmountText + ' รายละเอียดดังแนบ'),
-    bodyPara('งานพัสดุได้ตรวจสอบแล้วเห็นควรดำเนินการจัด' + buyOrHire + 'ตามเสนอ ' + DOC8_LEGAL_CITATION_MIDDLE + ' จึงขอรายงานขอ' + buyOrHireShort + ' ดังนี้'),
-    para('1. เหตุผลและความจำเป็นที่ต้อง' + buyOrHireShort + ' คือ ' + purpose, { noIndent: true, after: 0.5 }),
-    para('2. รายละเอียดพัสดุและวงเงินที่จะขอ' + buyOrHireShort + 'มีรายละเอียดตามเอกสารแนบท้าย', { noIndent: true, after: 0.5 }),
-    para('3. ราคากลางของพัสดุที่จะขอ' + buyOrHireShort + 'เป็นเงิน ' + totalAmountText, { noIndent: true, after: 0.5 }),
-    para('4. วงเงินที่จะขอ' + buyOrHireShort + 'ในครั้งนี้ ' + totalAmountText, { noIndent: true, after: 0.5 }),
-    para('5. กำหนดเวลาที่ต้องการใช้พัสดุ ภายใน ' + DOC6_DEFAULT_TERM_DAYS + ' วัน นับถัดจากวันลงนามในสัญญา', { noIndent: true, after: 0.5 }),
-    para('6. จัด' + buyOrHire + 'โดยวิธีเฉพาะเจาะจง ' + DOC8_METHOD_JUSTIFICATION, { noIndent: true, after: 0.5 }),
-    para('7. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอโดยใช้เกณฑ์ราคา', { noIndent: true, after: 0.5 }),
-    para('8. ข้อเสนออื่น ๆ เห็นควรแต่งตั้งผู้ตรวจรับพัสดุ ตามเสนอ', { noIndent: true, after: 1.5 }),
-    bodyPara('จึงเรียนมาเพื่อโปรดพิจารณา'),
-    para('1. เห็นชอบในรายงานขอ' + buyOrHireShort + 'ดังกล่าวข้างต้น', { noIndent: true, after: 0.5 }),
-    para('2. อนุมัติให้แต่งตั้งบุคคลดังต่อไปนี้เป็นผู้ตรวจรับพัสดุ', { noIndent: true, after: 0.5 })
+      ' จำนวน ' + totalAmountText + ' รายละเอียดดังแนบ', { after: 0.5 }),
+    bodyPara('งานพัสดุได้ตรวจสอบแล้วเห็นควรดำเนินการจัด' + buyOrHire + 'ตามเสนอ ' + DOC8_LEGAL_CITATION_MIDDLE + ' จึงขอรายงานขอ' + buyOrHireShort + ' ดังนี้', { after: 0.5 }),
+    para('1. เหตุผลและความจำเป็นที่ต้อง' + buyOrHireShort + ' คือ ' + purpose, { noIndent: true, after: 0.2 }),
+    para('2. รายละเอียดพัสดุและวงเงินที่จะขอ' + buyOrHireShort + 'มีรายละเอียดตามเอกสารแนบท้าย', { noIndent: true, after: 0.2 }),
+    para('3. ราคากลางของพัสดุที่จะขอ' + buyOrHireShort + 'เป็นเงิน ' + totalAmountText, { noIndent: true, after: 0.2 }),
+    para('4. วงเงินที่จะขอ' + buyOrHireShort + 'ในครั้งนี้ ' + totalAmountText, { noIndent: true, after: 0.2 }),
+    para('5. กำหนดเวลาที่ต้องการใช้พัสดุ ภายใน ' + DOC6_DEFAULT_TERM_DAYS + ' วัน นับถัดจากวันลงนามในสัญญา', { noIndent: true, after: 0.2 }),
+    para('6. จัด' + buyOrHire + 'โดยวิธีเฉพาะเจาะจง ' + DOC8_METHOD_JUSTIFICATION, { noIndent: true, after: 0.2 }),
+    para('7. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอโดยใช้เกณฑ์ราคา', { noIndent: true, after: 0.2 }),
+    para('8. ข้อเสนออื่น ๆ เห็นควรแต่งตั้งผู้ตรวจรับพัสดุ ตามเสนอ', { noIndent: true, after: 0.5 }),
+    bodyPara('จึงเรียนมาเพื่อโปรดพิจารณา', { after: 0.5 }),
+    para('1. เห็นชอบในรายงานขอ' + buyOrHireShort + 'ดังกล่าวข้างต้น', { noIndent: true, after: 0.2 }),
+    para('2. อนุมัติให้แต่งตั้งบุคคลดังต่อไปนี้เป็นผู้ตรวจรับพัสดุ', { noIndent: true, after: 0.2 })
   ].concat(inspectParas).concat([
-    // ⚠️ ลด spacer ก่อน/หลัง sigRow (2026-07-22, Pam: "หลายอันยังเกิน 1 แผ่น A4") — วัดจำนวนหน้าจริงด้วย
-    // LibreOffice --headless (ดู comment เต็มที่ buildDoc6 ด้านบน) ก่อนแก้ ลายเซ็นล้นไปหน้า 2 พอดี
-    para('', { after: 1 }),
     sigRow,
-    para('', { after: 1 }),
-    para('( )  เห็นชอบ      ( )  อนุมัติ', { align: AlignmentType.CENTER, after: 0 }),
-    para(directorSigRuns, { align: AlignmentType.CENTER, before: 2, after: 0 }),
-    para('วันที่ ' + fmtDateThai(detail.date_request_buy), { align: AlignmentType.CENTER, after: 0 })
+    para(directorBlockRuns, { align: AlignmentType.CENTER, before: 0.5, after: 0 })
   ]);
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[8] + '.docx' };
