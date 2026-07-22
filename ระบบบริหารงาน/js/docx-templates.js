@@ -303,6 +303,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 6) return await buildDoc6(procItemId, opts);
   if(docIndex === 7) return await buildDoc7(procItemId, opts);
   if(docIndex === 8) return await buildDoc8(procItemId, opts);
+  if(docIndex === 9) return await buildDoc9(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -310,7 +311,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -1062,4 +1063,77 @@ async function buildDoc8(procItemId, opts){
   ]);
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[8] + '.docx' };
+}
+
+// ---------- Doc 9: แนบท้าย (รายละเอียดแนบท้ายบันทึกข้อความรายงานขอซื้อ/จ้าง) ----------
+// อ้างอิงไฟล์จริง "9 แนบท้าย.pdf" (OCR ตกวรรณยุกต์หนัก สะกดใหม่จากบริบท) — แนบท้าย Doc8 (บันทึกข้อความ
+// รายงานขอซื้อ/จ้าง) เหมือน Doc7 แนบท้าย Doc6: หัวเรื่องอ้างอิงเลขที่/วันที่ของ Doc8 (ใช้ date_request_buy
+// ตัวเดียวกับ Doc8) + ตารางรายการย่อย (subItemsTable ตัวเดียวกับ Doc2/3/4/7) + รวมภาษีมูลค่าเพิ่ม (pattern
+// เดียวกับ Doc3/7) + ลายเซ็น 2 คน (เจ้าหน้าที่/หัวหน้าเจ้าหน้าที่ พร้อมวันที่กำกับ ตรงกับที่ต้นฉบับจริงแสดง)
+// ⚠️ ข้อสมมติฐานใหม่ (เหมือน DOC6_DEFAULT_TERM_DAYS/VAT ก่อนหน้า): ต้นฉบับจริงมีเช็คบ็อกซ์ที่มาราคา
+// "( ) ราคามาตรฐาน (/) ราคาที่ได้มาจากการสืบจากท้องตลาด" ซึ่งไม่มี field ใน DB รองรับ — hardcode ให้ติ๊ก
+// "สืบจากท้องตลาด" ตามที่ต้นฉบับจริงแสดง (ราคาปกติของงานเล็กๆ แบบนี้มักมาจากการสืบราคา ไม่ใช่ราคามาตรฐาน
+// ที่มีประกาศทางการ) — ถ้า Pam มีรายการที่ใช้ราคามาตรฐานจริง ต้องแจ้งเพื่อเพิ่ม field แยกในฟอร์ม
+async function buildDoc9(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return null; }
+  if(!detail.date_request_buy){ alert('กรุณากรอก "วันที่ขอซื้อ/จ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const buyOrHireShort = item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง';
+  const bareDocNumber = (detail.doc_number || '').replace(/^[ก-๙]+\./, '');
+  const itemTitle = item.title || '-';
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
+  const vatText = detail.vat_applicable ? fmt(totalAmount * 0.07) : '-';
+
+  const officer = findStaffByName(PROCUREMENT_OFFICER_NAME);
+  const officerPrintName = officer ? (officer.prefix + officer.name) : PROCUREMENT_OFFICER_NAME;
+  const head = findStaffByName(PROCUREMENT_HEAD_NAME);
+  const headPrintName = head ? (head.prefix + head.name) : PROCUREMENT_HEAD_NAME;
+
+  const sigRow2 = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    rows: [ new TableRow({ children: [
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('เจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 4, after: 0 }),
+        para('(' + officerPrintName + ')', { align: AlignmentType.CENTER, after: 0 }),
+        para('วันที่ ' + fmtDateThai(detail.date_request_buy), { align: AlignmentType.CENTER, after: 0 })
+      ] }),
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('หัวหน้าเจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 4, after: 0 }),
+        para('(' + headPrintName + ')', { align: AlignmentType.CENTER, after: 0 }),
+        para('วันที่ ' + fmtDateThai(detail.date_request_buy), { align: AlignmentType.CENTER, after: 0 })
+      ] })
+    ] }) ]
+  });
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    para('รายละเอียดแนบท้ายบันทึกข้อความที่ ' + bareDocNumber + ' ลงวันที่ ' + fmtDateThai(detail.date_request_buy), { align: AlignmentType.CENTER, bold: true, after: 0 }),
+    para('เรื่อง รายงานขอ' + buyOrHireShort + itemTitle + ' จำนวน ' + subItems.length + ' รายการ', { align: AlignmentType.CENTER, bold: true, after: 0 }),
+    para(SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { align: AlignmentType.CENTER, bold: true, after: 3 }),
+    subItemsTable(subItems, buyOrHireShort, totalAmount),
+    para('( )  ราคามาตรฐาน      (/)  ราคาที่ได้มาจากการสืบจากท้องตลาด', { noIndent: true, before: 1, after: 1 }),
+    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(totalAmount) + ')', { noIndent: true, before: 1, after: 3 }),
+    sigRow2
+  ];
+
+  return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[9] + '.docx' };
 }
