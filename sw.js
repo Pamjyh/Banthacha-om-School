@@ -2,7 +2,7 @@
 // Service Worker — โรงเรียนบ้านท่าชะอม
 // v1.0 — cache-first static, network-only API
 // =====================================================================
-const CACHE_NAME = 'banthacha-om-v19'; // v19: แน่นระยะห่าง Doc8 รอบ 3 (garuda/hr/header/เรียน) + รวมบรรทัด ผอ. — ยังล้นหน้า 2 เล็กน้อย ดูรายละเอียดใน handoff (2026-07-22)
+const CACHE_NAME = 'banthacha-om-v20'; // v20: Doc8 ย่อข้อความข้อ 6 + รวมบรรทัด ผอ. เพิ่ม — ล้นเหลือ 2 บรรทัดจาก 9 บรรทัดเดิม (2026-07-22)
 // ⚠️ พบว่า sw.js ใช้ stale-while-revalidate ทุกไฟล์ same-origin (ยกเว้น NO_CACHE_PATHS/HOSTS) รวมถึง
 // js/pdf-templates.js ด้วย — คืน cache เก่าทันทีเสมอ ค่อย update cache ใน background ไว้ใช้รอบถัดไป
 // ทำให้ push โค้ดใหม่ขึ้น GitHub Pages ไม่พอ ต้อง hard refresh ก็ยังไม่เห็นของใหม่ในรอบเดียว (Pam เจอจริง
