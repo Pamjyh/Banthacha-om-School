@@ -45,6 +45,15 @@ const DOC6_BIDDER_QUALIFICATIONS = [
 const DOC6_DEFAULT_TERM_DAYS = 1;
 const DOC6_EVALUATION_CRITERIA = 'ในการพิจารณาผลการยื่นข้อเสนอครั้งนี้ โรงเรียนจะพิจารณาตัดสินโดยใช้เกณฑ์ราคา หรือ เกณฑ์ราคาประกอบเกณฑ์อื่น โดยพิจารณาจากราคารวม หรือ ราคาต่อหน่วย หรือ ราคาต่อรายการ';
 
+// ⚠️ ข้อความมาตรฐาน Doc 8 (รายงานขอซื้อ/จ้าง) — คัดลอกจากไฟล์อ้างอิงจริง "8 ขอซื้อจ้าง.pdf" (OCR ตกวรรณยุกต์
+// หนักมาก สะกดใหม่เองจากบริบท) เป็น constant คงที่เหมือน TOR_ORDER_LEGAL_BASIS/DOC6_* — อ้างอิงกฎหมาย
+// จัดซื้อจัดจ้างมาตรฐานเดียวกันทุกรายการที่ใช้วิธีเฉพาะเจาะจง ไม่ผูกกับรายการพัสดุแต่ละอัน
+const DOC8_LEGAL_CITATION_MIDDLE = 'และเพื่อให้เป็นไปตามพระราชบัญญัติการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 มาตรา 56 วรรคหนึ่ง (2) (ข) ' +
+  'และระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 22 ข้อ 79 ข้อ 25 (5) และกฎกระทรวงกำหนดวงเงินการจัดซื้อจัดจ้างพัสดุ' +
+  'โดยวิธีเฉพาะเจาะจง วงเงินการจัดซื้อจัดจ้างที่ไม่ทำข้อตกลงเป็นหนังสือและวงเงินการจัดซื้อจัดจ้างในการแต่งตั้งผู้ตรวจรับพัสดุ พ.ศ. 2560 ข้อ 1 และข้อ 5';
+const DOC8_METHOD_JUSTIFICATION = 'เนื่องจากการจัดซื้อจัดจ้างสินค้า งานบริการ หรืองานก่อสร้าง ที่มีการผลิต จำหน่าย ก่อสร้าง หรือให้บริการทั่วไป ' +
+  'และมีวงเงินในการจัดซื้อจัดจ้างครั้งหนึ่งไม่เกิน 500,000 บาท ที่กำหนดในกฎกระทรวง';
+
 const PD_DOC_NAMES = {
   1:'ขอดำเนิน', 2:'แนบขอดำเนิน', 3:'ขออนุมัติTOR', 4:'คำสั่งTOR', 5:'เห็นชอบTOR',
   6:'ขอบเขตงาน', 7:'แนบTOR', 8:'ขอซื้อจ้าง', 9:'แนบท้าย', 10:'พิจารณา',
@@ -284,6 +293,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 5) return await buildDoc5(procItemId, opts);
   if(docIndex === 6) return await buildDoc6(procItemId, opts);
   if(docIndex === 7) return await buildDoc7(procItemId, opts);
+  if(docIndex === 8) return await buildDoc8(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -291,7 +301,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -917,4 +927,116 @@ async function buildDoc7(procItemId, opts){
   ];
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[7] + '.docx' };
+}
+
+// ---------- Doc 8: รายงานขอซื้อ/จ้าง ----------
+// รูปแบบอ้างอิงจากไฟล์จริง "8 ขอซื้อจ้าง.pdf" (OCR ตกวรรณยุกต์หนักมาก สะกดใหม่เองจากบริบท) — บันทึกข้อความ
+// (pattern เดียวกับ Doc1/3/5) รายงานขออนุมัติซื้อ/จ้างจริง อ้างอิงกฎหมาย (constant DOC8_* ด้านบน) แล้วขอ
+// อนุมัติ 2 เรื่องพร้อมกัน: (1) เห็นชอบรายงาน (2) แต่งตั้งผู้ตรวจรับพัสดุ (committee_inspect — คนละชุดกับ
+// committee_tor ของ Doc3/4/5) — ใช้ detail.date_request_buy (field ใหม่ "ขอซื้อ/จ้าง" แยกจาก date อื่นทั้งหมด)
+// ลายเซ็น: เจ้าหน้าที่/หัวหน้าเจ้าหน้าที่ 2-col แบบ Doc3 (ไม่มี checkbox ในนี้) + ผอ. ด้านล่างมี checkbox
+// เห็นชอบ/อนุมัติ + วันที่กำกับแบบ Doc5 (ผสมรูปแบบ Doc3+Doc5 ตามที่ไฟล์จริงแสดง)
+async function buildDoc8(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return null; }
+  if(!detail.date_request_buy){ alert('กรุณากรอก "วันที่ขอซื้อ/จ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
+  const buyOrHireShort = item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง';
+  const projectNameRaw = (item.projects && item.projects.name) || '-';
+  const projectName = projectNameRaw.replace(/^โครงการ\s*/, '');
+  const purpose = detail.tor_objective || item.title || '-';
+  const itemTitle = item.title || '-';
+  const bareDocNumber = (detail.doc_number || '').replace(/^[ก-๙]+\./, '');
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
+  const totalAmountText = fmt(totalAmount) + ' บาท (' + thaiBahtText(totalAmount) + ')';
+
+  const inspectCommittee = (detail.committee_inspect || [])
+    .filter(function(c){ return c && c.staff_id; })
+    .map(function(c){
+      const s = (STAFF_LIST || []).find(function(x){ return String(x.id) === String(c.staff_id); });
+      return { name: s ? (s.prefix + s.name) : '-', position: s ? (s.position || '-') : '-', role: c.role || 'กรรมการ' };
+    });
+  if(!inspectCommittee.length){
+    alert('กรุณาระบุ "คณะกรรมการตรวจรับพัสดุ" อย่างน้อย 1 คนในฟอร์มก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const inspectParas = inspectCommittee.map(function(c, i){
+    return para((i + 1) + '. ' + c.name + ' ตำแหน่ง ' + c.position + ' ' + c.role, { noIndent: true, after: 0.5 });
+  });
+
+  const officer = findStaffByName(PROCUREMENT_OFFICER_NAME);
+  const officerPrintName = officer ? (officer.prefix + officer.name) : PROCUREMENT_OFFICER_NAME;
+  const head = findStaffByName(PROCUREMENT_HEAD_NAME);
+  const headPrintName = head ? (head.prefix + head.name) : PROCUREMENT_HEAD_NAME;
+  const director = findDirector();
+  const directorSigRuns = director
+    ? multiLineRuns(['ลงชื่อ .......................................', '(' + (director.prefix || '') + director.name + ')', 'ผู้อำนวยการ' + SCHOOL_FULL_NAME])
+    : [ tr('ลงชื่อ .......................................') ];
+
+  const sigRow = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    rows: [ new TableRow({ children: [
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('เจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 5, after: 0 }),
+        para('(' + officerPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
+      ] }),
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('หัวหน้าเจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 5, after: 0 }),
+        para('(' + headPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
+      ] })
+    ] }) ]
+  });
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 29, after: 3, exactLinePt: 35 }),
+    headerLine('ส่วนราชการ  ', SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL),
+    titleRow('ที่  ', bareDocNumber, 'วันที่  ', fmtDateThai(detail.date_request_buy)),
+    headerLine('เรื่อง  ', 'รายงานขอ' + buyOrHireShort + itemTitle),
+    hrPara(),
+    para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 2 }),
+    bodyPara('ด้วย ' + SCHOOL_ADMIN_GROUP + ' ' + SCHOOL_FULL_NAME + ' มีความประสงค์จะขอทำการ' + buyOrHire + itemTitle +
+      ' จำนวน ' + subItems.length + ' รายการ เพื่อ' + purpose + ' ซึ่งได้รับอนุมัติเงินจากงาน/โครงการ' + projectName +
+      ' จำนวน ' + totalAmountText + ' รายละเอียดดังแนบ'),
+    bodyPara('งานพัสดุได้ตรวจสอบแล้วเห็นควรดำเนินการจัด' + buyOrHire + 'ตามเสนอ ' + DOC8_LEGAL_CITATION_MIDDLE + ' จึงขอรายงานขอ' + buyOrHireShort + ' ดังนี้'),
+    para('1. เหตุผลและความจำเป็นที่ต้อง' + buyOrHireShort + ' คือ ' + purpose, { noIndent: true, after: 0.5 }),
+    para('2. รายละเอียดพัสดุและวงเงินที่จะขอ' + buyOrHireShort + 'มีรายละเอียดตามเอกสารแนบท้าย', { noIndent: true, after: 0.5 }),
+    para('3. ราคากลางของพัสดุที่จะขอ' + buyOrHireShort + 'เป็นเงิน ' + totalAmountText, { noIndent: true, after: 0.5 }),
+    para('4. วงเงินที่จะขอ' + buyOrHireShort + 'ในครั้งนี้ ' + totalAmountText, { noIndent: true, after: 0.5 }),
+    para('5. กำหนดเวลาที่ต้องการใช้พัสดุ ภายใน ' + DOC6_DEFAULT_TERM_DAYS + ' วัน นับถัดจากวันลงนามในสัญญา', { noIndent: true, after: 0.5 }),
+    para('6. จัด' + buyOrHire + 'โดยวิธีเฉพาะเจาะจง ' + DOC8_METHOD_JUSTIFICATION, { noIndent: true, after: 0.5 }),
+    para('7. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอโดยใช้เกณฑ์ราคา', { noIndent: true, after: 0.5 }),
+    para('8. ข้อเสนออื่น ๆ เห็นควรแต่งตั้งผู้ตรวจรับพัสดุ ตามเสนอ', { noIndent: true, after: 3 }),
+    bodyPara('จึงเรียนมาเพื่อโปรดพิจารณา'),
+    para('1. เห็นชอบในรายงานขอ' + buyOrHireShort + 'ดังกล่าวข้างต้น', { noIndent: true, after: 0.5 }),
+    para('2. อนุมัติให้แต่งตั้งบุคคลดังต่อไปนี้เป็นผู้ตรวจรับพัสดุ', { noIndent: true, after: 1 })
+  ].concat(inspectParas).concat([
+    para('', { after: 4 }),
+    sigRow,
+    para('', { after: 4 }),
+    para('( )  เห็นชอบ      ( )  อนุมัติ', { align: AlignmentType.CENTER, after: 0 }),
+    para(directorSigRuns, { align: AlignmentType.CENTER, before: 4, after: 0 }),
+    para('วันที่ ' + fmtDateThai(detail.date_request_buy), { align: AlignmentType.CENTER, after: 0 })
+  ]);
+
+  return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[8] + '.docx' };
 }
