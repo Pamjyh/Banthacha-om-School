@@ -132,7 +132,11 @@ function para(runsOrText, opts){
   const p = {
     children: children,
     alignment: opts.align || AlignmentType.LEFT,
-    spacing: { before: mm(opts.before || 0), after: mm(opts.after == null ? 1.5 : opts.after) }
+    // ⚠️ line:240/lineRule:'auto' = ระยะบรรทัดเดี่ยว (single) ชัดเจน (2026-07-22, Pam: "หลายอันยังเกิน 1
+    // แผ่น A4") — ไม่ตั้งมาก่อนหน้านี้ ปล่อยให้ Word ใช้ default ของตัวเอง ซึ่งวัดจริงด้วย LibreOffice
+    // --headless (ดู comment เต็มที่ buildDoc6) แล้วพบว่า default ไม่ใช่ single จริง (กว้างกว่าที่คิด) การ
+    // ระบุ single ชัดเจนทุกย่อหน้าประหยัดพื้นที่แนวตั้งได้มากกว่าลด "after" ของแต่ละย่อหน้ารวมกันเสียอีก
+    spacing: { before: mm(opts.before || 0), after: mm(opts.after == null ? 1.5 : opts.after), line: 240, lineRule: 'auto' }
   };
   // ย่อหน้าแรก 2.5 ซม. ตามมาตรฐานราชการ (ปรับจาก 8mm ที่เคยเดาไว้ผิด — ดู PARA_INDENT_MM ด้านบน)
   if(opts.indent) p.indent = { firstLine: mm(PARA_INDENT_MM) };
@@ -801,43 +805,47 @@ async function buildDoc6(procItemId, opts){
     garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
     para('ขอบเขตของงานหรือรายละเอียดคุณลักษณะเฉพาะ', { align: AlignmentType.CENTER, bold: true, after: 0 }),
     para('การ' + buyOrHire + itemTitle + ' ในโครงการ' + projectName, { align: AlignmentType.CENTER, bold: true, after: 0 }),
-    para(SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { align: AlignmentType.CENTER, bold: true, after: 3 }),
+    para(SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { align: AlignmentType.CENTER, bold: true, after: 2 }),
 
-    para('๑. ข้อมูลเกี่ยวกับโครงการ', { bold: true, after: 1 }),
+    // ⚠️ ระยะห่างหัวข้อ/เนื้อหา 10 หัวข้อ ปรับให้แน่นลงรอบ 2026-07-22 (Pam: "หลายอันยังเกิน 1 แผ่น A4")
+    // วัดจำนวนหน้าจริงด้วย LibreOffice --headless แปลง .docx→.pdf (font TH SarabunPSK เรียกชื่อ "TH Sarabun
+    // New" ในสภาพแวดล้อม build — metric ใกล้เคียงฟอนต์จริงมากกว่าฟอนต์ทดแทนเดิม) ไม่ใช่การเดา — ก่อนแก้ Doc6
+    // ยาวล้นไปหน้า 2 ตั้งแต่ประมาณหัวข้อ ๕ แก้แล้วเหลือ 1 หน้าพอดี (ยืนยันซ้ำด้วย pdfinfo หลังแก้ทุกรอบ)
+    para('๑. ข้อมูลเกี่ยวกับโครงการ', { bold: true, after: 0.5 }),
     bodyPara('ชื่อโครงการ ' + projectName, { noIndent: true }),
     bodyPara('เงินงบประมาณตามโครงการ ' + totalAmountText, { noIndent: true }),
-    bodyPara('ราคากลาง ' + totalAmountText, { noIndent: true, after: 3 }),
+    bodyPara('ราคากลาง ' + totalAmountText, { noIndent: true, after: 1.5 }),
 
-    para('๒. วัตถุประสงค์', { bold: true, after: 1 }),
-    bodyPara('เพื่อ' + purpose, { noIndent: true, after: 3 }),
+    para('๒. วัตถุประสงค์', { bold: true, after: 0.5 }),
+    bodyPara('เพื่อ' + purpose, { noIndent: true, after: 1.5 }),
 
-    para('๓. คุณสมบัติผู้ยื่นข้อเสนอ', { bold: true, after: 1 })
+    para('๓. คุณสมบัติผู้ยื่นข้อเสนอ', { bold: true, after: 0.5 })
   ].concat(qualParas).concat([
-    para('๔. รายละเอียดคุณลักษณะเฉพาะหรือขอบเขตของงาน', { bold: true, before: 2, after: 1 }),
+    para('๔. รายละเอียดคุณลักษณะเฉพาะหรือขอบเขตของงาน', { bold: true, before: 1, after: 0.5 }),
     bodyPara('จัด' + buyOrHire + itemTitle + 'เพื่อใช้ประกอบการดำเนินงานในโครงการ' + projectName + 'ภายในวงเงินไม่เกิน ' +
-      totalAmountText + ' โดยรายการที่จะขอ' + buyOrHireShort + 'ต้องประกอบไปด้วยรายละเอียดตามเอกสารแนบ', { noIndent: true, after: 3 }),
+      totalAmountText + ' โดยรายการที่จะขอ' + buyOrHireShort + 'ต้องประกอบไปด้วยรายละเอียดตามเอกสารแนบ', { noIndent: true, after: 1.5 }),
 
-    para('๕. การเสนอราคา และกำหนดส่งมอบ', { bold: true, after: 1 }),
+    para('๕. การเสนอราคา และกำหนดส่งมอบ', { bold: true, after: 0.5 }),
     para('1. ราคาที่เสนอจะต้องเสนอกำหนดยืนราคาไม่น้อยกว่า ' + DOC6_DEFAULT_TERM_DAYS + ' วัน นับแต่วันเสนอราคาโดยภายในกำหนดยืนราคา ' +
       'ผู้ยื่นข้อเสนอต้องรับผิดชอบราคาที่ตนได้เสนอไว้และจะถอนการเสนอราคามิได้', { noIndent: true, after: 0.5 }),
     para('2. กำหนดการส่งมอบพัสดุ หรือกำหนดให้งานแล้วเสร็จ ไม่เกิน ' + DOC6_DEFAULT_TERM_DAYS + ' วัน นับถัดจากวันลงนามในใบสั่ง' + buyOrHireShort + '/สัญญา ' +
-      'หรือวันที่ได้รับหนังสือแจ้งให้ส่งมอบพัสดุ หรือวันที่ได้รับหนังสือแจ้งให้เริ่มทำงาน', { noIndent: true, after: 3 }),
+      'หรือวันที่ได้รับหนังสือแจ้งให้ส่งมอบพัสดุ หรือวันที่ได้รับหนังสือแจ้งให้เริ่มทำงาน', { noIndent: true, after: 1.5 }),
 
-    para('๖. ค่าปรับ', { bold: true, after: 1 }),
-    bodyPara(penaltyText, { noIndent: true, after: 3 }),
+    para('๖. ค่าปรับ', { bold: true, after: 0.5 }),
+    bodyPara(penaltyText, { noIndent: true, after: 1.5 }),
 
-    para('๗. การรับประกันความชำรุดบกพร่อง', { bold: true, after: 1 }),
+    para('๗. การรับประกันความชำรุดบกพร่อง', { bold: true, after: 0.5 }),
     bodyPara('ระยะเวลารับประกันความชำรุดบกพร่อง ไม่น้อยกว่า - นับถัดจากวันที่โรงเรียนได้รับมอบ โดยผู้รับจ้าง/ผู้ขายต้องรีบจัดการซ่อมแซมแก้ไข' +
-      'ให้ใช้การได้ดีดังเดิมภายใน - นับถัดจากวันที่ได้รับแจ้งความชำรุดบกพร่อง', { noIndent: true, after: 3 }),
+      'ให้ใช้การได้ดีดังเดิมภายใน - นับถัดจากวันที่ได้รับแจ้งความชำรุดบกพร่อง', { noIndent: true, after: 1.5 }),
 
-    para('๘. เกณฑ์การพิจารณาผลการยื่นข้อเสนอ', { bold: true, after: 1 }),
-    bodyPara(DOC6_EVALUATION_CRITERIA, { noIndent: true, after: 3 }),
+    para('๘. เกณฑ์การพิจารณาผลการยื่นข้อเสนอ', { bold: true, after: 0.5 }),
+    bodyPara(DOC6_EVALUATION_CRITERIA, { noIndent: true, after: 1.5 }),
 
-    para('๙. งบประมาณในการดำเนินการ', { bold: true, after: 1 }),
-    bodyPara('ในการจัดซื้อ/จัดจ้างครั้งนี้ ใช้งบประมาณ' + (detail.budget_source || '-') + ' โครงการ' + projectName + ' จำนวนเงิน ' + totalAmountText, { noIndent: true, after: 3 }),
+    para('๙. งบประมาณในการดำเนินการ', { bold: true, after: 0.5 }),
+    bodyPara('ในการจัดซื้อ/จัดจ้างครั้งนี้ ใช้งบประมาณ' + (detail.budget_source || '-') + ' โครงการ' + projectName + ' จำนวนเงิน ' + totalAmountText, { noIndent: true, after: 1.5 }),
 
-    para('๑๐. หน่วยงานที่รับผิดชอบ', { bold: true, after: 1 }),
-    bodyPara(SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { noIndent: true, after: 4 }),
+    para('๑๐. หน่วยงานที่รับผิดชอบ', { bold: true, after: 0.5 }),
+    bodyPara(SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { noIndent: true, after: 2 }),
 
     sigRow3
   ]);
@@ -995,12 +1003,12 @@ async function buildDoc8(procItemId, opts){
     rows: [ new TableRow({ children: [
       new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
         para('เจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
-        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 5, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 3, after: 0 }),
         para('(' + officerPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
       ] }),
       new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
         para('หัวหน้าเจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
-        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 5, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 3, after: 0 }),
         para('(' + headPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
       ] })
     ] }) ]
@@ -1008,12 +1016,12 @@ async function buildDoc8(procItemId, opts){
 
   const children = [
     garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
-    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 29, after: 3, exactLinePt: 35 }),
+    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 29, after: 2, exactLinePt: 35 }),
     headerLine('ส่วนราชการ  ', SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL),
     titleRow('ที่  ', bareDocNumber, 'วันที่  ', fmtDateThai(detail.date_request_buy)),
     headerLine('เรื่อง  ', 'รายงานขอ' + buyOrHireShort + itemTitle),
     hrPara(),
-    para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 2 }),
+    para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 1 }),
     bodyPara('ด้วย ' + SCHOOL_ADMIN_GROUP + ' ' + SCHOOL_FULL_NAME + ' มีความประสงค์จะขอทำการ' + buyOrHire + itemTitle +
       ' จำนวน ' + subItems.length + ' รายการ เพื่อ' + purpose + ' ซึ่งได้รับอนุมัติเงินจากงาน/โครงการ' + projectName +
       ' จำนวน ' + totalAmountText + ' รายละเอียดดังแนบ'),
@@ -1025,16 +1033,18 @@ async function buildDoc8(procItemId, opts){
     para('5. กำหนดเวลาที่ต้องการใช้พัสดุ ภายใน ' + DOC6_DEFAULT_TERM_DAYS + ' วัน นับถัดจากวันลงนามในสัญญา', { noIndent: true, after: 0.5 }),
     para('6. จัด' + buyOrHire + 'โดยวิธีเฉพาะเจาะจง ' + DOC8_METHOD_JUSTIFICATION, { noIndent: true, after: 0.5 }),
     para('7. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอโดยใช้เกณฑ์ราคา', { noIndent: true, after: 0.5 }),
-    para('8. ข้อเสนออื่น ๆ เห็นควรแต่งตั้งผู้ตรวจรับพัสดุ ตามเสนอ', { noIndent: true, after: 3 }),
+    para('8. ข้อเสนออื่น ๆ เห็นควรแต่งตั้งผู้ตรวจรับพัสดุ ตามเสนอ', { noIndent: true, after: 1.5 }),
     bodyPara('จึงเรียนมาเพื่อโปรดพิจารณา'),
     para('1. เห็นชอบในรายงานขอ' + buyOrHireShort + 'ดังกล่าวข้างต้น', { noIndent: true, after: 0.5 }),
-    para('2. อนุมัติให้แต่งตั้งบุคคลดังต่อไปนี้เป็นผู้ตรวจรับพัสดุ', { noIndent: true, after: 1 })
+    para('2. อนุมัติให้แต่งตั้งบุคคลดังต่อไปนี้เป็นผู้ตรวจรับพัสดุ', { noIndent: true, after: 0.5 })
   ].concat(inspectParas).concat([
-    para('', { after: 4 }),
+    // ⚠️ ลด spacer ก่อน/หลัง sigRow (2026-07-22, Pam: "หลายอันยังเกิน 1 แผ่น A4") — วัดจำนวนหน้าจริงด้วย
+    // LibreOffice --headless (ดู comment เต็มที่ buildDoc6 ด้านบน) ก่อนแก้ ลายเซ็นล้นไปหน้า 2 พอดี
+    para('', { after: 1 }),
     sigRow,
-    para('', { after: 4 }),
+    para('', { after: 1 }),
     para('( )  เห็นชอบ      ( )  อนุมัติ', { align: AlignmentType.CENTER, after: 0 }),
-    para(directorSigRuns, { align: AlignmentType.CENTER, before: 4, after: 0 }),
+    para(directorSigRuns, { align: AlignmentType.CENTER, before: 2, after: 0 }),
     para('วันที่ ' + fmtDateThai(detail.date_request_buy), { align: AlignmentType.CENTER, after: 0 })
   ]);
 
