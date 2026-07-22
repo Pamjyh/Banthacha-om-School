@@ -304,6 +304,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 7) return await buildDoc7(procItemId, opts);
   if(docIndex === 8) return await buildDoc8(procItemId, opts);
   if(docIndex === 9) return await buildDoc9(procItemId, opts);
+  if(docIndex === 10) return await buildDoc10(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -311,7 +312,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -1051,7 +1052,7 @@ async function buildDoc8(procItemId, opts){
     para('3. ราคากลางของพัสดุที่จะขอ' + buyOrHireShort + 'เป็นเงิน ' + totalAmountText, { noIndent: true, after: 0.2 }),
     para('4. วงเงินที่จะขอ' + buyOrHireShort + 'ในครั้งนี้ ' + totalAmountText, { noIndent: true, after: 0.2 }),
     para('5. กำหนดเวลาที่ต้องการใช้พัสดุ ภายใน ' + DOC6_DEFAULT_TERM_DAYS + ' วัน นับถัดจากวันลงนามในสัญญา', { noIndent: true, after: 0.2 }),
-    para('6. จัด' + buyOrHire + 'โดยวิธีเฉพาะเจาะจง ' + DOC8_METHOD_JUSTIFICATION, { noIndent: true, after: 0.2 }),
+    para('6. ' + buyOrHire + 'โดยวิธีเฉพาะเจาะจง ' + DOC8_METHOD_JUSTIFICATION, { noIndent: true, after: 0.2 }),
     para('7. หลักเกณฑ์การพิจารณาคัดเลือกข้อเสนอโดยใช้เกณฑ์ราคา', { noIndent: true, after: 0.2 }),
     para('8. ข้อเสนออื่น ๆ เห็นควรแต่งตั้งผู้ตรวจรับพัสดุ ตามเสนอ', { noIndent: true, after: 0.5 }),
     bodyPara('จึงเรียนมาเพื่อโปรดพิจารณา', { after: 0.5 }),
@@ -1136,4 +1137,101 @@ async function buildDoc9(procItemId, opts){
   ];
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[9] + '.docx' };
+}
+
+// ---------- Doc 10: พิจารณา (รายงานผลการพิจารณาและขออนุมัติสั่งซื้อ/จ้าง) ----------
+// อ้างอิงไฟล์จริง "10 พิจารณา.pdf" (OCR ตกวรรณยุกต์หนัก+เรียงสลับ สะกด/จัดลำดับใหม่จากบริบท) — บันทึกข้อความ
+// (pattern เดียวกับ Doc1/3/5/8) รายงานผลการเจรจาต่อรองราคากับร้านค้า/ผู้รับจ้างที่เลือกไว้ (Section B —
+// detail.vendor_id) แล้วขออนุมัติสั่งซื้อ/จ้างจริง อ้างอิงระเบียบข้อ 24 (ต่อจากที่ ผอ.เห็นชอบรายงานขอซื้อ/
+// จ้าง Doc8 ตามข้อ 22 แล้ว) และข้อ 79 (วิธีเฉพาะเจาะจง) — ลายเซ็นโครงสร้างเดียวกับ Doc8 เป๊ะ (sigRow 2 คน
+// เจ้าหน้าที่/หัวหน้าเจ้าหน้าที่ ไม่มี checkbox + ผอ. แยกบล็อกมี checkbox เห็นชอบ/อนุมัติ+ลงชื่อ+วันที่)
+// ⚠️ ข้อสมมติฐาน (เหมือน Doc9 ก่อนหน้า): ต้นฉบับจริงใช้ "ที่ 51/2569 วันที่ 15 มิถุนายน 2569" ตัวเดียวกับ
+// Doc8 เป๊ะ (ไม่มี field วันที่แยกสำหรับ "วันที่พิจารณา" ใน DB) — ใช้ detail.doc_number/date_request_buy
+// ซ้ำเหมือน Doc8 ทั้งคู่ ถ้า Pam ต้องการแยกวันที่พิจารณาออกจากวันที่รายงานขอซื้อ/จ้าง ต้องเพิ่ม field ใหม่
+async function buildDoc10(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return null; }
+  if(!detail.date_request_buy){ alert('กรุณากรอก "วันที่ขอซื้อ/จ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+  if(!detail.vendor_id){ alert('กรุณาเลือก "ร้านค้า/ผู้รับจ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const vendor = (VENDORS_LIST || []).find(function(v){ return String(v.id) === String(detail.vendor_id); });
+  if(!vendor){ alert('ไม่พบข้อมูลร้านค้า/ผู้รับจ้างที่เลือกไว้ กรุณาตรวจสอบในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+  const vendorName = vendor.name || '-';
+
+  const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
+  const buyOrHireShort = item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง';
+  const vendorOccupation = buyOrHireShort === 'ซื้อ' ? 'ขาย' : 'รับจ้าง';
+  const vendorRole = buyOrHireShort === 'ซื้อ' ? 'ผู้ขาย' : 'ผู้รับจ้าง';
+  const bareDocNumber = (detail.doc_number || '').replace(/^[ก-๙]+\./, '');
+  const itemTitle = item.title || '-';
+  const purpose = detail.tor_objective || item.title || '-';
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
+  const totalAmountText = fmt(totalAmount) + ' บาท (' + thaiBahtText(totalAmount) + ')';
+
+  const officer = findStaffByName(PROCUREMENT_OFFICER_NAME);
+  const officerPrintName = officer ? (officer.prefix + officer.name) : PROCUREMENT_OFFICER_NAME;
+  const head = findStaffByName(PROCUREMENT_HEAD_NAME);
+  const headPrintName = head ? (head.prefix + head.name) : PROCUREMENT_HEAD_NAME;
+  const director = findDirector();
+
+  const directorBlockRuns = director
+    ? multiLineRuns(['( )  เห็นชอบ      ( )  อนุมัติ', 'ลงชื่อ .......................................        วันที่ ' + fmtDateThai(detail.date_request_buy),
+        '(' + (director.prefix || '') + director.name + ')  ผู้อำนวยการ' + SCHOOL_FULL_NAME])
+    : multiLineRuns(['( )  เห็นชอบ      ( )  อนุมัติ', 'ลงชื่อ .......................................']);
+
+  const sigRow = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    rows: [ new TableRow({ children: [
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('เจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 1, after: 0 }),
+        para('(' + officerPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
+      ] }),
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('หัวหน้าเจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
+        para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 1, after: 0 }),
+        para('(' + headPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
+      ] })
+    ] }) ]
+  });
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 29, after: 2, exactLinePt: 35 }),
+    headerLine('ส่วนราชการ  ', SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL),
+    titleRow('ที่  ', bareDocNumber, 'วันที่  ', fmtDateThai(detail.date_request_buy)),
+    headerLine('เรื่อง  ', 'รายงานผลการพิจารณาและขออนุมัติสั่ง' + buyOrHireShort + itemTitle),
+    hrPara(),
+    para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 1 }),
+    bodyPara('ตามที่ ' + SCHOOL_ADMIN_GROUP + ' ' + SCHOOL_FULL_NAME + ' มีความประสงค์จะขอทำการ' + buyOrHire + itemTitle +
+      ' จำนวน ' + subItems.length + ' รายการ เพื่อ' + purpose + ' จำนวน ' + totalAmountText +
+      ' ตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 24 รายละเอียดดังแนบ', { after: 1 }),
+    bodyPara('ในการนี้ เจ้าหน้าที่ได้เจรจาตกลงราคากับ' + vendorName + ' ซึ่งมีอาชีพ' + vendorOccupation + 'แล้ว ปรากฏว่าเสนอราคาเป็นเงิน ' +
+      totalAmountText + ' ดังนั้นเพื่อให้เป็นไปตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 79 จึงเห็นควร' +
+      buyOrHire + 'จากผู้เสนอราคารายดังกล่าว', { after: 1 }),
+    bodyPara('จึงเรียนมาเพื่อโปรดทราบและพิจารณา', { after: 1 }),
+    para('1. อนุมัติให้สั่ง' + buyOrHireShort + 'กับ ' + vendorName + ' เป็น' + vendorRole + 'พัสดุ ' + itemTitle + ' จำนวน ' + subItems.length +
+      ' รายการ ในวงเงิน ' + totalAmountText + ' กำหนดเวลาส่งมอบพัสดุภายใน ' + DOC6_DEFAULT_TERM_DAYS + ' วันนับถัดจากวันลงนามสัญญา', { noIndent: true, after: 0.5 }),
+    para('2. ลงนามในใบสั่ง' + buyOrHireShort + ' ดังแนบ', { noIndent: true, after: 1 }),
+    sigRow,
+    para(directorBlockRuns, { align: AlignmentType.CENTER, before: 1, after: 0 })
+  ];
+
+  return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[10] + '.docx' };
 }
