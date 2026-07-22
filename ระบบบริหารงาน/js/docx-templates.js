@@ -305,6 +305,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 8) return await buildDoc8(procItemId, opts);
   if(docIndex === 9) return await buildDoc9(procItemId, opts);
   if(docIndex === 10) return await buildDoc10(procItemId, opts);
+  if(docIndex === 11) return await buildDoc11(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -312,7 +313,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -1234,4 +1235,75 @@ async function buildDoc10(procItemId, opts){
   ];
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[10] + '.docx' };
+}
+
+// ---------- Doc 11: คำสั่งตรวจรับ (คำสั่งแต่งตั้งผู้ตรวจรับพัสดุ) ----------
+// อ้างอิงไฟล์จริง "11 คำสั่ง.pdf" (OCR ตกวรรณยุกต์/สระหนักมาก สะกดใหม่จากบริบท) — โครงสร้าง "คำสั่ง" เดียวกับ
+// Doc4 เป๊ะ (garudaKind:'order' 3ซม.กึ่งกลาง, "คำสั่ง{ชื่อรร.} / ที่ {เลขที่} / เรื่อง...") แต่แต่งตั้ง
+// ผู้ตรวจรับพัสดุ (detail.committee_inspect — ชุดเดียวกับ Doc8) แทนผู้กำหนด TOR — อ้างระเบียบข้อ 175
+// ⚠️ ข้อสมมติฐาน (เหมือน Doc9/10): ต้นฉบับจริงใช้ "ที่ 51/2569 สั่ง ณ วันที่ 15 มิถุนายน 2569" ตัวเดียวกับ
+// Doc8/9/10 เป๊ะ — ไม่มี field วันที่แยกสำหรับคำสั่งฉบับนี้ใน DB จึงใช้ doc_number/date_request_buy ซ้ำ
+async function buildDoc11(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return null; }
+  if(!detail.date_request_buy){ alert('กรุณากรอก "วันที่ขอซื้อ/จ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
+  const bareDocNumber = (detail.doc_number || '').replace(/^[ก-๙]+\./, '');
+  const itemTitle = item.title || '-';
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const itemCount = subItems.length;
+
+  const inspectCommittee = (detail.committee_inspect || [])
+    .filter(function(c){ return c && c.staff_id; })
+    .map(function(c){
+      const s = (STAFF_LIST || []).find(function(x){ return String(x.id) === String(c.staff_id); });
+      return { name: s ? (s.prefix + s.name) : '-', position: s ? (s.position || '-') : '-', role: c.role || 'กรรมการ' };
+    });
+  if(!inspectCommittee.length){
+    alert('กรุณาระบุ "คณะกรรมการตรวจรับพัสดุ" อย่างน้อย 1 คนในฟอร์มก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  let inspectParas = [];
+  inspectCommittee.forEach(function(c, i){
+    inspectParas.push(para((i + 1) + '. ' + c.name, { noIndent: true, before: i === 0 ? 1 : 2, after: 0 }));
+    inspectParas.push(para('ตำแหน่ง ' + c.position + ' ' + c.role, { noIndent: true, after: 0 }));
+  });
+
+  const director = findDirector();
+  const directorSigRuns = director
+    ? multiLineRuns(['ลงชื่อ .......................................', '(' + (director.prefix || '') + director.name + ')', 'ผู้อำนวยการ' + SCHOOL_FULL_NAME])
+    : [ tr('ลงชื่อ .......................................') ];
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'order' }, opts)),
+    para('คำสั่ง' + SCHOOL_FULL_NAME, { align: AlignmentType.CENTER, bold: true, size: 20, after: 0 }),
+    para('ที่ ' + bareDocNumber, { align: AlignmentType.CENTER, bold: true, size: 20, after: 4 }),
+    para('เรื่อง แต่งตั้งผู้ตรวจรับพัสดุ สำหรับการ' + buyOrHire + itemTitle + ' โดยวิธีเฉพาะเจาะจง', { align: AlignmentType.CENTER, bold: true, after: 3 }),
+    hrPara(),
+    bodyPara('ด้วย' + SCHOOL_FULL_NAME + ' มีความประสงค์ขอทำการ' + buyOrHire + itemTitle + ' จำนวน ' + itemCount +
+      ' รายการ โดยวิธีเฉพาะเจาะจง และเพื่อให้เป็นไปตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 จึงขอแต่งตั้งรายชื่อต่อไปนี้เป็นผู้ตรวจรับพัสดุ ดังนี้')
+  ].concat(inspectParas).concat([
+    bodyPara('ให้คณะกรรมการฯ ถือปฏิบัติตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 (ข้อ 175)', { before: 2 }),
+    // "สั่ง ณ วันที่..." เยื้อง 5 ซม. (ไม่ใช่กึ่งกลาง) ตามมาตรฐาน — เหมือน Doc4
+    para('สั่ง ณ วันที่ ' + fmtDateThai(detail.date_request_buy), { align: AlignmentType.LEFT, leftIndent: ORDER_DATE_INDENT_MM, before: 2, after: 0 }),
+    para('', { after: 6 }),
+    para(directorSigRuns, { align: AlignmentType.CENTER, after: 0 })
+  ]);
+
+  return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[11] + '.docx' };
 }
