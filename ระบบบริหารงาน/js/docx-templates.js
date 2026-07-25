@@ -323,6 +323,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 13) return await buildDoc13(procItemId, opts);
   if(docIndex === 14) return await buildDoc14(procItemId, opts);
   if(docIndex === 15) return await buildDoc15(procItemId, opts);
+  if(docIndex === 16) return await buildDoc16(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -330,7 +331,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -1770,4 +1771,106 @@ async function buildDoc15(procItemId, opts){
   ]);
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[15] + '.docx' };
+}
+
+// ---------- Doc 16: เบิก (ใบเบิกพัสดุ) ----------
+// อ้างอิงไฟล์จริง "16 เบิก.pdf" (OCR ตกวรรณยุกต์+เรียงสลับหนักมาก ประกอบใหม่จากบริบท) — **เอกสารสุดท้าย
+// ของชุด 16 ฉบับ** ต่างจาก Doc1-15 ทุกฉบับ: เป็นแบบฟอร์ม "ทะเบียนคุมการเบิกจ่ายพัสดุ" ภายในของโรงเรียนเอง
+// (ไม่อ้างอิงเลขที่/วันที่ใบสั่งซื้อ-จ้าง Doc13 เลย — เป็นคนละทะเบียนเลขที่กัน) ไม่มีตัวเลขราคา/VAT (พัสดุ
+// ซื้อมาแล้ว จ่ายเงินแล้วตั้งแต่ Doc15 — เอกสารนี้แค่บันทึกว่า "เอาไปใช้งานแล้วกี่ชิ้น")
+// ⚠️ **ไม่สามารถกำหนดโครงร่างตาราง/คอลัมน์ที่แน่นอน 100% จาก OCR ได้** (เรียงสลับหนักกว่าไฟล์อื่นทุกฉบับ
+// ที่ผ่านมา) — เนื้อหา/บรรทัดอนุมัติครบทุกจุดตามที่อ่านได้ แต่การจัดวางเป็นย่อหน้าเรียงตามลำดับเหตุผล
+// (แบบเดียวกับที่ทำกับ Doc15) ไม่ใช่ grid หลายคอลัมน์แบบเป๊ะต้นฉบับ — ถ้า Pam เทียบกับไฟล์จริงแล้วผังต่าง
+// จากที่ต้องการ แจ้งเพื่อปรับ layout ได้
+// field ที่ใช้:
+//   - detail.date_withdraw (field จริง "เบิกจ่าย" — PD_DATE_EXTRA) วันที่ของเอกสารฉบับนี้เอง
+//   - item.withdraw_no (field จริง "เลขใบเบิก" — ใช้แสดงตรงๆ ไม่ต่อ "/2569" เอง เพราะฟอร์แมตเป็น free-text
+//     ไม่บังคับรูปแบบเหมือน detail.doc_number — ถ้ายังไม่กรอกแสดงจุดประ ไม่ hard-guard เพราะเอกสารนี้มักพิมพ์
+//     ออกมาเพื่อกรอกเลขทะเบียนด้วยมือก่อน ค่อยบันทึกกลับเข้าระบบทีหลัง)
+//   - "ผู้เบิก"/"ผู้รับของ" ใช้ PROCUREMENT_HEAD_NAME (สุทามาศ) ตรงกับต้นฉบับตัวอย่างเป๊ะ (เป็นคนเดียวกับที่
+//     เซ็นทั้ง 2 บทบาทในต้นฉบับจริง) — "เจ้าหน้าที่" (ตรวจ/หักจำนวน) ใช้ PROCUREMENT_OFFICER_NAME (พศุตม์)
+// ⚠️ ข้อสมมติฐาน: "เบิกได้" (จำนวนอนุมัติ) ไม่มี field แยกจาก "ขอเบิก" (จำนวนขอ) ในฐานข้อมูล — ใช้ quantity
+// เดียวกันทั้ง 2 ช่อง ตรงกับที่ต้นฉบับตัวอย่างแสดงค่าเดียวกันทั้งคู่ ("5 ชุด" ซ้ำ 2 ที่) — ไม่มีข้อมูล
+// "หมายเหตุ" ต่อรายการในฐานข้อมูล แสดง "-" / บรรทัด "ได้มอบให้...เป็นผู้รับของแทน" + ลายเซ็นผู้มอบ/ผู้รับมอบ
+// เป็นช่องว่างกรอกมือเสมอ (ออกแบบมาให้ optional บนฟอร์มกระดาษเอง ไม่ใช่ข้อมูลที่ควรมี field ผูกไว้)
+function doc16ItemTable(subItems){
+  function cell(text, opts){
+    opts = opts || {};
+    return new TableCell({
+      width: opts.width ? { size: opts.width, type: WidthType.PERCENTAGE } : undefined,
+      verticalAlign: VerticalAlign.CENTER,
+      children: [ para(text, { align: opts.align || AlignmentType.LEFT, after: 0, size: 14, bold: opts.bold }) ]
+    });
+  }
+  const headerRow = new TableRow({ tableHeader: true, children: [
+    cell('ที่', { width: 8, align: AlignmentType.CENTER, bold: true }),
+    cell('รายการ', { width: 42, bold: true }),
+    cell('ขอเบิก', { width: 18, align: AlignmentType.CENTER, bold: true }),
+    cell('เบิกได้', { width: 18, align: AlignmentType.CENTER, bold: true }),
+    cell('หมายเหตุ', { width: 14, align: AlignmentType.CENTER, bold: true })
+  ] });
+  const dataRows = subItems.map(function(r, i){
+    const qtyUnit = (Number(r.quantity) || 0) + ' ' + (r.unit || '-');
+    return new TableRow({ children: [
+      cell(String(i + 1), { align: AlignmentType.CENTER }),
+      cell(r.description || '-'),
+      cell(qtyUnit, { align: AlignmentType.CENTER }),
+      cell(qtyUnit, { align: AlignmentType.CENTER }),
+      cell('-', { align: AlignmentType.CENTER })
+    ] });
+  });
+  return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: TABLE_BORDERS, rows: [headerRow].concat(dataRows) });
+}
+
+async function buildDoc16(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.date_withdraw){ alert('กรุณากรอก "วันที่เบิกจ่าย" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const itemTitle = item.title || '-';
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+
+  const head = findStaffByName(PROCUREMENT_HEAD_NAME);
+  const headPrintName = head ? (head.prefix + head.name) : PROCUREMENT_HEAD_NAME;
+  const headPosition = head ? (head.position || '-') : '-';
+  const officer = findStaffByName(PROCUREMENT_OFFICER_NAME);
+  const officerPrintName = officer ? (officer.prefix + officer.name) : PROCUREMENT_OFFICER_NAME;
+  const director = findDirector();
+  const directorPrintName = director ? ('(' + (director.prefix || '') + director.name + ')') : '(...........................)';
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    para('ใบเบิกพัสดุ', { align: AlignmentType.CENTER, bold: true, size: 20, after: 3 }),
+    para('ที่ ' + (item.withdraw_no || '.....................'), { after: 0 }),
+    para('ส่วนราชการ ' + SCHOOL_FULL_NAME + '          วันที่ ' + fmtDateThai(detail.date_withdraw), { after: 1 }),
+    bodyPara('ผู้เบิก ข้าพเจ้า ' + headPrintName + ' มีความประสงค์ขอเบิกพัสดุตามรายการต่อไปนี้ เพื่อ' + itemTitle, { after: 1 }),
+    doc16ItemTable(subItems),
+    bodyPara('อนุญาตให้เบิกจ่ายได้', { before: 1.5, after: 0 }),
+    para('ลงชื่อ .......................................', { noIndent: true, after: 0 }),
+    para(directorPrintName + '  ผู้อำนวยการโรงเรียน', { noIndent: true, after: 1 }),
+    bodyPara('ได้ตรวจ, หักจำนวนเรียบร้อยแล้ว', { before: 1, after: 0 }),
+    para('ลงชื่อ .......................................  เจ้าหน้าที่', { noIndent: true, after: 0 }),
+    para('(' + officerPrintName + ')', { noIndent: true, after: 1 }),
+    bodyPara('ได้รับของครบถูกต้อง', { before: 1, after: 0 }),
+    para('ลงชื่อ .......................................  ผู้รับของ', { noIndent: true, after: 0 }),
+    para('(' + headPrintName + ')  ตำแหน่ง ' + headPosition, { noIndent: true, after: 1 }),
+    bodyPara('ได้มอบให้ ....................................................... เป็นผู้รับของแทน', { before: 1, after: 1 }),
+    para('ลงชื่อ .......................................  ผู้มอบ', { noIndent: true, after: 0.5 }),
+    para('ลงชื่อ .......................................  ผู้รับมอบ', { noIndent: true, after: 0 })
+  ];
+
+  return { children: children, filename: (item.withdraw_no || detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[16] + '.docx' };
 }
