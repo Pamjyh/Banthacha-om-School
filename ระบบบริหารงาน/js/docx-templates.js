@@ -95,6 +95,16 @@ const THAI_LANG = { value: 'th-TH', eastAsia: 'th-TH', bidirectional: 'th-TH' };
 function mm(n){ return Math.round(n * 56.6929); } // mm -> twips (หน่วยระยะใน docx)
 function pxFromMm(n){ return Math.round(n * 3.7795); } // mm -> px @96dpi (สำหรับขนาดรูปภาพ)
 function hp(pt){ return pt * 2; } // font size point -> half-point (หน่วยขนาดฟอนต์ใน docx)
+// จำนวนวันระหว่างวันที่ ISO (YYYY-MM-DD) 2 ค่า (Doc15 เท่านั้น ตอนนี้) — ใช้คำนวณ "ส่งมอบเกินกำหนดกี่วัน"
+// จาก detail.date_due (ครบกำหนดส่งมอบ) เทียบ detail.date_deliver (ส่งมอบ/ตรวจรับจริง) — ทั้งคู่เป็น field
+// จริงใน DB (PD_DATE_SEQUENCE/PD_DATE_EXTRA) ไม่ต้องเดา คืน 0 ถ้าค่าใดค่าหนึ่งว่าง (caller เป็นคนตัดสินใจเอง
+// ว่าจะ treat 0 เป็น "ไม่มีข้อมูล" หรือ "ตรงเวลา")
+function daysBetween(isoA, isoB){
+  if(!isoA || !isoB) return 0;
+  const a = new Date(isoA + 'T00:00:00');
+  const b = new Date(isoB + 'T00:00:00');
+  return Math.round((b - a) / 86400000);
+}
 
 // ⚠️ ค่ามาตรฐานเอกสารราชการไทย (2026-07-15) — อ่านจาก "ผนวก คำแนะนำและแบบมาตรฐานการพิมพ์หนังสือราชการ
 // ภาษาไทยด้วยโปรแกรมการพิมพ์ในเครื่องคอมพิวเตอร์" ท้ายระเบียบสำนักนายกรัฐมนตรีว่าด้วยงานสารบรรณ พ.ศ. 2526
@@ -312,6 +322,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 12) return await buildDoc12(procItemId, opts);
   if(docIndex === 13) return await buildDoc13(procItemId, opts);
   if(docIndex === 14) return await buildDoc14(procItemId, opts);
+  if(docIndex === 15) return await buildDoc15(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -319,7 +330,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -1625,4 +1636,138 @@ async function buildDoc14(procItemId, opts){
   ];
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[14] + '.docx' };
+}
+
+// ---------- Doc 15: ตรวจรับ (ใบตรวจรับพัสดุ) ----------
+// อ้างอิงไฟล์จริง "15 ตรวจรับ.pdf" (OCR ตกวรรณยุกต์+เรียงสลับหนัก ต้องประกอบใหม่จากบริบท) — เอกสาร 2 ส่วน
+// รวมในหน้าเดียว: (1) รายงานผลตรวจรับ อ้างระเบียบข้อ 175 คณะกรรมการตรวจรับพัสดุ (detail.committee_inspect
+// ชุดเดียวกับ Doc8/11) ลงชื่อ + เรียน ผอ. (2) ใบขออนุมัติเบิกจ่าย — ผอ. ทราบ/อนุมัติ + สรุปยอดเงินขอเบิก
+// (จำนวนเงิน/VAT/หักภาษี ณ ที่จ่าย/หักค่าปรับ/คงเหลือจ่ายจริง) + เจ้าหน้าที่/หัวหน้าเจ้าหน้าที่ลงชื่อ
+// field ที่ใช้ (เกือบทั้งหมดเป็นของจริง ไม่ต้องเดา):
+//   - detail.date_deliver (field จริง "ส่งมอบ/ตรวจรับจริง" — PD_DATE_EXTRA) ใช้เป็นวันที่หัวเอกสาร+วันที่
+//     คณะกรรมการตรวจรับ (เอกสารนี้เป็นของฝ่ายตรวจรับ ไม่ใช่ของ Doc13 จึงใช้วันที่ตัวเอง ไม่ใช่ date_order ซ้ำ)
+//   - detail.doc_number/date_order (อ้างอิงใบสั่งซื้อ/จ้าง Doc13 ตรงๆ — "ตามใบสั่งจ้างเลขที่...ลงวันที่...")
+//   - detail.date_due (field จริง "ครบกำหนดส่งมอบ" — เดียวกับ Doc13 ข้อ 2) เทียบกับ date_deliver คำนวณ
+//     "ส่งมอบเกินกำหนดกี่วัน" จริง (daysBetween()) แทนที่จะ hardcode "-" เสมอแบบต้นฉบับตัวอย่าง (ตัวอย่าง
+//     ที่เห็นเป็นเคสส่งตรงเวลาพอดี เอกสารจริงมีทั้ง 2 เคส — เคสนี้คำนวณได้จริงจาก field ที่มีอยู่แล้ว)
+//   - detail.penalty_rate_percent (ร้อยละ "ต่อวัน" — field จริงเดียวกับ Doc6/13) คูณจำนวนวันที่ส่งมอบช้า
+//   - detail.withholding_tax (field จริง "ภาษีหัก ณ ที่จ่าย (บาท)" — จำนวนเต็มบาทตรงๆ ไม่ใช่ร้อยละ)
+// ⚠️ ข้อสมมติฐาน: "ใบเสร็จรับเงิน เล่มที่.../เลขที่..." ไม่มี field ใน DB — hardcode "-" ตามที่ต้นฉบับ
+// ตัวอย่างก็แสดง "-" เช่นกัน (ไม่ใช่การเดา — ตรงกับต้นฉบับจริง) / "การจ้างรายนี้ได้สั่งแก้ไขเปลี่ยนแปลงคือ"
+// hardcode "-" เหมือนกัน (ไม่มี field เรื่องแก้ไขสัญญา)
+async function buildDoc15(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return null; }
+  if(!detail.date_order){ alert('กรุณากรอก "วันที่สั่งซื้อ/จ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้ (เอกสารนี้อ้างอิงใบสั่งซื้อ/จ้างดังกล่าว)'); return null; }
+  if(!detail.date_deliver){ alert('กรุณากรอก "วันที่ส่งมอบ/ตรวจรับจริง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+  if(!detail.vendor_id){ alert('กรุณาเลือก "ร้านค้า/ผู้รับจ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const vendor = (VENDORS_LIST || []).find(function(v){ return String(v.id) === String(detail.vendor_id); });
+  if(!vendor){ alert('ไม่พบข้อมูลร้านค้า/ผู้รับจ้างที่เลือกไว้ กรุณาตรวจสอบในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const buyOrHireShort = item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง';
+  const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
+  const itemTitle = item.title || '-';
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
+  const vatAmount = detail.vat_applicable ? totalAmount * 0.07 : 0;
+  const grandTotal = totalAmount + vatAmount;
+  const vatText = detail.vat_applicable ? fmt(vatAmount) : '-';
+
+  const inspectCommittee = (detail.committee_inspect || [])
+    .filter(function(c){ return c && c.staff_id; })
+    .map(function(c){
+      const s = (STAFF_LIST || []).find(function(x){ return String(x.id) === String(c.staff_id); });
+      return { name: s ? (s.prefix + s.name) : '-', role: c.role || 'กรรมการ' };
+    });
+  if(!inspectCommittee.length){
+    alert('กรุณาระบุ "คณะกรรมการตรวจรับพัสดุ" อย่างน้อย 1 คนในฟอร์มก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const inspectSigParas = [];
+  inspectCommittee.forEach(function(c){
+    inspectSigParas.push(para('ลงชื่อ .......................................  ' + c.role, { noIndent: true, after: 0 }));
+    inspectSigParas.push(para('(' + c.name + ')', { noIndent: true, after: 1 }));
+  });
+
+  // ส่งมอบเกินกำหนดกี่วัน — คำนวณจริงจาก date_due เทียบ date_deliver (ทั้งคู่ field จริง) แทน hardcode "-"
+  // เสมอ — daysLate <= 0 (ส่งตรง/ก่อนกำหนด) แสดง "-" ทุกช่องตามที่ต้นฉบับตัวอย่างแสดง (เคสส่งตรงเวลา)
+  const daysLate = detail.date_due ? Math.max(0, daysBetween(detail.date_due, detail.date_deliver)) : 0;
+  const penaltyAmount = daysLate > 0 ? grandTotal * ((Number(detail.penalty_rate_percent) || 0) / 100) * daysLate : 0;
+  const withholdingTax = Number(detail.withholding_tax) || 0;
+  const netPayable = grandTotal - withholdingTax - penaltyAmount;
+
+  const officer = findStaffByName(PROCUREMENT_OFFICER_NAME);
+  const officerPrintName = officer ? (officer.prefix + officer.name) : PROCUREMENT_OFFICER_NAME;
+  const head = findStaffByName(PROCUREMENT_HEAD_NAME);
+  const headPrintName = head ? (head.prefix + head.name) : PROCUREMENT_HEAD_NAME;
+  const director = findDirector();
+  const directorPrintName = director ? ('(' + (director.prefix || '') + director.name + ')') : '(...........................)';
+
+  const officerSigRow = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    rows: [ new TableRow({ children: [
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('ลงชื่อ .......................................  เจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
+        para('(' + officerPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
+      ] }),
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('ลงชื่อ .......................................  หัวหน้าเจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
+        para('(' + headPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
+      ] })
+    ] }) ]
+  });
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    para('ใบตรวจรับพัสดุ', { align: AlignmentType.CENTER, bold: true, size: 20, after: 0 }),
+    para('ตามระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560 ข้อ 175', { align: AlignmentType.CENTER, bold: true, after: 3 }),
+    para('เขียนที่' + SCHOOL_FULL_NAME, { after: 0 }),
+    para('วันที่ ' + fmtDateThai(detail.date_deliver), { after: 1 }),
+    bodyPara('ตามที่' + SCHOOL_FULL_NAME + ' ได้' + buyOrHire + itemTitle + ' จาก ' + (vendor.name || '-') +
+      ' ตามใบสั่ง' + buyOrHireShort + 'เลขที่ ' + detail.doc_number + ' ลงวันที่ ' + fmtDateThai(detail.date_order) +
+      ' ครบกำหนดส่งมอบวันที่ ' + (detail.date_due ? fmtDateThai(detail.date_due) : '.....................'), { after: 0.5 }),
+    bodyPara('บัดนี้ผู้' + (buyOrHireShort === 'ซื้อ' ? 'ขาย' : 'รับจ้าง') + 'ได้ส่งมอบงาน' + buyOrHire + itemTitle +
+      'ตามใบเสร็จรับเงิน เล่มที่ - เลขที่ - ลงวันที่ ' + fmtDateThai(detail.date_deliver) + ' ณ ' + SCHOOL_FULL_NAME, { after: 0.5 }),
+    bodyPara('การ' + buyOrHireShort + 'รายนี้ได้สั่งแก้ไขเปลี่ยนแปลงคือ -', { after: 0.5 }),
+    bodyPara('คณะกรรมการตรวจรับพัสดุได้ตรวจรับงานเมื่อวันที่ ' + fmtDateThai(detail.date_deliver) +
+      ' แล้วปรากฏว่างานเสร็จเรียบร้อยถูกต้องตามใบสั่ง' + buyOrHireShort + 'ทุกประการ เมื่อวันที่ ' + fmtDateThai(detail.date_deliver) +
+      ' โดยส่งมอบเกินกำหนด จำนวน ' + (daysLate > 0 ? daysLate : '-') + ' วัน คิดค่าปรับในอัตราร้อยละ ' +
+      (daysLate > 0 ? (Number(detail.penalty_rate_percent) || 0) : '-') + ' รวมเป็นเงินทั้งสิ้น ' +
+      (daysLate > 0 ? fmt(penaltyAmount) : '-') + ' บาท จึงออกหนังสือสำคัญฉบับนี้ให้ไว้ วันที่ ' + fmtDateThai(detail.date_deliver), { after: 0.5 }),
+    bodyPara((buyOrHireShort === 'ซื้อ' ? 'ผู้ขาย' : 'ผู้รับจ้าง') + 'ควรได้รับเงินเป็นจำนวนเงินทั้งสิ้น ' + fmt(grandTotal) +
+      ' บาท (' + thaiBahtText(grandTotal) + ') ตามรายงานขอ' + buyOrHireShort, { after: 0.5 }),
+    bodyPara('จึงขอเสนอรายงานต่อผู้อำนวยการ' + SCHOOL_FULL_NAME + ' เพื่อโปรดทราบ ตามนัยข้อ 175 (4) แห่งระเบียบกระทรวงการคลังว่าด้วยการจัดซื้อจัดจ้างและการบริหารพัสดุภาครัฐ พ.ศ. 2560', { after: 1 })
+  ].concat(inspectSigParas).concat([
+    para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 1 }),
+    para('( )  ทราบ      ( )  อนุมัติ', { noIndent: true, after: 0.5 }),
+    para('ลงชื่อ .......................................', { noIndent: true, after: 0 }),
+    para(directorPrintName, { noIndent: true, after: 0 }),
+    para('ผู้อำนวยการ' + SCHOOL_FULL_NAME, { noIndent: true, after: 1 }),
+    hrPara(),
+    bodyPara('ผู้ตรวจรับพัสดุได้ตรวจรับพัสดุ/บริการ ตามรายละเอียดดังกล่าวไว้ครบถ้วน ถูกต้องแล้ว ซึ่งจะต้องจ่ายเงินให้แก่' +
+      (buyOrHireShort === 'ซื้อ' ? 'ผู้ขาย' : 'ผู้รับจ้าง') + 'เป็นจำนวนเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText +
+      ' บาท จำนวนเงินขอเบิกทั้งสิ้น ' + fmt(grandTotal) + ' บาท (' + thaiBahtText(grandTotal) + ') หักภาษี ณ ที่จ่าย ' +
+      (withholdingTax > 0 ? fmt(withholdingTax) : '-') + ' บาท หักค่าปรับ ' + (penaltyAmount > 0 ? fmt(penaltyAmount) : '-') +
+      ' บาท คงเหลือจ่ายจริง ' + fmt(netPayable) + ' บาท (' + thaiBahtText(netPayable) + ')', { noIndent: true, after: 0.5 }),
+    bodyPara('จึงเรียนเสนอเพื่อโปรดพิจารณาอนุมัติเบิกจ่ายเงินต่อไป', { after: 1 }),
+    officerSigRow
+  ]);
+
+  return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[15] + '.docx' };
 }
