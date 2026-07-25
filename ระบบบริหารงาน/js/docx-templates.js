@@ -306,6 +306,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 9) return await buildDoc9(procItemId, opts);
   if(docIndex === 10) return await buildDoc10(procItemId, opts);
   if(docIndex === 11) return await buildDoc11(procItemId, opts);
+  if(docIndex === 12) return await buildDoc12(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -313,7 +314,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -1306,4 +1307,65 @@ async function buildDoc11(procItemId, opts){
   ]);
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[11] + '.docx' };
+}
+
+// ---------- Doc 12: ประกาศผู้ชนะ (ประกาศผู้ชนะการเสนอราคา) ----------
+// อ้างอิงไฟล์จริง "12 ประกาศ.pdf" (OCR ตกวรรณยุกต์+เรียงสลับลำดับ สะกด/จัดลำดับใหม่จากบริบท) — เป็น
+// "ประกาศ" สาธารณะ (ไม่ใช่บันทึกข้อความ/คำสั่ง) **ไม่มีเลข "ที่" กำกับ** ต่างจาก Doc4/8/9/10/11 ทุกฉบับ
+// ที่มี doc_number แสดงในเนื้อหา (ตรงกับธรรมเนียมจริง — ประกาศผู้ชนะฯ ปิดประกาศสาธารณะ ไม่ใช้เลขที่หนังสือ
+// ภายใน) — อ้างอิงชื่อผู้ชนะจาก detail.vendor_id (ชุดเดียวกับ Doc10)
+// ✅ ไม่ใช่ข้อสมมติฐาน: ใช้ detail.date_announce ตรงตัว — PD_DATE_SEQUENCE (procurement-detail.js) มี field
+// นี้อยู่แล้วชื่อ "ประกาศผู้ชนะการเสนอราคา" ตรงกับเอกสารนี้เป๊ะ (ต่างจาก Doc9/10/11 ที่ไม่มี field ตรงๆ
+// ต้องใช้ date_request_buy ทดแทน)
+async function buildDoc12(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.date_announce){ alert('กรุณากรอก "วันที่ประกาศผู้ชนะการเสนอราคา" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+  if(!detail.vendor_id){ alert('กรุณาเลือก "ร้านค้า/ผู้รับจ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const vendor = (VENDORS_LIST || []).find(function(v){ return String(v.id) === String(detail.vendor_id); });
+  if(!vendor){ alert('ไม่พบข้อมูลร้านค้า/ผู้รับจ้างที่เลือกไว้ กรุณาตรวจสอบในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+  const vendorName = vendor.name || '-';
+
+  const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
+  const itemTitle = item.title || '-';
+  const purpose = detail.tor_objective || item.title || '-';
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
+  const totalAmountText = fmt(totalAmount) + ' บาท (' + thaiBahtText(totalAmount) + ')';
+
+  const director = findDirector();
+  const directorSigRuns = director
+    ? multiLineRuns(['ลงชื่อ .......................................', '(' + (director.prefix || '') + director.name + ')', 'ผู้อำนวยการ' + SCHOOL_FULL_NAME])
+    : [ tr('ลงชื่อ .......................................') ];
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'order' }, opts)),
+    para('ประกาศ' + SCHOOL_FULL_NAME, { align: AlignmentType.CENTER, bold: true, size: 20, after: 4 }),
+    para('เรื่อง ประกาศผู้ชนะการเสนอราคาการ' + buyOrHire + itemTitle + ' โดยวิธีเฉพาะเจาะจง', { align: AlignmentType.CENTER, bold: true, after: 3 }),
+    hrPara(),
+    bodyPara('ตามที่' + SCHOOL_FULL_NAME + ' ได้มีการ' + buyOrHire + itemTitle + ' จำนวน ' + subItems.length +
+      ' รายการ เพื่อ' + purpose + ' การประกาศผู้ได้รับการคัดเลือกโดยวิธีเฉพาะเจาะจง นั้น'),
+    bodyPara('การ' + buyOrHire + itemTitle + ' จำนวน ' + subItems.length + ' รายการ ผู้ได้รับการคัดเลือกได้แก่ ' +
+      vendorName + ' โดยเสนอราคาเป็นเงินทั้งสิ้น ' + totalAmountText + ' รวมภาษีมูลค่าเพิ่มและภาษีอื่น ค่าขนส่ง ค่าจดทะเบียน และค่าใช้จ่ายอื่น ๆ ทั้งปวง'),
+    // "ประกาศ ณ วันที่..." เยื้อง 5 ซม. (ไม่ใช่กึ่งกลาง) ตามมาตรฐานเดียวกับ "สั่ง ณ วันที่" ของ Doc4/11
+    para('ประกาศ ณ วันที่ ' + fmtDateThai(detail.date_announce), { align: AlignmentType.LEFT, leftIndent: ORDER_DATE_INDENT_MM, before: 2, after: 0 }),
+    para('', { after: 6 }),
+    para(directorSigRuns, { align: AlignmentType.CENTER, after: 0 })
+  ];
+
+  return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[12] + '.docx' };
 }
