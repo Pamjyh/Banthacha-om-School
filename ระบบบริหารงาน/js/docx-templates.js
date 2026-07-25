@@ -239,8 +239,8 @@ function subItemsTable(subItems, buyOrHireShort, totalAmount){
       cell(r.description),
       cell(String(Number(r.quantity) || 0), { align: AlignmentType.CENTER }),
       cell(r.unit, { align: AlignmentType.CENTER }),
-      cell(fmt(r.unit_price), { align: AlignmentType.RIGHT }),
-      cell(fmt(r.amount), { align: AlignmentType.RIGHT })
+      cell(fmt(Number(r.unit_price) || 0), { align: AlignmentType.RIGHT }),
+      cell(fmt(Number(r.amount) || 0), { align: AlignmentType.RIGHT })
     ] });
   });
   const totalRow = new TableRow({ children: [
@@ -504,7 +504,12 @@ async function buildDoc3(procItemId, opts){
   }
   const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
   const itemCount = subItems.length;
-  const vatText = detail.vat_applicable ? fmt(totalAmount * 0.07) : '-';
+  // ⚠️ VAT ต้องบวกเข้ายอดจริง ไม่ใช่แค่โชว์ตัวเลขแยก (scrutinize F1, 2026-07-25) — ก่อนหน้านี้คำนวณ vatText
+  // ไว้แต่ "จำนวนเงินตัวอักษร" ยังอ้างอิง totalAmount เดิม ไม่เคยบวก VAT เข้าไปเลย ขัดกับเจตนาดั้งเดิมที่เขียนไว้
+  // ใน pdf-templates.js ("บวกเพิ่ม 7% จากยอดรวม") ตั้งแต่รอบ pivot แรก
+  const vatAmount = detail.vat_applicable ? totalAmount * 0.07 : 0;
+  const grandTotal = totalAmount + vatAmount;
+  const vatText = detail.vat_applicable ? fmt(vatAmount) : '-';
 
   const officer = findStaffByName(PROCUREMENT_OFFICER_NAME);
   const officerPrintName = officer ? (officer.prefix + officer.name) : PROCUREMENT_OFFICER_NAME;
@@ -559,7 +564,7 @@ async function buildDoc3(procItemId, opts){
     bodyPara('ตามที่' + SCHOOL_ADMIN_GROUP + ' ' + SCHOOL_FULL_NAME + ' มีความประสงค์จะขอทำการ' + buyOrHire + (item.title || '') +
       ' เพื่อ' + purpose + ' ในโครงการ' + projectName + ' จำนวน ' + itemCount + ' รายการ มีรายการต่อไปนี้'),
     subItemsTable(subItems, buyOrHireShort, totalAmount),
-    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(totalAmount) + ')', { noIndent: true, before: 2 }),
+    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(grandTotal) + ')', { noIndent: true, before: 2 }),
     bodyPara('โดยใช้งบประมาณจาก' + (detail.budget_source || '-') + ' โครงการ' + projectName, { noIndent: true }),
     bodyPara('มอบหมายให้บุคคลดังต่อไปนี้เป็นผู้กำหนดรายละเอียดคุณลักษณะเฉพาะ (TOR หรือ Spec)', { noIndent: true })
   ].concat(torParas).concat([
@@ -836,7 +841,9 @@ async function buildDoc6(procItemId, opts){
     para('๓. คุณสมบัติผู้ยื่นข้อเสนอ', { bold: true, after: 0.5 })
   ].concat(qualParas).concat([
     para('๔. รายละเอียดคุณลักษณะเฉพาะหรือขอบเขตของงาน', { bold: true, before: 1, after: 0.5 }),
-    bodyPara('จัด' + buyOrHire + itemTitle + 'เพื่อใช้ประกอบการดำเนินงานในโครงการ' + projectName + 'ภายในวงเงินไม่เกิน ' +
+    // ⚠️ ไม่ใส่ "จัด" นำหน้า buyOrHire (scrutinize F2, 2026-07-25) — buyOrHire เป็นคำเต็ม 'จัดจ้าง'/'จัดซื้อ'
+    // อยู่แล้ว เคยเขียน 'จัด' + buyOrHire ได้ "จัดจัดจ้าง" คำซ้ำ (บั๊กคลาสเดียวกับที่แก้ไปแล้วใน Doc8/Doc10)
+    bodyPara(buyOrHire + itemTitle + 'เพื่อใช้ประกอบการดำเนินงานในโครงการ' + projectName + 'ภายในวงเงินไม่เกิน ' +
       totalAmountText + ' โดยรายการที่จะขอ' + buyOrHireShort + 'ต้องประกอบไปด้วยรายละเอียดตามเอกสารแนบ', { noIndent: true, after: 1.5 }),
 
     para('๕. การเสนอราคา และกำหนดส่งมอบ', { bold: true, after: 0.5 }),
@@ -898,7 +905,10 @@ async function buildDoc7(procItemId, opts){
     return null;
   }
   const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
-  const vatText = detail.vat_applicable ? fmt(totalAmount * 0.07) : '-';
+  // ⚠️ VAT ต้องบวกเข้ายอดจริง (scrutinize F1, 2026-07-25) — ดู comment เต็มใน buildDoc3
+  const vatAmount = detail.vat_applicable ? totalAmount * 0.07 : 0;
+  const grandTotal = totalAmount + vatAmount;
+  const vatText = detail.vat_applicable ? fmt(vatAmount) : '-';
 
   const committeeTor = detail.committee_tor || [];
   const designerEntry = committeeTor.find(function(c){ return c && c.staff_id && (c.role || '').indexOf('ผู้กำหนดรายละเอียด') >= 0; })
@@ -944,7 +954,7 @@ async function buildDoc7(procItemId, opts){
     para('การ' + buyOrHire + itemTitle + ' ในโครงการ' + projectName, { align: AlignmentType.CENTER, bold: true, after: 0 }),
     para(SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { align: AlignmentType.CENTER, bold: true, after: 3 }),
     subItemsTable(subItems, buyOrHireShort, totalAmount),
-    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(totalAmount) + ')', { noIndent: true, before: 2, after: 4 }),
+    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(grandTotal) + ')', { noIndent: true, before: 2, after: 4 }),
     sigRow3
   ];
 
@@ -1053,7 +1063,9 @@ async function buildDoc8(procItemId, opts){
     bodyPara('ด้วย ' + SCHOOL_ADMIN_GROUP + ' ' + SCHOOL_FULL_NAME + ' มีความประสงค์จะขอทำการ' + buyOrHire + itemTitle +
       ' จำนวน ' + subItems.length + ' รายการ เพื่อ' + purpose + ' ซึ่งได้รับอนุมัติเงินจากงาน/โครงการ' + projectName +
       ' จำนวน ' + totalAmountText + ' รายละเอียดดังแนบ', { after: 0.5 }),
-    bodyPara('งานพัสดุได้ตรวจสอบแล้วเห็นควรดำเนินการจัด' + buyOrHire + 'ตามเสนอ ' + DOC8_LEGAL_CITATION_MIDDLE + ' จึงขอรายงานขอ' + buyOrHireShort + ' ดังนี้', { after: 0.5 }),
+    // ⚠️ "ดำเนินการ" ไม่ใส่ "จัด" ต่อท้าย (scrutinize F2, 2026-07-25) — จุดที่ 2 ของบั๊กคำซ้ำใน Doc8 (คนละจุด
+    // กับ "6. " ที่เคยแก้ไปแล้ว 2026-07-22) buyOrHire เป็นคำเต็ม 'จัดจ้าง'/'จัดซื้อ' อยู่แล้ว
+    bodyPara('งานพัสดุได้ตรวจสอบแล้วเห็นควรดำเนินการ' + buyOrHire + 'ตามเสนอ ' + DOC8_LEGAL_CITATION_MIDDLE + ' จึงขอรายงานขอ' + buyOrHireShort + ' ดังนี้', { after: 0.5 }),
     para('1. เหตุผลและความจำเป็นที่ต้อง' + buyOrHireShort + ' คือ ' + purpose, { noIndent: true, after: 0.2 }),
     para('2. รายละเอียดพัสดุและวงเงินที่จะขอ' + buyOrHireShort + 'มีรายละเอียดตามเอกสารแนบท้าย', { noIndent: true, after: 0.2 }),
     para('3. ราคากลางของพัสดุที่จะขอ' + buyOrHireShort + 'เป็นเงิน ' + totalAmountText, { noIndent: true, after: 0.2 }),
@@ -1106,7 +1118,10 @@ async function buildDoc9(procItemId, opts){
     return null;
   }
   const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
-  const vatText = detail.vat_applicable ? fmt(totalAmount * 0.07) : '-';
+  // ⚠️ VAT ต้องบวกเข้ายอดจริง (scrutinize F1, 2026-07-25) — ดู comment เต็มใน buildDoc3
+  const vatAmount = detail.vat_applicable ? totalAmount * 0.07 : 0;
+  const grandTotal = totalAmount + vatAmount;
+  const vatText = detail.vat_applicable ? fmt(vatAmount) : '-';
 
   const officer = findStaffByName(PROCUREMENT_OFFICER_NAME);
   const officerPrintName = officer ? (officer.prefix + officer.name) : PROCUREMENT_OFFICER_NAME;
@@ -1139,7 +1154,7 @@ async function buildDoc9(procItemId, opts){
     para(SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL, { align: AlignmentType.CENTER, bold: true, after: 3 }),
     subItemsTable(subItems, buyOrHireShort, totalAmount),
     para('( )  ราคามาตรฐาน      (/)  ราคาที่ได้มาจากการสืบจากท้องตลาด', { noIndent: true, before: 1, after: 1 }),
-    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(totalAmount) + ')', { noIndent: true, before: 1, after: 3 }),
+    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(grandTotal) + ')', { noIndent: true, before: 1, after: 3 }),
     sigRow2
   ];
 
@@ -1416,7 +1431,12 @@ async function buildDoc13(procItemId, opts){
     return null;
   }
   const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
-  const vatText = detail.vat_applicable ? fmt(totalAmount * 0.07) : '-';
+  // ⚠️ VAT ต้องบวกเข้ายอดจริง (scrutinize F1, 2026-07-25) — ดู comment เต็มใน buildDoc3 — Doc13 สำคัญเป็นพิเศษ
+  // เพราะมีบรรทัด "รวมเป็นเงินทั้งสิ้น" แยกต่างหาก ก่อนแก้เคยโชว์ตัวเลขเดียวกับ "รวมเป็นเงิน" ก่อน VAT เป๊ะ
+  // (ขัดแย้งในตัวเองกับคำว่า "ทั้งสิ้น" ที่นำหน้า)
+  const vatAmount = detail.vat_applicable ? totalAmount * 0.07 : 0;
+  const grandTotal = totalAmount + vatAmount;
+  const vatText = detail.vat_applicable ? fmt(vatAmount) : '-';
 
   const vendorAddress = 'ที่อยู่ ' + (vendor.address_no || '-') + ' หมู่ ' + (vendor.moo || '-') + ' ตำบล' + (vendor.tambon || '-') +
     ' อำเภอ' + (vendor.amphoe || '-') + ' จังหวัด' + (vendor.province || '-') + ' รหัสไปรษณีย์ ' + (vendor.postcode || '-');
@@ -1519,7 +1539,7 @@ async function buildDoc13(procItemId, opts){
     bodyPara('ตามที่ ' + (vendor.name || '-') + ' ได้เสนอราคาตามใบเสนอราคาไว้ต่อ ' + SCHOOL_FULL_NAME + ' ซึ่งได้รับราคาและตกลง' +
       (item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง') + 'ตามรายการดังต่อไปนี้', { before: 0.2, after: 0.3 }),
     doc13ItemTable(),
-    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(totalAmount) + ') รวมเป็นเงินทั้งสิ้น ' + fmt(totalAmount) + ' บาท', { noIndent: true, before: 0.2, after: 0.3 }),
+    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(grandTotal) + ') รวมเป็นเงินทั้งสิ้น ' + fmt(grandTotal) + ' บาท', { noIndent: true, before: 0.2, after: 0.3 }),
     bodyPara('การสั่ง' + buyOrHireShort + 'อยู่ภายใต้เงื่อนไขต่อไปนี้', { after: 0.15 })
   ].concat(termParas).concat([
     sigTable
@@ -1566,7 +1586,10 @@ async function buildDoc14(procItemId, opts){
     return null;
   }
   const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
-  const vatText = detail.vat_applicable ? fmt(totalAmount * 0.07) : '-';
+  // ⚠️ VAT ต้องบวกเข้ายอดจริง (scrutinize F1, 2026-07-25) — ดู comment เต็มใน buildDoc3
+  const vatAmount = detail.vat_applicable ? totalAmount * 0.07 : 0;
+  const grandTotal = totalAmount + vatAmount;
+  const vatText = detail.vat_applicable ? fmt(vatAmount) : '-';
 
   const director = findDirector();
   const directorPrintName = director ? ('(' + (director.prefix || '') + director.name + ')') : '(...........................)';
@@ -1597,7 +1620,7 @@ async function buildDoc14(procItemId, opts){
     para(SCHOOL_FULL_NAME, { align: AlignmentType.CENTER, bold: true, after: 3 }),
     subItemsTable(subItems, buyOrHireShort, totalAmount),
     para('( )  ราคามาตรฐาน      (/)  ราคาที่ได้มาจากการสืบจากท้องตลาด', { noIndent: true, before: 1, after: 1 }),
-    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(totalAmount) + ')', { noIndent: true, before: 1, after: 3 }),
+    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(grandTotal) + ')', { noIndent: true, before: 1, after: 3 }),
     sigTable
   ];
 
