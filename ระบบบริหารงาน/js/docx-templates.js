@@ -20,6 +20,9 @@
 const SCHOOL_FULL_NAME = 'โรงเรียนบ้านท่าชะอม';
 const SCHOOL_EDU_OFFICE_FULL = 'สำนักงานเขตพื้นที่การศึกษาประถมศึกษาอุทัยธานี เขต 2';
 const SCHOOL_ADMIN_GROUP = 'กลุ่มงานบริหารงานทั่วไป';
+// ⚠️ ที่อยู่โรงเรียน (Doc13 เท่านั้น) — คัดลอกตรงจากไฟล์อ้างอิงจริง "13 สั่งซื้อสั่งจ้าง.pdf" ไม่มี field
+// ใน DB สำหรับที่อยู่สถานศึกษา (คงที่ ไม่ผูกกับรายการพัสดุ จึงเป็น constant เหมือน SCHOOL_FULL_NAME)
+const SCHOOL_ADDRESS = '66 หมู่ 6 ตำบลเขากวางทอง อำเภอหนองฉาง จังหวัดอุทัยธานี 61110';
 const PROCUREMENT_OFFICER_NAME = 'พศุตม์ จรรยหาญ'; // "เจ้าหน้าที่"
 const PROCUREMENT_HEAD_NAME = 'สุทามาศ จบศรี'; // "หัวหน้าเจ้าหน้าที่"
 
@@ -307,6 +310,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 10) return await buildDoc10(procItemId, opts);
   if(docIndex === 11) return await buildDoc11(procItemId, opts);
   if(docIndex === 12) return await buildDoc12(procItemId, opts);
+  if(docIndex === 13) return await buildDoc13(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -314,7 +318,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -1368,4 +1372,157 @@ async function buildDoc12(procItemId, opts){
   ];
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[12] + '.docx' };
+}
+
+// ---------- Doc 13: สั่งซื้อจ้าง (ใบสั่งซื้อ/ใบสั่งจ้าง) ----------
+// อ้างอิงไฟล์จริง "13 สั่งซื้อสั่งจ้าง.pdf" (OCR ตกวรรณยุกต์/สระหนักมาก+เรียงสลับคอลัมน์ ต้องประกอบใหม่จาก
+// บริบท — เดาว่าเป็นตาราง 2 คอลัมน์ [โรงเรียน/ผู้รับจ้าง] ที่ OCR อ่านเรียงแถวสลับกัน) — ฟอร์มทางการที่ใช้
+// field ที่มีอยู่แล้วครบเกือบทั้งหมด ไม่ต้องเดามาก:
+//   - vendor.address_no/moo/tambon/amphoe/province/postcode/phone/tax_id/contact_name (Stage 12 ครบ)
+//   - detail.date_order (field จริง "สั่งซื้อ/จ้าง" ตรงกับเอกสารนี้เป๊ะ) ใช้เป็นวันที่หัวเอกสาร+ลายเซ็นทั้งคู่
+//   - detail.date_due (field จริง "ครบกำหนดส่งมอบ") ใช้ในเงื่อนไขข้อ 2
+//   - detail.penalty_rate_percent (field จริงเดียวกับ Doc6 ข้อ ๖) ใช้ในเงื่อนไขข้อ 5
+// ⚠️ ข้อสมมติฐานที่เหลือ: "เลขที่" ในฟอร์มนี้โชว์ doc_number เต็ม (มี "จ." นำหน้า) ต่างจากเอกสารอื่นที่ตัด
+// prefix ออก (bareDocNumber) — ตามที่ต้นฉบับจริงแสดง "เลขที่ จ.51/2569" ตรงๆ / ระยะเวลารับประกัน "-" (ไม่มี
+// field เหมือน Doc6 ข้อ ๗) / ตาราง "รายการ" สรุปเป็นบรรทัดเดียวอ้างถึง Doc9 แนบท้าย (ไม่แตกรายการย่อย
+// เหมือน Doc2/3/4/7/9 เพราะต้นฉบับจริงของ Doc13 แสดงแบบนี้) / ข้อ 7 (ห้ามจ้างช่วง) ใส่เฉพาะกรณีจัดจ้าง
+// เท่านั้น (ต้นฉบับจริงเป็นแบบจัดจ้าง ยังไม่มีตัวอย่างแบบจัดซื้อมายืนยันข้อความ)
+async function buildDoc13(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return null; }
+  if(!detail.date_order){ alert('กรุณากรอก "วันที่สั่งซื้อ/จ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+  if(!detail.vendor_id){ alert('กรุณาเลือก "ร้านค้า/ผู้รับจ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const vendor = (VENDORS_LIST || []).find(function(v){ return String(v.id) === String(detail.vendor_id); });
+  if(!vendor){ alert('ไม่พบข้อมูลร้านค้า/ผู้รับจ้างที่เลือกไว้ กรุณาตรวจสอบในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const buyOrHireShort = item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง';
+  const vendorRole = buyOrHireShort === 'ซื้อ' ? 'ผู้ขาย' : 'ผู้รับจ้าง';
+  const itemTitle = item.title || '-';
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
+  const vatText = detail.vat_applicable ? fmt(totalAmount * 0.07) : '-';
+
+  const vendorAddress = 'ที่อยู่ ' + (vendor.address_no || '-') + ' หมู่ ' + (vendor.moo || '-') + ' ตำบล' + (vendor.tambon || '-') +
+    ' อำเภอ' + (vendor.amphoe || '-') + ' จังหวัด' + (vendor.province || '-') + ' รหัสไปรษณีย์ ' + (vendor.postcode || '-');
+
+  const infoTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    rows: [ new TableRow({ children: [
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('ใบสั่ง' + buyOrHireShort, { bold: true, after: 0 }),
+        para('เลขที่ ' + detail.doc_number, { after: 0 }),
+        para('วันที่ ' + fmtDateThai(detail.date_order), { after: 0 }),
+        para(SCHOOL_FULL_NAME, { after: 0 }),
+        para(SCHOOL_ADDRESS, { after: 0 })
+      ] }),
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('ชื่อ' + vendorRole + ' ' + (vendor.name || '-'), { after: 0 }),
+        para(vendorAddress, { after: 0 }),
+        para('โทรศัพท์ ' + (vendor.phone || '-'), { after: 0 }),
+        para('เลขประจำตัวผู้เสียภาษี ' + (vendor.tax_id || '-'), { after: 0 })
+      ] })
+    ] }) ]
+  });
+
+  const summaryDescription = (item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง') + itemTitle + ' ' + subItems.length + ' รายการ (ตามรายละเอียดแนบท้าย)';
+
+  // ⚠️ ตารางเฉพาะ Doc13 (ไม่ใช้ subItemsTable() ที่ใช้ร่วมกับ Doc2/3/4/7/9) — เพราะ Doc13 มีแถวเดียวเสมอ
+  // (สรุปเป็นบรรทัดเดียวตามต้นฉบับจริง ไม่แตกรายการย่อย) สัดส่วนคอลัมน์จึงต่างจากตารางแบบหลายแถวทั่วไป
+  // จำเป็นต้องให้คอลัมน์ "รายการ" กว้างขึ้นมาก (55% แทน 37%) กันข้อความยาวห่อบรรทัดจนล้นหน้า (2026-07-25
+  // วัดจริงพบว่าคอลัมน์แคบ 37% ทำให้ข้อความห่อ 6-7 บรรทัด กินพื้นที่แนวตั้งมากกว่าจุดอื่นรวมกัน)
+  function doc13ItemTable(){
+    function cell(text, opts){
+      opts = opts || {};
+      return new TableCell({
+        width: opts.width ? { size: opts.width, type: WidthType.PERCENTAGE } : undefined,
+        verticalAlign: VerticalAlign.CENTER,
+        children: [ para(text, { align: opts.align || AlignmentType.LEFT, after: 0, size: 14, bold: opts.bold }) ]
+      });
+    }
+    const headerRow = new TableRow({ tableHeader: true, children: [
+      cell('ท', { width: 5, align: AlignmentType.CENTER, bold: true }),
+      cell('รายการ', { width: 55, bold: true }),
+      cell('จำนวน', { width: 8, align: AlignmentType.CENTER, bold: true }),
+      cell('หน่วย', { width: 10, align: AlignmentType.CENTER, bold: true }),
+      cell('ราคาต่อหน่วย', { width: 11, align: AlignmentType.RIGHT, bold: true }),
+      cell('จำนวนเงิน', { width: 11, align: AlignmentType.RIGHT, bold: true })
+    ] });
+    const dataRow = new TableRow({ children: [
+      cell('1', { align: AlignmentType.CENTER }),
+      cell(summaryDescription),
+      cell('1', { align: AlignmentType.CENTER }),
+      cell('รายการ', { align: AlignmentType.CENTER }),
+      cell(fmt(totalAmount), { align: AlignmentType.RIGHT }),
+      cell(fmt(totalAmount), { align: AlignmentType.RIGHT })
+    ] });
+    return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: TABLE_BORDERS, rows: [headerRow, dataRow] });
+  }
+
+  const terms = [
+    'กำหนดส่งมอบภายใน ' + DOC6_DEFAULT_TERM_DAYS + ' วัน นับถัดจากวันลงนามใบสั่ง' + buyOrHireShort,
+    'ครบกำหนดส่งมอบวันที่ ' + (detail.date_due ? fmtDateThai(detail.date_due) : '-'),
+    'สถานที่ส่งมอบ ' + SCHOOL_FULL_NAME,
+    'ระยะเวลารับประกัน -',
+    'สงวนสิทธิ์ค่าปรับกรณีส่งมอบเกินกำหนด โดยคิดค่าปรับเป็นรายวันในอัตราร้อยละ ' + (detail.penalty_rate_percent != null ? detail.penalty_rate_percent : 0) + ' ของราคาสิ่งของที่ยังไม่ได้รับมอบ',
+    'โรงเรียนสงวนสิทธิ์ที่จะไม่รับมอบ ถ้าปรากฏว่าสินค้านั้นมีลักษณะไม่ตรงตามรายการที่ระบุไว้ในใบสั่ง' + buyOrHireShort
+  ];
+  if(buyOrHireShort === 'จ้าง'){
+    terms.push('กรณีการจ้าง ผู้รับจ้างจะต้องไม่เอางานทั้งหมดหรือแต่บางส่วนแห่งสัญญานี้ไปจ้างช่วงอีกทอดหนึ่ง เว้นแต่ไม่เป็นเหตุให้ผู้รับจ้างหลุดพ้นจากความรับผิดหรือพันธะหน้าที่ตามสัญญานี้ และผู้รับจ้างจะยังคงต้องรับผิดชอบในความผิดและความประมาทเลินเล่อของผู้รับจ้างช่วง หรือของตัวแทนหรือลูกจ้างของผู้รับจ้างช่วงนั้นทุกประการ');
+  }
+  terms.push('การประเมินผลการปฏิบัติงานของผู้ประกอบการ หน่วยงานของรัฐสามารถนำผลการปฏิบัติงานแล้วเสร็จตามสัญญาหรือข้อตกลงของคู่สัญญาเพื่อนำมาประเมินผลการปฏิบัติงานของผู้ประกอบการได้');
+  // ⚠️ after: 0.15mm (ไม่ใช่ 1.5mm default) — บีบเงื่อนไข 8 ข้อให้แน่นสุด กันล้นหน้า 2 (2026-07-25, เหมือน
+  // แนวทาง Doc8 รอบ 2-3: ตัด spacing ก่อนแตะเนื้อหา — วัดจริงพบว่าซิกเนเจอร์บล็อก 3 บรรทัดสุดท้ายล้นไปหน้า 2)
+  const termParas = terms.map(function(t, i){ return para((i + 1) + '. ' + t, { noIndent: true, after: 0.1 }); });
+
+  const director = findDirector();
+  const directorPrintName = director ? ('(' + (director.prefix || '') + director.name + ')') : '(...........................)';
+
+  const sigTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    rows: [ new TableRow({ children: [
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('ลงชื่อ .......................................  ผู้สั่ง' + buyOrHireShort, { align: AlignmentType.CENTER, after: 0 }),
+        para(directorPrintName, { align: AlignmentType.CENTER, after: 0 }),
+        para('ผู้อำนวยการ' + SCHOOL_FULL_NAME, { align: AlignmentType.CENTER, after: 0 }),
+        para('วันที่ ' + fmtDateThai(detail.date_order), { align: AlignmentType.CENTER, after: 0 })
+      ] }),
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('ลงชื่อ .......................................  ผู้รับใบสั่ง' + buyOrHireShort, { align: AlignmentType.CENTER, after: 0 }),
+        para('(' + (vendor.contact_name || vendor.name || '-') + ')', { align: AlignmentType.CENTER, after: 0 }),
+        para(vendorRole, { align: AlignmentType.CENTER, after: 0 }),
+        para('วันที่ ' + fmtDateThai(detail.date_order), { align: AlignmentType.CENTER, after: 0 })
+      ] })
+    ] }) ]
+  });
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    infoTable,
+    bodyPara('ตามที่ ' + (vendor.name || '-') + ' ได้เสนอราคาตามใบเสนอราคาไว้ต่อ ' + SCHOOL_FULL_NAME + ' ซึ่งได้รับราคาและตกลง' +
+      (item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง') + 'ตามรายการดังต่อไปนี้', { before: 0.2, after: 0.3 }),
+    doc13ItemTable(),
+    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(totalAmount) + ') รวมเป็นเงินทั้งสิ้น ' + fmt(totalAmount) + ' บาท', { noIndent: true, before: 0.2, after: 0.3 }),
+    bodyPara('การสั่ง' + buyOrHireShort + 'อยู่ภายใต้เงื่อนไขต่อไปนี้', { after: 0.15 })
+  ].concat(termParas).concat([
+    sigTable
+  ]);
+
+  return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[13] + '.docx' };
 }
