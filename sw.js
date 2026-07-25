@@ -2,7 +2,7 @@
 // Service Worker — โรงเรียนบ้านท่าชะอม
 // v1.0 — cache-first static, network-only API
 // =====================================================================
-const CACHE_NAME = 'banthacha-om-v26'; // v26: เพิ่ม Doc 13 (สั่งซื้อจ้าง) docx (2026-07-25)
+const CACHE_NAME = 'banthacha-om-v27'; // v27: เพิ่ม Doc 14 (แนบซื้อ) docx (2026-07-25)
 // ⚠️ พบว่า sw.js ใช้ stale-while-revalidate ทุกไฟล์ same-origin (ยกเว้น NO_CACHE_PATHS/HOSTS) รวมถึง
 // js/pdf-templates.js ด้วย — คืน cache เก่าทันทีเสมอ ค่อย update cache ใน background ไว้ใช้รอบถัดไป
 // ทำให้ push โค้ดใหม่ขึ้น GitHub Pages ไม่พอ ต้อง hard refresh ก็ยังไม่เห็นของใหม่ในรอบเดียว (Pam เจอจริง

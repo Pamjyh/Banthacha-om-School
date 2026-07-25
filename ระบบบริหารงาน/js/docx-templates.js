@@ -311,6 +311,7 @@ async function buildDocResult(docIndex, procItemId, opts){
   if(docIndex === 11) return await buildDoc11(procItemId, opts);
   if(docIndex === 12) return await buildDoc12(procItemId, opts);
   if(docIndex === 13) return await buildDoc13(procItemId, opts);
+  if(docIndex === 14) return await buildDoc14(procItemId, opts);
   alert('เอกสารชุดนี้ (#' + docIndex + ' ' + (PD_DOC_NAMES[docIndex] || '') + ') ยังไม่พร้อมใช้งาน — กำลังสร้างทีละชุดตามลำดับ');
   return null;
 }
@@ -318,7 +319,7 @@ async function buildDocResult(docIndex, procItemId, opts){
 // ปุ่ม "ดาวน์โหลดรวมทั้งชุด" — รวมทุกเอกสารที่พร้อมใช้งาน (ตอนนี้ 1-4) เป็นไฟล์เดียว คั่นแต่ละเอกสารด้วย
 // page break (pageBreakBefore บนรูปครุฑของเอกสารถัดไป) ถ้าเอกสารใดยังขาดข้อมูลจำเป็น (วันที่/กรรมการ/
 // รายการย่อย) builder ของเอกสารนั้นจะ alert เองแล้วคืน null — หยุดทั้งชุดทันที ไม่สร้างไฟล์รวมที่เอกสารขาดไป
-const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
+const DOCX_AVAILABLE_DOCS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]; // เพิ่มเลขที่นี่ทุกครั้งที่ Doc ถัดไปสร้างเสร็จ+ผ่าน PASS GATE
 async function downloadAllDocs(){
   if(!CURRENT_PROC_ITEM){ alert('ไม่พบรายการที่กำลังเปิดอยู่'); return; }
   const procItemId = CURRENT_PROC_ITEM.id;
@@ -1525,4 +1526,80 @@ async function buildDoc13(procItemId, opts){
   ]);
 
   return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[13] + '.docx' };
+}
+
+// ---------- Doc 14: แนบซื้อ (รายละเอียดแนบใบสั่งซื้อ/ใบสั่งจ้าง) ----------
+// อ้างอิงไฟล์จริง "14 แนบซื้อ.pdf" (OCR ตกวรรณยุกต์+เรียงสลับหนัก ประกอบใหม่จากบริบท) — แนบท้าย Doc13
+// (ใบสั่งซื้อ/ใบสั่งจ้าง) เหมือน Doc9 แนบท้าย Doc8 ในเชิงโครงสร้าง (หัวเรื่องอ้างเลขที่/วันที่เอกสารแม่ +
+// subItemsTable() + checkbox ที่มาราคา + VAT/จำนวนเงินตัวอักษร) แต่ **ลายเซ็นคัดลอกจาก Doc13 เอง**
+// (ผู้สั่งซื้อ/จ้าง=ผอ. + ผู้รับใบสั่งซื้อ/จ้าง=ร้านค้า) ไม่ใช่ เจ้าหน้าที่/หัวหน้าเจ้าหน้าที่แบบ Doc9 — เพราะ
+// ต้นฉบับจริงแสดงชื่อ ผอ.+ร้านค้าเดียวกับที่เซ็นในใบสั่งจ้างเอง (สมเหตุสมผล เพราะเป็นเอกสารแนบใบสั่งจ้าง
+// ไม่ใช่แนบบันทึกข้อความภายในแบบ Doc9)
+// ⚠️ ใช้ field เดียวกับ Doc13 ทั้งหมด (doc_number เต็ม+"จ."/date_order/vendor_id) ไม่มีข้อสมมติฐานใหม่
+// นอกจาก checkbox ที่มาราคา (สืบจากท้องตลาด) ซึ่งเป็นข้อสมมติฐานเดิมจาก Doc9 อยู่แล้ว
+async function buildDoc14(procItemId, opts){
+  const item = PROC.find(function(x){ return x.id === procItemId; });
+  if(!item){ alert('ไม่พบรายการพัสดุนี้'); return null; }
+
+  const detail = CURRENT_DETAIL;
+  if(!detail){ alert('กรุณาบันทึกข้อมูลในฟอร์ม "กรอกเอกสารพัสดุ" ก่อน แล้วค่อยพิมพ์เอกสาร'); return null; }
+  if(!detail.doc_number){ alert('ยังไม่มีเลขที่เอกสาร กรุณาบันทึกฟอร์มก่อน'); return null; }
+  if(!detail.date_order){ alert('กรุณากรอก "วันที่สั่งซื้อ/จ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+  if(!detail.vendor_id){ alert('กรุณาเลือก "ร้านค้า/ผู้รับจ้าง" ในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const vendor = (VENDORS_LIST || []).find(function(v){ return String(v.id) === String(detail.vendor_id); });
+  if(!vendor){ alert('ไม่พบข้อมูลร้านค้า/ผู้รับจ้างที่เลือกไว้ กรุณาตรวจสอบในฟอร์มก่อนพิมพ์เอกสารนี้'); return null; }
+
+  const buyOrHireShort = item.type === 'จัดซื้อ' ? 'ซื้อ' : 'จ้าง';
+  const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
+  const vendorRole = buyOrHireShort === 'ซื้อ' ? 'ผู้ขาย' : 'ผู้รับจ้าง';
+  const itemTitle = item.title || '-';
+
+  let subItems = [];
+  try{
+    subItems = await GET('procurement_sub_items', 'procurement_item_id=eq.' + procItemId + '&select=*&order=seq');
+  }catch(e){
+    subItems = (CURRENT_SUB_ITEMS || []);
+  }
+  if(!subItems || !subItems.length){
+    alert('ยังไม่มีรายการย่อย กรุณาเพิ่มรายการในฟอร์ม "กรอกเอกสารพัสดุ" แล้วบันทึกก่อนพิมพ์เอกสารนี้');
+    return null;
+  }
+  const totalAmount = subItems.reduce(function(sum, r){ return sum + (Number(r.amount) || 0); }, 0);
+  const vatText = detail.vat_applicable ? fmt(totalAmount * 0.07) : '-';
+
+  const director = findDirector();
+  const directorPrintName = director ? ('(' + (director.prefix || '') + director.name + ')') : '(...........................)';
+
+  const sigTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: NO_BORDERS,
+    rows: [ new TableRow({ children: [
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('ลงชื่อ .......................................  ผู้สั่ง' + buyOrHireShort, { align: AlignmentType.CENTER, after: 0 }),
+        para(directorPrintName, { align: AlignmentType.CENTER, after: 0 }),
+        para('ผู้อำนวยการ' + SCHOOL_FULL_NAME, { align: AlignmentType.CENTER, after: 0 }),
+        para('วันที่ ' + fmtDateThai(detail.date_order), { align: AlignmentType.CENTER, after: 0 })
+      ] }),
+      new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
+        para('ลงชื่อ .......................................  ผู้รับใบสั่ง' + buyOrHireShort, { align: AlignmentType.CENTER, after: 0 }),
+        para('(' + (vendor.contact_name || vendor.name || '-') + ')', { align: AlignmentType.CENTER, after: 0 }),
+        para(vendorRole, { align: AlignmentType.CENTER, after: 0 }),
+        para('วันที่ ' + fmtDateThai(detail.date_order), { align: AlignmentType.CENTER, after: 0 })
+      ] })
+    ] }) ]
+  });
+
+  const children = [
+    garudaPara(Object.assign({ garudaKind: 'memo' }, opts)),
+    para('รายละเอียดแนบใบสั่ง' + buyOrHireShort + ' เลขที่ ' + detail.doc_number + ' ลงวันที่ ' + fmtDateThai(detail.date_order), { align: AlignmentType.CENTER, bold: true, after: 0 }),
+    para('งาน' + buyOrHire + 'พัสดุ' + itemTitle + ' จำนวน ' + subItems.length + ' รายการ', { align: AlignmentType.CENTER, bold: true, after: 0 }),
+    para(SCHOOL_FULL_NAME, { align: AlignmentType.CENTER, bold: true, after: 3 }),
+    subItemsTable(subItems, buyOrHireShort, totalAmount),
+    para('( )  ราคามาตรฐาน      (/)  ราคาที่ได้มาจากการสืบจากท้องตลาด', { noIndent: true, before: 1, after: 1 }),
+    bodyPara('รวมเป็นเงิน ' + fmt(totalAmount) + ' บาท ภาษีมูลค่าเพิ่ม ' + vatText + ' บาท จำนวนเงินตัวอักษร (' + thaiBahtText(totalAmount) + ')', { noIndent: true, before: 1, after: 3 }),
+    sigTable
+  ];
+
+  return { children: children, filename: (detail.doc_number || 'doc').replace(/[\/\\]/g, '-') + '-' + PD_DOC_NAMES[14] + '.docx' };
 }
