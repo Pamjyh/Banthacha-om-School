@@ -390,6 +390,9 @@ async function buildDoc1(procItemId, opts){
   const proposerStaff = findStaffByTeacherName(teacherName);
   const proposerPosition = proposerStaff ? (proposerStaff.position || '-') : '-';
   const proposerPrintName = proposerStaff ? (proposerStaff.prefix + proposerStaff.name) : teacherName;
+  // ⚠️ ถ้าหา staff ไม่เจอ (เช่น teacher_name prefix "ครู" ไม่ตรงกับทะเบียน) proposerPosition จะเป็น "-" —
+  // ตัดวลี "ตำแหน่ง -" ออกทั้งวลีแทนที่จะโชว์ขีดลอยๆ (scrutinize F6, 2026-07-25)
+  const proposerPositionClause = (proposerPosition && proposerPosition !== '-') ? (' ตำแหน่ง ' + proposerPosition) : '';
   const buyOrHire = item.type === 'จัดซื้อ' ? 'จัดซื้อ' : 'จัดจ้าง';
   const projectNameRaw = (item.projects && item.projects.name) || '-';
   const projectName = projectNameRaw.replace(/^โครงการ\s*/, '');
@@ -432,7 +435,7 @@ async function buildDoc1(procItemId, opts){
     headerLine('เรื่อง  ', 'ขออนุมัติดำเนินงานตามโครงการ' + projectName),
     hrPara(),
     para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 2 }),
-    bodyPara('ด้วยข้าพเจ้า ' + proposerPrintName + ' ตำแหน่ง ' + proposerPosition + ' ' + SCHOOL_FULL_NAME +
+    bodyPara('ด้วยข้าพเจ้า ' + proposerPrintName + proposerPositionClause + ' ' + SCHOOL_FULL_NAME +
       ' ขออนุมัติตามที่ได้รับอนุญาตให้ดำเนินงานตามโครงการ' + projectName + ' และขออนุมัติ' + buyOrHire +
       ' จำนวน ' + itemCount + ' รายการ เป็นเงิน ' + fmt(item.amount) + ' บาท (' + thaiBahtText(item.amount) +
       ') เพื่อ' + purpose + ' ตามรายละเอียดในแบบประมาณการ' + buyOrHire + 'ดังแนบ'),
@@ -555,8 +558,7 @@ async function buildDoc3(procItemId, opts){
       new TableCell({ width: { size: 50, type: WidthType.PERCENTAGE }, children: [
         para('หัวหน้าเจ้าหน้าที่', { align: AlignmentType.CENTER, after: 0 }),
         para('ลงชื่อ .......................................', { align: AlignmentType.CENTER, before: 5, after: 0 }),
-        para('(' + headPrintName + ')', { align: AlignmentType.CENTER, after: 0 }),
-        para('( )  เห็นชอบ      ( )  อนุมัติ', { align: AlignmentType.CENTER, after: 0 })
+        para('(' + headPrintName + ')', { align: AlignmentType.CENTER, after: 0 })
       ] })
     ] }) ]
   });
@@ -584,6 +586,10 @@ async function buildDoc3(procItemId, opts){
     para('', { after: 4 }),
     sigRow,
     para('', { after: 4 }),
+    // ⚠️ checkbox "เห็นชอบ/อนุมัติ" ย้ายมาไว้ติดกับลายเซ็น ผอ. ตรงนี้ (scrutinize F5, 2026-07-25) — เดิมอยู่ใน
+    // เซลล์ตารางของหัวหน้าเจ้าหน้าที่ ทำให้ดูเหมือนเป็น checkbox ของหัวหน้าเจ้าหน้าที่ ทั้งที่จริงเป็นการ
+    // ตัดสินใจของ ผอ. เสมอ (ตรงกับ pattern ของ Doc5/6/7/9/10 ที่วาง checkbox ติดลายเซ็น ผอ. ทุกฉบับ)
+    para('( )  เห็นชอบ      ( )  อนุมัติ', { align: AlignmentType.CENTER, after: 1 }),
     para(directorSigRuns, { align: AlignmentType.CENTER, after: 0 })
   ]);
 
@@ -735,7 +741,7 @@ async function buildDoc5(procItemId, opts){
     para('บันทึกข้อความ', { align: AlignmentType.CENTER, bold: true, size: 29, after: 3, exactLinePt: 35 }),
     headerLine('ส่วนราชการ  ', SCHOOL_FULL_NAME + ' ' + SCHOOL_EDU_OFFICE_FULL),
     titleRow('ที่  ', bareDocNumber, 'วันที่  ', fmtDateThai(detail.date_agree_tor)),
-    headerLine('เรื่อง  ', 'ขอความเห็นชอบรายละเอียดคุณลักษณะเฉพาะและราคากลางของ' + buyOrHire + itemTitle),
+    headerLine('เรื่อง  ', 'ขอความเห็นชอบรายละเอียดคุณลักษณะเฉพาะและราคากลางของพัสดุที่จะ' + buyOrHire + itemTitle),
     hrPara(),
     para('เรียน  ผู้อำนวยการ' + SCHOOL_FULL_NAME, { after: 2 }),
     bodyPara('ตามคำสั่ง' + SCHOOL_FULL_NAME + ' ที่ ' + bareDocNumber + ' ลงวันที่ ' + fmtDateThai(detail.date_order_tor) +
@@ -799,8 +805,10 @@ async function buildDoc6(procItemId, opts){
   const officer = findStaffByName(PROCUREMENT_OFFICER_NAME);
   const officerPrintName = officer ? (officer.prefix + officer.name) : PROCUREMENT_OFFICER_NAME;
   const director = findDirector();
+  // ⚠️ แยก "ผู้อำนวยการ" กับชื่อโรงเรียนเป็นคนละ line ตั้งใจ (scrutinize F4, 2026-07-25) — sigRow3 ด้านล่าง
+  // คอลัมน์กว้างแค่ 33% (~53mm) รวมกันเป็นบรรทัดเดียวยาวเกิน Word ตัดคำกลางพยางค์ "บ้านท่า"/"ชะอม"
   const directorSigRuns = director
-    ? multiLineRuns(['ลงชื่อ .......................................', '(' + (director.prefix || '') + director.name + ')', 'ผู้อำนวยการ' + SCHOOL_FULL_NAME])
+    ? multiLineRuns(['ลงชื่อ .......................................', '(' + (director.prefix || '') + director.name + ')', 'ผู้อำนวยการ', SCHOOL_FULL_NAME])
     : [ tr('ลงชื่อ .......................................') ];
 
   const qualParas = DOC6_BIDDER_QUALIFICATIONS.map(function(q, i){
@@ -936,8 +944,9 @@ async function buildDoc7(procItemId, opts){
   const officerPrintName = officer ? (officer.prefix + officer.name) : PROCUREMENT_OFFICER_NAME;
   const director = findDirector();
   const directorSigRuns = director
-    ? multiLineRuns(['ลงชื่อ .......................................', '(' + (director.prefix || '') + director.name + ')', 'ผู้อำนวยการ' + SCHOOL_FULL_NAME])
+    ? multiLineRuns(['ลงชื่อ .......................................', '(' + (director.prefix || '') + director.name + ')', 'ผู้อำนวยการ', SCHOOL_FULL_NAME])
     : [ tr('ลงชื่อ .......................................') ];
+  // ⚠️ แยก "ผู้อำนวยการ" กับชื่อโรงเรียนเป็นคนละ line ตั้งใจ (scrutinize F4, 2026-07-25) — ดูเหตุผลเดียวกับ Doc6
 
   const sigRow3 = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
@@ -1261,7 +1270,7 @@ async function buildDoc10(procItemId, opts){
       buyOrHire + 'จากผู้เสนอราคารายดังกล่าว', { after: 1 }),
     bodyPara('จึงเรียนมาเพื่อโปรดทราบและพิจารณา', { after: 1 }),
     para('1. อนุมัติให้สั่ง' + buyOrHireShort + 'กับ ' + vendorName + ' เป็น' + vendorRole + 'พัสดุ ' + itemTitle + ' จำนวน ' + subItems.length +
-      ' รายการ ในวงเงิน ' + totalAmountText + ' กำหนดเวลาส่งมอบพัสดุภายใน ' + DOC6_DEFAULT_TERM_DAYS + ' วันนับถัดจากวันลงนามสัญญา', { noIndent: true, after: 0.5 }),
+      ' รายการ ในวงเงิน ' + totalAmountText + ' กำหนดเวลาส่งมอบพัสดุภายใน ' + DOC6_DEFAULT_TERM_DAYS + ' วัน นับถัดจากวันลงนามสัญญา', { noIndent: true, after: 0.5 }),
     para('2. ลงนามในใบสั่ง' + buyOrHireShort + ' ดังแนบ', { noIndent: true, after: 1 }),
     sigRow,
     para(directorBlockRuns, { align: AlignmentType.CENTER, before: 1, after: 0 })
@@ -1489,7 +1498,7 @@ async function buildDoc13(procItemId, opts){
       });
     }
     const headerRow = new TableRow({ tableHeader: true, children: [
-      cell('ท', { width: 5, align: AlignmentType.CENTER, bold: true }),
+      cell('ที่', { width: 5, align: AlignmentType.CENTER, bold: true }),
       cell('รายการ', { width: 55, bold: true }),
       cell('จำนวน', { width: 8, align: AlignmentType.CENTER, bold: true }),
       cell('หน่วย', { width: 10, align: AlignmentType.CENTER, bold: true }),
