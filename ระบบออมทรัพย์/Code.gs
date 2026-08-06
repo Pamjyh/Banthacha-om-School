@@ -17,6 +17,29 @@ const NEXT_GRADE = {
 // เทอม: เทอม1 = พ.ค.-ก.ย., เทอม2 = พ.ย.-มี.ค.
 const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
+// แปลง Date object จากเซลล์ Google Sheets (Sheets auto-convert ตอนพิมพ์/วางมือ) เป็นส่วนประกอบวันที่แบบไทยเสมอ
+// ใช้ +7h shift + UTC getters แทน local getters (getDate/getMonth/getFullYear) เพราะไม่ต้องพึ่งว่า
+// GAS Project Settings ตั้ง timezone เป็น Asia/Bangkok ถูกมั้ย — ถูกเสมอไม่ว่า project timezone จะตั้งเป็นอะไร
+// (เดิมมี 2 convention ปนกันในไฟล์นี้: getHistory ใช้ +7h shift, exportMonthly/exportTerm/parseThaiDateStr ใช้ local getter ตรงๆ
+//  รวมเป็นจุดเดียวตรงนี้ กันเพี้ยนถ้าย้าย GAS project แล้ว timezone setting ไม่ตรงกับเดิม — ดู [[project_gas_migration_plan]])
+function thaiDateParts(dateObj) {
+  const thai = new Date(dateObj.getTime() + 7*60*60*1000);
+  const fullYear = thai.getUTCFullYear();
+  const year = fullYear > 2500 ? fullYear : fullYear + 543; // กันกรณี Sheets เก็บเป็น พ.ศ. อยู่แล้ว
+  return {
+    day: thai.getUTCDate(),
+    monthIdx: thai.getUTCMonth(),
+    year: year,
+    hh: String(thai.getUTCHours()).padStart(2,'0'),
+    mm: String(thai.getUTCMinutes()).padStart(2,'0')
+  };
+}
+// ต่อ string ไทยจาก parts — withTime=true ต่อเวลาด้วย (getHistory), false = แค่วันที่ (exportMonthly/exportTerm/parseThaiDateStr)
+function thaiDateStrFromParts(parts, withTime) {
+  var s = parts.day + ' ' + THAI_MONTHS[parts.monthIdx] + ' ' + parts.year;
+  return withTime ? (s + ' ' + parts.hh + ':' + parts.mm) : s;
+}
+
 // ============================================================
 // ENTRY POINT
 // ============================================================
@@ -63,7 +86,7 @@ function handleRequest(e) {
       case 'getGraduated':      result = getGraduated(params); break;
       case 'checkRole':         result = checkRole(params); break;
       case 'initSheets':        result = initSheets(); break;
-      case 'getBootstrap':      result = getBootstrap(); break;
+      case 'getBootstrap':      result = getBootstrap(params); break;
       default: result = { ok: false, error: 'Unknown action: ' + action };
     }
   } catch(err) {
@@ -247,6 +270,7 @@ function sortStudentsByRoll(list) {
 }
 
 function getStudents(p) {
+  if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   // Cache ต่อชั้น (180 วินาที) — ลดการอ่าน sheet ซ้ำ
   if (p.grade) {
     const sCache = CacheService.getScriptCache();
@@ -415,6 +439,17 @@ function deleteStudent(p) {
 // ============================================================
 // TRANSACTIONS
 // ============================================================
+// เพิ่ม header "หมายเหตุ" ต่อท้ายชีต ธุรกรรม ถ้ายังไม่มี — self-healing แทนพึ่ง migration แยกที่มักไม่ถูกรัน
+// (เคยเจอปัญหาคอลัมน์ "เลขที่" ไม่มีอยู่จริงเพราะ initSheets() ไม่เคยถูกเรียก — ระบบนี้กันไว้ไม่ให้เกิดซ้ำ)
+function ensureTxNoteCol(txSheet) {
+  const lastCol = Math.max(txSheet.getLastColumn(), 1);
+  const headers = txSheet.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) { return String(h).trim(); });
+  const idx = headers.indexOf('หมายเหตุ');
+  if (idx >= 0) return idx; // 0-indexed ตรงกับ array column ปกติ
+  txSheet.getRange(1, lastCol + 1).setValue('หมายเหตุ');
+  return lastCol; // ตำแหน่งคอลัมน์ใหม่ (0-indexed = lastCol เดิม)
+}
+
 function addTransaction(p, type) {
   if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   const amount = parseFloat(p.amount);
@@ -476,8 +511,13 @@ function addTransaction(p, type) {
   }
 
   const rowsBefore = txSheet.getLastRow();
-  // append ตรงๆ ตาม column order ที่กำหนด: id, นักเรียน_id, ชื่อ, ชั้น, ประเภท, จำนวนเงิน, ปีการศึกษา, วันที่
-  txSheet.appendRow([id, p.studentId, studentName, studentGrade, type, amount, yearVal, dateStr]);
+  // append ตรงๆ ตาม column order ที่กำหนด: id, นักเรียน_id, ชื่อ, ชั้น, ประเภท, จำนวนเงิน, ปีการศึกษา, วันที่, [หมายเหตุ]
+  // หมายเหตุ (เช่น "ดอกเบี้ย") อยู่คอลัมน์ท้ายสุดเสมอ ตำแหน่งขึ้นกับ ensureTxNoteCol (กันชนกับ column index 0-7 ที่ฟังก์ชันอื่น hardcode ไว้)
+  const noteColIdx = ensureTxNoteCol(txSheet);
+  const rowVals = [id, p.studentId, studentName, studentGrade, type, amount, yearVal, dateStr];
+  while (rowVals.length < noteColIdx) rowVals.push('');
+  rowVals[noteColIdx] = String(p.note || '').trim();
+  txSheet.appendRow(rowVals);
   SpreadsheetApp.flush(); // บังคับ commit
   invalidateBalanceCache();
   const rowsAfter = txSheet.getLastRow();
@@ -572,6 +612,7 @@ function deleteTransaction(p) {
 }
 
 function getHistory(p) {
+  if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const txSheet = ss.getSheetByName('ธุรกรรม');
   if (!txSheet) return { ok: true, transactions: [] };
@@ -595,6 +636,7 @@ function getHistory(p) {
   let tiType  = findH(['ประเภท']);
   let tiAmt   = findH(['จำนวนเงิน']);
   let tiDate  = findH(['วันที่']);
+  let tiNote  = findH(['หมายเหตุ']); // อาจไม่มีถ้าเป็นแถวเก่าก่อนเพิ่มฟีเจอร์นี้ — findH คืน -1 แล้ว fallback เป็น '' ด้านล่าง
 
   // ถ้าหาจากชื่อไม่เจอ (header เป็น "คอลัมน์ 1" etc.) ให้ใช้ position ตามลำดับ
   // format: id, นักเรียน_id, ชื่อ, ชั้น, ประเภท, จำนวนเงิน, ปีการศึกษา, วันที่
@@ -635,18 +677,8 @@ function getHistory(p) {
     .filter(r => r.length > tiId && r[tiId] !== '' && r[tiId] !== null && r[tiId] !== undefined)
     .map(r => {
       const rawDate = r[tiDate];
-      let dateStr = '';
-      if (rawDate instanceof Date) {
-        const thai = new Date(rawDate.getTime() + 7*60*60*1000);
-        const fullYear = thai.getUTCFullYear();
-        // ถ้าปี > 2500 แสดงว่า Sheets เก็บเป็น พ.ศ. อยู่แล้ว ไม่ต้องบวก 543 อีก
-        const y = fullYear > 2500 ? fullYear : fullYear + 543;
-        const hh = String(thai.getUTCHours()).padStart(2,'0');
-        const mm = String(thai.getUTCMinutes()).padStart(2,'0');
-        dateStr = thai.getUTCDate() + ' ' + MONTHS_TH[thai.getUTCMonth()] + ' ' + y + ' ' + hh + ':' + mm;
-      } else {
-        dateStr = String(rawDate || '');
-      }
+      // ใช้ shared helper thaiDateParts (+7h shift) แทนคำนวณเองซ้ำ — รวม convention เดียวกับ parseThaiDateStr/exportMonthly/exportTerm
+      const dateStr = (rawDate instanceof Date) ? thaiDateStrFromParts(thaiDateParts(rawDate), true) : String(rawDate || '');
       return {
         id:        String(r[tiId]  || ''),
         studentId: String(r[tiStu] || ''),
@@ -654,7 +686,8 @@ function getHistory(p) {
         grade:     String(r[tiGrade] || ''),
         type:      String(r[tiType]  || ''),
         amount:    parseFloat(r[tiAmt]) || 0,
-        date:      dateStr
+        date:      dateStr,
+        note:      tiNote >= 0 ? String(r[tiNote] || '') : ''
       };
     });
 
@@ -770,10 +803,8 @@ function exportMonthly(p) {
   // helper แปลงวันที่ทุกรูปแบบ → Thai string
   function toThaiDateStr(val) {
     if (!val) return '';
-    if (val instanceof Date) {
-      // แปลง Date object → Thai format
-      return val.getDate() + ' ' + THAI_MONTHS[val.getMonth()] + ' ' + (val.getFullYear() + 543);
-    }
+    // ใช้ shared helper thaiDateParts (+7h shift) แทน local getter ตรงๆ — รวม convention เดียวกับ getHistory/parseThaiDateStr/exportTerm
+    if (val instanceof Date) return thaiDateStrFromParts(thaiDateParts(val), false);
     return String(val);
   }
 
@@ -940,9 +971,7 @@ function exportMonthly(p) {
 // ถ้าไม่รองรับตรงนี้ แถวที่เป็น Date object จะหลุดจากการกรองแบบเงียบๆ ทันที (String(dateObj) ได้ format คนละแบบ)
 function parseThaiDateStr(dateVal) {
   if (dateVal instanceof Date) {
-    const fullYear = dateVal.getFullYear();
-    const year = fullYear > 2500 ? fullYear : fullYear + 543; // กันกรณีเก็บเป็น พ.ศ. อยู่แล้ว
-    return { day: dateVal.getDate(), monthIdx: dateVal.getMonth(), year: year };
+    return thaiDateParts(dateVal); // ใช้ shared helper (+7h shift) แทน local getter ตรงๆ — ดู thaiDateParts ด้านบน
   }
   var parts = String(dateVal || '').trim().split(' ').filter(function(x){ return x !== ''; });
   if (parts.length < 3) return null;
@@ -1360,8 +1389,9 @@ function exportTerm(p) {
     if (!r[0]) return false;
     // แปลง Date object หรือ string → Thai string
     const rawDate = r[tiDate];
+    // ใช้ shared helper thaiDateParts (+7h shift) แทน local getter ตรงๆ — รวม convention เดียวกับ getHistory/parseThaiDateStr/exportMonthly
     const dateStr = (rawDate instanceof Date)
-      ? rawDate.getDate() + ' ' + THAI_MONTHS[rawDate.getMonth()] + ' ' + (rawDate.getFullYear()+543)
+      ? thaiDateStrFromParts(thaiDateParts(rawDate), false)
       : String(rawDate || '');
     const gradeMatch = !grade || String(r[tiGrade] || '') === grade;
     const monthMatch = termMonths.some(m => {
@@ -1377,8 +1407,9 @@ function exportTerm(p) {
     const type = String(r[tiType] || '');
     const amt = parseFloat(r[tiAmt]) || 0;
     const rawDate = r[tiDate];
+    // ใช้ shared helper thaiDateParts (+7h shift) แทน local getter ตรงๆ — รวม convention เดียวกับ getHistory/parseThaiDateStr/exportMonthly
     const dateStr = (rawDate instanceof Date)
-      ? rawDate.getDate() + ' ' + THAI_MONTHS[rawDate.getMonth()] + ' ' + (rawDate.getFullYear()+543)
+      ? thaiDateStrFromParts(thaiDateParts(rawDate), false)
       : String(rawDate || '');
     let monthLabel = '';
     THAI_MONTHS.forEach((m, i) => { if (dateStr.includes(m)) monthLabel = m; });
@@ -1498,7 +1529,8 @@ function getGraduated(p) {
 // ============================================================
 // BOOTSTRAP — คืนนักเรียนทุกชั้นในคำขอเดียว (ลด 8 calls → 1 call)
 // ============================================================
-function getBootstrap() {
+function getBootstrap(p) {
+  if (!checkAuth(p || {})) return { ok: false, error: 'ไม่มีสิทธิ์' };
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const studSheet = ss.getSheetByName('นักเรียน');
   if (!studSheet) return { ok: false, error: 'ไม่พบ sheet นักเรียน' };
@@ -1663,7 +1695,7 @@ function testPromoteAndBalance() {
   var txSheet   = ss.getSheetByName('ธุรกรรม');
 
   // 1. ดูนักเรียน ป.6 ก่อนเลื่อนชั้น
-  var before = getStudents({ grade: 'ป.6' });
+  var before = getStudents({ grade: 'ป.6', password: TEACHER_PASSWORD });
   Logger.log('นักเรียน ป.6 ก่อนเลื่อน: ' + before.students.length + ' คน');
   before.students.forEach(function(s) {
     Logger.log('  ' + s.name + ' | ยอด: ' + s.balance + ' บาท | สถานะ: ' + s.status);
@@ -1682,7 +1714,7 @@ function testPromoteAndBalance() {
   });
 
   // 4. ตรวจว่า ป.6 ไม่แสดงในรายชื่อปกติแล้ว
-  var after = getStudents({ grade: 'ป.6' });
+  var after = getStudents({ grade: 'ป.6', password: TEACHER_PASSWORD });
   Logger.log('\nนักเรียน ป.6 หลังเลื่อน: ' + after.students.length + ' คน (ควรเป็น 0)');
 
   Logger.log('\n✅ สรุป: ยอดเงินยังอยู่ครบ เพียงแต่ย้ายไปอยู่ในหน้า "จบแล้ว"');
@@ -1749,7 +1781,7 @@ function debugHistory() {
   }
 
   // ลองรัน getHistory จริง
-  var result = getHistory({ grade: 'ป.1', limit: '5' });
+  var result = getHistory({ grade: 'ป.1', limit: '5', password: TEACHER_PASSWORD });
   Logger.log('getHistory result ok=' + result.ok + ' count=' + result.transactions.length);
   if (result.transactions.length > 0) {
     Logger.log('Sample tx date: [' + result.transactions[0].date + ']');
@@ -1794,14 +1826,14 @@ function testTodayFilter() {
   Logger.log('Today Thai string: ' + todayStr);
   
   // ดูข้อมูลในชั้น ป.1
-  var result = getHistory({ grade: 'ป.1', limit: '5' });
+  var result = getHistory({ grade: 'ป.1', limit: '5', password: TEACHER_PASSWORD });
   Logger.log('Total transactions: ' + result.transactions.length);
   result.transactions.forEach(function(t) {
     Logger.log('date: [' + t.date + '] | starts with today: ' + (t.date.indexOf(todayStr) === 0));
   });
   
   // ทดสอบ filter
-  var filtered = getHistory({ grade: 'ป.1', date: todayStr, limit: '100' });
+  var filtered = getHistory({ grade: 'ป.1', date: todayStr, limit: '100', password: TEACHER_PASSWORD });
   Logger.log('Filtered (today only): ' + filtered.transactions.length);
 }
 

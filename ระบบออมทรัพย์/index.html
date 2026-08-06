@@ -1053,6 +1053,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <div class="mok" id="tx-ok"></div>
     <div class="merr" id="tx-err"></div>
     <input class="minp" type="number" id="tx-amt" placeholder="จำนวนเงิน (บาท)" min="0.01" step="0.01">
+    <input class="minp" id="tx-note" placeholder="หมายเหตุ (ถ้ามี เช่น ดอกเบี้ย)">
     <div class="mbtns">
       <button class="mbtn mbtn-c" onclick="closeMo('tx')">ยกเลิก</button>
       <button class="mbtn" id="tx-confirm" onclick="confirmTx()">ยืนยัน</button>
@@ -1324,7 +1325,7 @@ function bootstrapTeacher() {
       '</div>';
   }).join('');
 
-  apiCall({action:'getBootstrap'}, function(r) {
+  apiCall({action:'getBootstrap', password:_pw}, function(r) {
     if (!r.ok) {
       // GAS ยังไม่ได้ deploy ใหม่ — fallback เป็น 8 calls แบบเดิม
       if (r.error && r.error.indexOf('Unknown action') >= 0) { renderGrades(); return; }
@@ -1364,7 +1365,7 @@ function renderGrades() {
   }).join('');
   GRADES.forEach(function(g){
     if (cache[g]) return;
-    apiCall({action:'getStudents',grade:g},function(r){
+    apiCall({action:'getStudents',grade:g,password:_pw},function(r){
       var el2=document.getElementById('gci-'+g.replace('.','_'));
       if (!el2) return;
       if (!r.ok) {
@@ -1404,7 +1405,7 @@ function loadStus(forceRefresh) {
   }
   delete cache[curGrade]; ccDel('stus_'+curGrade);
   document.getElementById('stu-list').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
-  apiCall({action:'getStudents',grade:curGrade},function(r){
+  apiCall({action:'getStudents',grade:curGrade,password:_pw},function(r){
     if (!r.ok) {
       document.getElementById('stu-list').innerHTML=
         '<div style="padding:20px;text-align:center;color:#c0392b">'+
@@ -1507,7 +1508,7 @@ function openStuHist(id) {
   document.getElementById('hist-sub').textContent = 'ชั้น ' + s.grade + ' · ยอดคงเหลือปัจจุบัน ' + fmt(s.balance) + ' บาท';
   document.getElementById('hist-list').innerHTML = '<div class="load">⏳...</div>';
   openMo('hist');
-  apiCall({action:'getHistory', studentId:id, limit:1000}, function(r) {
+  apiCall({action:'getHistory', studentId:id, limit:1000, password:_pw}, function(r) {
     if (seq !== _histSeq) return; // มีคนกดเปิดคนใหม่ทับไปแล้ว ทิ้ง response เก่านี้ (F1)
     var el = document.getElementById('hist-list');
     if (!r.ok) { // F2: แยก error ออกจาก "ยังไม่มีประวัติ" จริงๆ กันเข้าใจผิดว่าเด็กไม่เคยฝากเลย
@@ -1525,7 +1526,7 @@ function openStuHist(id) {
       running = isD ? running - t.amount : running + t.amount; // ถอยยอดกลับไปหา "ก่อนรายการนี้" = "หลังรายการที่เก่ากว่าถัดไป"
       return '<div class="txi">'+
         '<div class="txb '+(isD?'d':'w')+'">'+(isD?'💰':'💸')+'</div>'+
-        '<div class="txi-info"><div class="txn">'+t.type+'</div>'+
+        '<div class="txi-info"><div class="txn">'+t.type+(t.note?' · '+esc(t.note):'')+'</div>'+
         '<div class="txd">'+fmtDate(t.date)+'</div></div>'+
         '<div style="text-align:right;flex-shrink:0">'+
         '<div class="txa '+(isD?'d':'w')+'">'+(isD?'+':'-')+fmt(t.amount)+' ฿</div>'+
@@ -1547,7 +1548,7 @@ function dateOnly(dateStr) {
 function loadGradeTx() {
   var el=document.getElementById('tx-grade');
   el.innerHTML='<div class="load">⏳...</div>';
-  apiCall({action:'getHistory',grade:curGrade,limit:1000},function(r){
+  apiCall({action:'getHistory',grade:curGrade,limit:1000,password:_pw},function(r){
     if (r.ok) {
       gradeTxAll = r.transactions || [];
       buildGradeTxDateFilter();
@@ -1698,7 +1699,7 @@ function doLoadMonthData() {
   _monthWaitCount = 0;
   if (mEl) mEl.innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
 
-  apiCall({action:'getHistory', grade:curGrade, limit:1000}, function(r) {
+  apiCall({action:'getHistory', grade:curGrade, limit:1000, password:_pw}, function(r) {
     if (!r.ok) { if(mEl) mEl.innerHTML='<div class="load">โหลดไม่ได้: '+r.error+'</div>'; return; }
 
     // กรองตามเดือน/ปีที่เลือก — ผ่าน fmtDate() ก่อนเพื่อรองรับทั้ง ISO และ Thai format
@@ -1805,7 +1806,7 @@ function ensureTodayDepCache(cb) {
   var now = new Date(Date.now() + 7*60*60*1000);
   var todayStr = now.getUTCDate()+' '+MONTHS_SHORT[now.getUTCMonth()]+' '+(now.getUTCFullYear()+543);
   if (_todayDepIds && _todayDepGrade===curGrade && _todayDepDateStr===todayStr) { if(cb) cb(); return; }
-  apiCall({action:'getHistory', grade:curGrade, date:todayStr, limit:500}, function(r){
+  apiCall({action:'getHistory', grade:curGrade, date:todayStr, limit:500, password:_pw}, function(r){
     if (!r.ok) return; // fail-open — ไม่เจอไม่เป็นไร แค่ไม่มีการเตือน
     var ids={};
     (r.transactions||[]).forEach(function(t){ if(t.type==='ฝาก') ids[t.studentId]=true; });
@@ -1843,7 +1844,7 @@ function loadTodaySummary() {
   var dateLabel = now.getUTCDate()+' '+MONTHS_FULL[now.getUTCMonth()]+' '+(now.getUTCFullYear()+543);
 
   // ส่ง date ไปให้ server กรองให้เลย ไม่ต้องกรองใน browser
-  apiCall({action:'getHistory', grade:curGrade, date:todayStr, limit:500}, function(r){
+  apiCall({action:'getHistory', grade:curGrade, date:todayStr, limit:500, password:_pw}, function(r){
     if (!r.ok) {el.innerHTML='<div class="load">โหลดไม่ได้: '+r.error+'</div>'; return;}
     var todayTxs = r.transactions || [];
 
@@ -2057,6 +2058,7 @@ function openTx(mode) {
   var amt=document.getElementById('tx-amt');
   amt.value=''; amt.disabled=false;
   amt.placeholder=isD?'จำนวนเงินที่ฝาก (บาท)':'จำนวนเงินที่ถอน (สูงสุด '+fmt(selStu.balance)+' บาท)';
+  document.getElementById('tx-note').value='';
   hide('tx-ok'); hide('tx-err');
   var zone=document.getElementById('tx-confirm-zone');
   if(zone) zone.style.display='none';
@@ -2105,7 +2107,8 @@ function confirmTx() {
   btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...';
   hide('tx-ok'); hide('tx-err');
   var action=txMode==='dep'?'deposit':'withdraw';
-  apiCall({action:action,studentId:selStu.id,amount:amt,password:_pw,grade:selStu.grade||''},function(r){
+  var note=document.getElementById('tx-note').value.trim();
+  apiCall({action:action,studentId:selStu.id,amount:amt,password:_pw,grade:selStu.grade||'',note:note},function(r){
     btn.disabled=false; btn.textContent=origText;
     if (!r.ok) {
       document.getElementById('tx-amt').disabled=false;
@@ -2456,7 +2459,7 @@ function loadAdTxData() {
 
   document.getElementById('adtxl').innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
 
-  apiCall({action:'getHistory', limit:params.limit, date:params.date||'', month:params.month||'', year:params.year||''}, function(r) {
+  apiCall({action:'getHistory', limit:params.limit, date:params.date||'', month:params.month||'', year:params.year||'', password:_pw}, function(r) {
     if (!r.ok) { document.getElementById('adtxl').innerHTML='<div class="load">โหลดไม่ได้</div>'; return; }
     var txs = r.transactions || [];
 
@@ -2682,7 +2685,9 @@ function showErr(id,msg) {var e=document.getElementById(id+'-err');e.textContent
   var el=document.getElementById('api-status');
   if(!el) return;
   apiCall({action:'getStudents',grade:'ป.1'},function(r){
-    if(r.ok){
+    // เช็คก่อน login เลยไม่มี _pw ให้ส่ง — r.ok=false เพราะ "ไม่มีสิทธิ์" ก็ถือว่าเชื่อมต่อ backend สำเร็จแล้ว
+    // (พิสูจน์ว่า deployment ตอบสนองจริง แค่ปฏิเสธเพราะไม่มีรหัส ซึ่งถูกต้องแล้วตอนยังไม่ login)
+    if(r.ok || r.error==='ไม่มีสิทธิ์'){
       el.style.background='rgba(0,117,74,0.8)';
       el.textContent='✅ เชื่อมต่อสำเร็จ · ระบบพร้อมใช้งาน';
     } else {
