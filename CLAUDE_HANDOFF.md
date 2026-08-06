@@ -359,6 +359,20 @@ duty_types: `['ไปราชการ','อบรม','ประชุม','�
 ### TODO
 - 🔵 Phase 3: offline fallback สำหรับ face-api models (~6MB) — low priority
 
+### ✅ Security hardening (2026-07-11) — พบระหว่างวิเคราะห์ระบบตามคำขอ Pam
+
+**🔴 แก้แล้ว: `settings.admin_hash` (hash รหัสผ่านแอดมิน) เคยอ่านได้แบบ public**
+- Root cause: table-level `GRANT SELECT` ให้ `anon`/`authenticated` ครอบทุกคอลัมน์เป็น default ของ Supabase อยู่แล้ว RLS policy `anyone can read settings` (`qual:true`) จึงเปิดอ่าน `admin_hash` ได้ตรงๆ ผ่าน REST API โดยไม่ต้องผ่านแอปเลย — frontend เองก็ดึงมาโดยไม่ได้ใช้ (`index.html:310` เดิมใช้ `select('*')`)
+- ผลกระทบ: ใครก็ตามที่มี anon key (ฝังอยู่ใน page source) brute-force hash แบบ offline ได้ ข้าม rate-limit 5 ครั้ง/15 นาทีของแอปไปเลย
+- **บทเรียนสำคัญ**: ลองแก้รอบแรกด้วย `REVOKE ... (admin_hash) ...` (column-level revoke) แล้ว**ไม่เวิร์ก** — เพราะ column-level REVOKE ไม่สามารถ carve-out จาก table-level GRANT ที่มีอยู่ก่อนได้ ต้อง `REVOKE SELECT` ที่ระดับตารางก่อน แล้ว `GRANT SELECT (คอลัมน์ที่ปลอดภัย)` ใหม่ถึงจะบล็อกได้จริง (verified ด้วย `SET LOCAL ROLE anon` แล้วลอง query ตรงๆ)
+- แก้แล้ว (migration `fix_settings_admin_hash_column_grant_properly`) + แก้ frontend เป็น select เฉพาะคอลัมน์ที่ต้องใช้จริง
+- `employees.face_descriptor`/`face_descriptors` (ข้อมูลใบหน้า) **ไม่แก้** เพราะจำเป็นต้อง public เนื่องจากแอป face-match ฝั่ง browser ล้วน (ไม่มี server-side matching) — เป็นข้อจำกัดสถาปัตยกรรม ไม่ใช่บั๊ก
+
+**🟡 แก้แล้ว: 7 signature ของฟังก์ชัน SECURITY DEFINER ไม่ได้ pin `search_path`**
+`admin_set_hash`, `admin_update_employee_photo` (ทั้ง 2 overload json/jsonb), `admin_add_face_descriptor`, `get_line_quota_info`, `refresh_line_quota_cache`, `send_line_evening_summary` — เพิ่ม `SET search_path = public` ให้ทุกตัว (migration `security_hardening_settings_admin_hash_and_search_path`) กัน search_path hijacking theoretical risk — verified ไม่ regression (`get_line_quota_info()` เรียกผ่าน anon role ยังทำงานปกติ)
+
+**ยังไม่แก้ (ต่ำ ไม่เร่งด่วน)**: `employees.pin` column ไม่ถูกใช้ในโค้ดเลย (grep ไม่เจอ) เป็นของเก่า, ไม่มี index บน `attendance.employee_id`/`leaves.employee_id`, `pg_net` extension อยู่ใน public schema (Supabase แนะนำย้าย แต่เสี่ยงถ้าแตะเอง ไม่แนะนำ)
+
 ---
 
 ## 5. ระบบสารบัญ

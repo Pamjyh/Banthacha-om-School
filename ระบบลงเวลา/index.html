@@ -307,7 +307,7 @@ function photoImg(emp, w='100%', h='100%', radius='0'){
 }
 
 async function boot(){
-  const {data:s}=await sb.from('settings').select('*').single();
+  const {data:s}=await sb.from('settings').select('id,school_name,office_lat,office_lng,radius,holidays,extra_workdays,updated_at').single();
   settingsCache=s||{school_name:'ระบบลงเวลาปฏิบัติงาน โรงเรียนบ้านท่าชะอม',office_lat:13.7563,office_lng:100.5018,radius:200};
   document.getElementById('navTitle').textContent=settingsCache.school_name;
   await renderKiosk();
