@@ -1052,7 +1052,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <div class="ms" id="tx-sub"></div>
     <div class="mok" id="tx-ok"></div>
     <div class="merr" id="tx-err"></div>
-    <input class="minp" type="number" id="tx-amt" placeholder="จำนวนเงิน (บาท)" min="1">
+    <input class="minp" type="number" id="tx-amt" placeholder="จำนวนเงิน (บาท)" min="0.01" step="0.01">
     <div class="mbtns">
       <button class="mbtn mbtn-c" onclick="closeMo('tx')">ยกเลิก</button>
       <button class="mbtn" id="tx-confirm" onclick="confirmTx()">ยืนยัน</button>
@@ -1101,7 +1101,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <div class="mt">✏️ แก้ไขยอดเงิน</div>
     <div class="ms" id="etx-sub"></div>
     <div class="merr" id="etx-err"></div>
-    <input class="minp" type="number" id="etx-amt" placeholder="จำนวนเงินใหม่ (บาท)" min="1">
+    <input class="minp" type="number" id="etx-amt" placeholder="จำนวนเงินใหม่ (บาท)" min="0.01" step="0.01">
     <div class="mbtns">
       <button class="mbtn mbtn-c" onclick="closeMo('etx')">ยกเลิก</button>
       <button class="mbtn mbtn-b" onclick="confirmEditTx()">✓ บันทึก</button>
@@ -1189,7 +1189,9 @@ function fmtDate(v) {
   // Thai string อยู่แล้ว
   return s;
 }
-function fmt(n) { return Math.round(Number(n||0)).toLocaleString('th-TH'); }
+// ไม่ปัดทศนิยม (Math.round เดิม) — มีดอกเบี้ยที่โพสต์เป็นเศษสตางค์ ปัดแล้วยอดจะไม่ตรงกับสมุดบัญชีจริง
+// โชว์สูงสุด 2 ทศนิยม (หน่วยสตางค์) แบบเดียวกับที่แบงก์แสดง ไม่โชว์ .00 ห้อยถ้าเป็นจำนวนเต็มพอดี
+function fmt(n) { return Number(n||0).toLocaleString('th-TH', {minimumFractionDigits:0, maximumFractionDigits:2}); }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;'); }
 function hide(id) { var e=document.getElementById(id); if(e) e.style.display='none'; }
 function toast(msg,type) {
@@ -1456,7 +1458,7 @@ function renderStus() {
       '<div class="smeta">เข้าปี '+(s.entryYear||'-')+(s.bankAccount?' · '+esc(s.bankAccount):'')+'</div></div>'+
       '<div class="sbal"><div class="sbv" style="color:'+bc+'">'+fmt(s.balance)+' ฿</div>'+
       '<div class="sbl">สะสม</div></div>'+
-      '<button class="ebtn" onclick="event.stopPropagation();openStuHist(\''+s.id+'\',\''+esc(s.name)+'\',\''+esc(s.grade)+'\','+s.balance+')">📋</button>'+
+      '<button class="ebtn" onclick="event.stopPropagation();openStuHist(\''+s.id+'\')">📋</button>'+
       '<button class="ebtn" onclick="event.stopPropagation();openEdit(\''+s.id+'\',\''+esc(s.name)+'\',\''+esc(s.bankAccount||'')+'\',\''+esc(s.rollNo||'')+'\')">✏️</button>'+
       (role==='admin'?'<button class="ebtn del" onclick="event.stopPropagation();askDelStu(\''+s.id+'\',\''+esc(s.name)+'\','+s.balance+')">🗑️</button>':'')+
       '</div>';
@@ -1494,18 +1496,29 @@ function pickStu(id) {
 
 // ประวัติธุรกรรมรายคน (ครู) — reuse getHistory(studentId) เดิม (backend รองรับ filter นี้อยู่แล้ว ไม่ต้องแก้ Code.gs)
 // backend คืนมาเรียงล่าสุดก่อนเสมอ — คำนวณ "ยอดคงเหลือหลังรายการ" ย้อนจากยอดปัจจุบัน (balance) ไล่ถอยไปทีละรายการ
-function openStuHist(id, name, grade, balance) {
-  document.getElementById('hist-title').textContent = '📋 ' + name;
-  document.getElementById('hist-sub').textContent = 'ชั้น ' + grade + ' · ยอดคงเหลือปัจจุบัน ' + fmt(balance) + ' บาท';
+// F1 fix: _histSeq กัน response เก่าทับผลลัพธ์ใหม่ถ้ากดเปิดคนอื่นก่อน request แรกตอบ
+// F3 fix: lookup s.balance สดจาก allStus ตอนเรียก ไม่รับค่า balance ที่ bake มาจาก render ครั้งก่อน (ลด coupling)
+var _histSeq = 0;
+function openStuHist(id) {
+  var s = allStus.filter(function(x){return x.id===id;})[0];
+  if (!s) return;
+  var seq = ++_histSeq;
+  document.getElementById('hist-title').textContent = '📋 ' + s.name;
+  document.getElementById('hist-sub').textContent = 'ชั้น ' + s.grade + ' · ยอดคงเหลือปัจจุบัน ' + fmt(s.balance) + ' บาท';
   document.getElementById('hist-list').innerHTML = '<div class="load">⏳...</div>';
   openMo('hist');
   apiCall({action:'getHistory', studentId:id, limit:1000}, function(r) {
+    if (seq !== _histSeq) return; // มีคนกดเปิดคนใหม่ทับไปแล้ว ทิ้ง response เก่านี้ (F1)
     var el = document.getElementById('hist-list');
-    if (!r.ok || !r.transactions || !r.transactions.length) {
+    if (!r.ok) { // F2: แยก error ออกจาก "ยังไม่มีประวัติ" จริงๆ กันเข้าใจผิดว่าเด็กไม่เคยฝากเลย
+      el.innerHTML = '<div style="text-align:center;color:var(--red);font-size:13px;padding:1rem">❌ โหลดประวัติไม่สำเร็จ: '+esc(r.error||'ไม่ทราบสาเหตุ')+'</div>';
+      return;
+    }
+    if (!r.transactions || !r.transactions.length) {
       el.innerHTML = '<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีประวัติธุรกรรม</div>';
       return;
     }
-    var running = balance; // ยอดหลังรายการล่าสุด (แรกสุดใน array) = ยอดปัจจุบันเสมอ
+    var running = s.balance; // ยอดหลังรายการล่าสุด (แรกสุดใน array) = ยอดปัจจุบันเสมอ
     el.innerHTML = r.transactions.map(function(t) {
       var isD = t.type === 'ฝาก';
       var balAfter = running;
@@ -1904,7 +1917,7 @@ function renderBulk() {
   document.getElementById('bulk-body').innerHTML=allStus.map(function(s){
     return '<tr><td>'+esc(s.name)+'</td>'+
       '<td style="color:var(--ga);font-weight:600">'+fmt(s.balance)+' ฿</td>'+
-      '<td><input class="binp" type="number" min="1" id="bi-'+s.id+'" placeholder="0"'+
+      '<td><input class="binp" type="number" min="0.01" step="0.01" id="bi-'+s.id+'" placeholder="0"'+
       ' oninput="this.classList.toggle(\'hv\',this.value>0);updBulk()" onfocus="this.select()"></td></tr>';
   }).join('');
 }
