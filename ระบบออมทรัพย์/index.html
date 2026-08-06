@@ -72,7 +72,6 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .ab-wit{background:transparent;color:var(--red);border-color:var(--red)}.ab-wit:hover{background:var(--red);color:#fff}
 .ab-bulk{background:transparent;color:var(--ga);border-color:var(--ga)}.ab-bulk:hover{background:var(--ga);color:#fff}
 .ab-add{background:var(--hg);color:#fff;border-color:var(--hg)}.ab-add:hover{opacity:.88}
-.ab-roll{background:transparent;color:var(--gu);border-color:var(--gu)}.ab-roll:hover{background:var(--gu);color:#fff}
 
 .st{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;letter-spacing:-0.01em}
 
@@ -924,7 +923,10 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
       <button class="ab ab-wit" onclick="openTx('wit')">💸 ถอน</button>
       <button class="ab ab-bulk" onclick="goBulk()">📋 ฝากรวม</button>
       <button class="ab ab-add" onclick="openAdd()">➕ เพิ่ม</button>
-      <button class="ab ab-roll" onclick="goBulkRoll()">🔢 เลขที่</button>
+    </div>
+    <!-- 🔢 เลขที่ ย้ายออกจากแถบปุ่มหลัก (2026-08-06): ซ้ำซ้อนกับช่องเลขที่ในปุ่ม ➕ เพิ่ม (ทั้งเพิ่มทีละคนและพิมพ์นำหน้าหลายคน) และปุ่ม ✏️ ต่อคน ใช้ไม่บ่อยพอที่จะครองที่บนแถวปุ่มหลัก 5 ปุ่มซึ่งล้นแถวบนจอเล็ก เหลือลิงก์รองบางๆ ไว้ตรงนี้แทน (ยังเรียก goBulkRoll() เดิม ไปหน้า pg-bulkroll เดิม ไม่ได้แก้ logic) -->
+    <div style="text-align:right;margin:-6px 0 12px">
+      <button type="button" onclick="goBulkRoll()" style="background:none;border:none;color:var(--ts);font-size:12px;text-decoration:underline;cursor:pointer;font-family:'Sarabun',sans-serif;padding:4px">🔢 แก้เลขที่นักเรียนที่มีอยู่แล้วเป็นชุด</button>
     </div>
     <!-- ช่องค้นหา -->
     <div style="position:relative;margin-bottom:10px">
