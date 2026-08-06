@@ -204,7 +204,7 @@ a { color: inherit; text-decoration: none; }
 /* ─────────────────────────────────────────────
    GREETING
 ───────────────────────────────────────────── */
-#greeting-section { padding: 28px 0 4px; }
+#greeting-section { padding: 28px 0 4px; display: none; } /* ซ้ำกับ header-clock บนจอกว้าง โผล่เฉพาะมือถือ (ดู media query ด้านล่าง) */
 .greeting-main { font-size: 22px; font-weight: 700; color: var(--ink); }
 .greeting-sub { font-size: 15px; color: var(--ink-muted); margin-top: 4px; }
 
@@ -459,7 +459,7 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 767px) {
   #site-header { padding: 16px 20px; }
   .header-clock { display: none; }
-  #greeting-section { padding: 20px 0 0; }
+  #greeting-section { padding: 20px 0 0; display: block; } /* header-clock ซ่อนบนมือถือ เลยต้องโชว์ตรงนี้แทน */
   .greeting-main { font-size: 20px; }
 }
 @media (max-width: 539px) {
