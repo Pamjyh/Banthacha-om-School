@@ -2,7 +2,7 @@
 // Service Worker — โรงเรียนบ้านท่าชะอม
 // v1.0 — cache-first static, network-only API
 // =====================================================================
-const CACHE_NAME = 'banthacha-om-v32'; // v32: ระบบลงเวลา index.html เลิก select('*') จาก settings (Supabase revoke SELECT ทั้งตารางแล้ว grant เฉพาะคอลัมน์ปลอดภัย — cache เก่าจะ select('*') แล้วโดน permission denied ตกไปใช้ office_lat/lng default ผิดที่ ทำให้เช็คอินจริงพังจนกว่า cache จะ refresh) (2026-07-11)
+const CACHE_NAME = 'banthacha-om-v33'; // v33: ระบบบริหารงาน แก้ responsive/text-overlap บนมือถือ (modal max-width bug 7 จุด + grid breakpoints) (2026-08-06)
 // ⚠️ พบว่า sw.js ใช้ stale-while-revalidate ทุกไฟล์ same-origin (ยกเว้น NO_CACHE_PATHS/HOSTS) รวมถึง
 // js/pdf-templates.js ด้วย — คืน cache เก่าทันทีเสมอ ค่อย update cache ใน background ไว้ใช้รอบถัดไป
 // ทำให้ push โค้ดใหม่ขึ้น GitHub Pages ไม่พอ ต้อง hard refresh ก็ยังไม่เห็นของใหม่ในรอบเดียว (Pam เจอจริง
