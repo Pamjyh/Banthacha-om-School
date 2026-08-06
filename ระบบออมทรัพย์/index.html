@@ -1133,6 +1133,20 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
   </div>
 </div>
 
+<!-- ประวัติธุรกรรมรายคน (สำหรับครู) — ดู BLUEPRINT ไม่มี เพราะเป็นงานเล็ก ไม่ต้อง grill: reuse getHistory(studentId) เดิม + สไตล์เดียวกับฝั่งผู้ปกครอง (.txi/.txb/.txn/.txd/.txa) เพิ่มยอดคงเหลือหลังรายการ -->
+<div class="mo" id="mo-hist" onclick="if(event.target===this)closeMo('hist')">
+  <div class="mb mb-wide">
+    <div class="mt" id="hist-title">📋 ประวัติ</div>
+    <div class="ms" id="hist-sub"></div>
+    <div style="max-height:55vh;overflow-y:auto;margin:10px 0">
+      <div class="txl" id="hist-list"></div>
+    </div>
+    <div class="mbtns">
+      <button class="mbtn mbtn-c" onclick="closeMo('hist')">ปิด</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ===== CONFIG =====
 var API = 'https://script.google.com/macros/s/AKfycbw5c3iHyVPVE4MoGJ5zE14O2N8Y1zQQ44AZngbvnkipgPZuEZopfeTIFlGgEB5vRPTTNw/exec';
@@ -1442,6 +1456,7 @@ function renderStus() {
       '<div class="smeta">เข้าปี '+(s.entryYear||'-')+(s.bankAccount?' · '+esc(s.bankAccount):'')+'</div></div>'+
       '<div class="sbal"><div class="sbv" style="color:'+bc+'">'+fmt(s.balance)+' ฿</div>'+
       '<div class="sbl">สะสม</div></div>'+
+      '<button class="ebtn" onclick="event.stopPropagation();openStuHist(\''+s.id+'\',\''+esc(s.name)+'\',\''+esc(s.grade)+'\','+s.balance+')">📋</button>'+
       '<button class="ebtn" onclick="event.stopPropagation();openEdit(\''+s.id+'\',\''+esc(s.name)+'\',\''+esc(s.bankAccount||'')+'\',\''+esc(s.rollNo||'')+'\')">✏️</button>'+
       (role==='admin'?'<button class="ebtn del" onclick="event.stopPropagation();askDelStu(\''+s.id+'\',\''+esc(s.name)+'\','+s.balance+')">🗑️</button>':'')+
       '</div>';
@@ -1475,6 +1490,36 @@ function renderStats() {
 function pickStu(id) {
   selStu=allStus.filter(function(s){return s.id===id;})[0]||null;
   renderStus();
+}
+
+// ประวัติธุรกรรมรายคน (ครู) — reuse getHistory(studentId) เดิม (backend รองรับ filter นี้อยู่แล้ว ไม่ต้องแก้ Code.gs)
+// backend คืนมาเรียงล่าสุดก่อนเสมอ — คำนวณ "ยอดคงเหลือหลังรายการ" ย้อนจากยอดปัจจุบัน (balance) ไล่ถอยไปทีละรายการ
+function openStuHist(id, name, grade, balance) {
+  document.getElementById('hist-title').textContent = '📋 ' + name;
+  document.getElementById('hist-sub').textContent = 'ชั้น ' + grade + ' · ยอดคงเหลือปัจจุบัน ' + fmt(balance) + ' บาท';
+  document.getElementById('hist-list').innerHTML = '<div class="load">⏳...</div>';
+  openMo('hist');
+  apiCall({action:'getHistory', studentId:id, limit:1000}, function(r) {
+    var el = document.getElementById('hist-list');
+    if (!r.ok || !r.transactions || !r.transactions.length) {
+      el.innerHTML = '<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีประวัติธุรกรรม</div>';
+      return;
+    }
+    var running = balance; // ยอดหลังรายการล่าสุด (แรกสุดใน array) = ยอดปัจจุบันเสมอ
+    el.innerHTML = r.transactions.map(function(t) {
+      var isD = t.type === 'ฝาก';
+      var balAfter = running;
+      running = isD ? running - t.amount : running + t.amount; // ถอยยอดกลับไปหา "ก่อนรายการนี้" = "หลังรายการที่เก่ากว่าถัดไป"
+      return '<div class="txi">'+
+        '<div class="txb '+(isD?'d':'w')+'">'+(isD?'💰':'💸')+'</div>'+
+        '<div class="txi-info"><div class="txn">'+t.type+'</div>'+
+        '<div class="txd">'+fmtDate(t.date)+'</div></div>'+
+        '<div style="text-align:right;flex-shrink:0">'+
+        '<div class="txa '+(isD?'d':'w')+'">'+(isD?'+':'-')+fmt(t.amount)+' ฿</div>'+
+        '<div style="font-size:10px;color:var(--ts)">คงเหลือ '+fmt(balAfter)+'</div>'+
+        '</div></div>';
+    }).join('');
+  });
 }
 
 // เก็บ full list ของธุรกรรมชั้นปัจจุบันไว้ filter เฉพาะ "วันที่" (ตัดเวลาออก) ฝั่ง client
