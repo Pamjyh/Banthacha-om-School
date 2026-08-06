@@ -392,6 +392,36 @@
       margin-top: 8px;
       min-height: 18px;
     }
+
+    /* ─── Mobile (ทุกค่าย — breakpoint เดียวครอบคลุม iPhone SE ถึง Android ทั่วไป) ─── */
+    @media (max-width: 480px) {
+      header {
+        flex-wrap: wrap;               /* badge ยาวเกินให้ตกไปบรรทัดใหม่แทนล้นจอ */
+        padding: var(--sp-sm) var(--sp-md); /* 12px 16px แทน 16px 24px — ประหยัดพื้นที่จอแคบ */
+        gap: 8px 10px;
+      }
+      .hdr-icon  { font-size: 24px; }
+      .hdr-title { font-size: 15px; }
+      .hdr-sub   { font-size: 11px; }
+
+      .quota-badge {
+        margin-left: 0;
+        flex-basis: 100%;              /* บังคับขึ้นบรรทัดใหม่เต็มความกว้างเมื่อพื้นที่ไม่พอ */
+        white-space: normal;           /* ปกติ nowrap ทำให้ข้อความยาวล้นขอบจอมือถือ */
+      }
+
+      main { margin: 16px auto; padding: 0 12px 32px; }
+      .card { padding: var(--sp-md); } /* 16px แทน 24px */
+
+      .radio-group { flex-wrap: wrap; row-gap: 8px; }
+
+      /* ปุ่มเลือกครู/ปุ่มลัด ขยาย touch target ให้กดง่ายขึ้นบนจอสัมผัส */
+      .t-chip     { padding: 9px 16px; }
+      .quick-btn  { padding: 8px 14px; }
+
+      /* กัน iOS Safari auto-zoom ตอน focus input (เกิดเมื่อ font-size < 16px) */
+      input[type="text"], select, textarea { font-size: 16px; }
+    }
   </style>
 </head>
 <body>
