@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="ออมทรัพย์">
 <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Mitr:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="../js/theme-sync.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
@@ -22,8 +23,22 @@
   --tw:rgba(255,255,255,1);--tws:rgba(255,255,255,0.70);
   --gold:#cba258;--gold-l:#dfc49d;--gold-ll:#faf6ee;
   --red:#c82014;--ibdr:#d6dbde;
+  /* -text: สีเดียวกับต้นฉบับตอน light mode — ใช้แยกจาก --ga/--sbux/--red/--gold เดิม เพราะตัวเดิมยังใช้เป็น
+     พื้นหลังปุ่ม (พร้อมตัวอักษรขาว) อยู่ด้วย ถ้า dark mode ทำให้ตัวเดิมสว่างขึ้นเพื่อให้อ่านออกบนพื้นมืด
+     ปุ่มพวกนั้นจะกลายเป็นพื้นสว่าง-ตัวอักษรขาว (อ่านไม่ออก) จึงแยกตัวแปรสำหรับ "ตัวอักษร/เส้นขอบ" ต่างหาก */
+  --ga-text:#00754A;--sbux-text:#006241;--red-text:#c82014;--gold-text:#cba258;
   --cr:12px;--cs:0 0 0.5px rgba(0,0,0,0.14),0 1px 1px rgba(0,0,0,0.24);
   --br:50px;--bs:0.95;
+}
+/* 🌙 Dark mode — sync จากปุ่มใน Portal ผ่าน js/theme-sync.js (localStorage คีย์ schoolPortalTheme)
+   --hg/--gu/--tw/--tws (นำทาง/หน้า login สีเขียวเข้ม) ตั้งใจไม่แตะ เพราะเป็นพื้นเข้มอยู่แล้วในทุกโหมด
+   --gl (มินท์อ่อน) ก็ไม่แตะ เพราะใช้เป็นเส้นขอบบนการ์ด (โอเคทั้งพื้นสว่าง/มืด) และใช้เป็นตัวอักษรเฉพาะ
+   ในกล่องพื้น --hg ที่เข้มอยู่แล้วเท่านั้น (ตรวจแล้วทุกจุดที่ใช้ color:var(--gl)) */
+html.dark-mode{
+  --warm:#17191a;--ceramic:#1e2021;--white:#252727;--cool:#252727;
+  --td:#F0EEEC;--ts:#A9A39C;
+  --ibdr:#3a3d3e;
+  --ga-text:#3bc78e;--sbux-text:#26c17f;--red-text:#ff7a6a;--gold-text:#e0b876;
 }
 body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;background:var(--warm);min-height:100vh;color:var(--td);letter-spacing:-0.01em;font-size:16px;line-height:1.5}
 .page{display:none;flex-direction:column;min-height:100vh}.page.on{display:flex}
@@ -59,32 +74,32 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .gg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .gc{background:var(--white);border:1.5px solid var(--gl);border-radius:var(--cr);padding:1.5rem 1rem;cursor:pointer;text-align:center;box-shadow:var(--cs);transition:transform 0.2s,box-shadow 0.2s}
 .gc:hover{transform:translateY(-3px);box-shadow:0 4px 16px rgba(0,0,0,0.12)}.gc:active{transform:scale(var(--bs))}
-.gc-icon{font-size:36px;margin-bottom:8px}.gc-name{font-family:'Mitr',sans-serif;font-size:20px;font-weight:600;color:var(--sbux)}.gc-info{font-size:12px;color:var(--ts);margin-top:4px}
+.gc-icon{font-size:36px;margin-bottom:8px}.gc-name{font-family:'Mitr',sans-serif;font-size:20px;font-weight:600;color:var(--sbux-text)}.gc-info{font-size:12px;color:var(--ts);margin-top:4px}
 
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
 .sc{background:var(--white);border-radius:var(--cr);border:1px solid var(--gl);padding:12px 8px;text-align:center;box-shadow:var(--cs)}
-.sv{font-family:'Mitr',sans-serif;font-size:18px;font-weight:700;color:var(--sbux)}.sl{font-size:11px;color:var(--ts);margin-top:2px}
+.sv{font-family:'Mitr',sans-serif;font-size:18px;font-weight:700;color:var(--sbux-text)}.sl{font-size:11px;color:var(--ts);margin-top:2px}
 
 .acts{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
 .ab{flex:1;min-width:80px;padding:10px 6px;border-radius:var(--br);border:1.5px solid;font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:4px;letter-spacing:-0.01em}
 .ab:active{transform:scale(var(--bs))}
-.ab-dep{background:var(--ga);color:#fff;border-color:var(--ga)}.ab-dep:hover{opacity:.88}
-.ab-wit{background:transparent;color:var(--red);border-color:var(--red)}.ab-wit:hover{background:var(--red);color:#fff}
-.ab-bulk{background:transparent;color:var(--ga);border-color:var(--ga)}.ab-bulk:hover{background:var(--ga);color:#fff}
+.ab-dep{background:var(--ga);color:#fff;border-color:var(--ga-text)}.ab-dep:hover{opacity:.88}
+.ab-wit{background:transparent;color:var(--red-text);border-color:var(--red-text)}.ab-wit:hover{background:var(--red);color:#fff}
+.ab-bulk{background:transparent;color:var(--ga-text);border-color:var(--ga-text)}.ab-bulk:hover{background:var(--ga);color:#fff}
 .ab-add{background:var(--hg);color:#fff;border-color:var(--hg)}.ab-add:hover{opacity:.88}
 
-.st{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;letter-spacing:-0.01em}
+.st{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux-text);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;letter-spacing:-0.01em}
 
 .sl-list{display:flex;flex-direction:column;gap:6px}
 .scard{background:var(--white);border-radius:var(--cr);border:1.5px solid var(--ceramic);padding:11px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;box-shadow:var(--cs);transition:all 0.2s}
-.scard:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);border-color:var(--gl)}.scard.sel{border-color:var(--ga);box-shadow:0 0 0 2px var(--ga)}
+.scard:hover{box-shadow:0 4px 16px rgba(0,0,0,0.1);border-color:var(--gl)}.scard.sel{border-color:var(--ga-text);box-shadow:0 0 0 2px var(--ga-text)}
 .savt{width:38px;height:38px;border-radius:50%;background:var(--gl);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
 .sname{font-weight:600;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--td)}
 .smeta{font-size:13px;color:var(--ts)}
-.sbal{text-align:right;flex-shrink:0}.sbv{font-family:'Mitr',sans-serif;font-size:15px;font-weight:700;color:var(--sbux)}.sbl{font-size:12px;color:var(--ts)}
+.sbal{text-align:right;flex-shrink:0}.sbv{font-family:'Mitr',sans-serif;font-size:15px;font-weight:700;color:var(--sbux-text)}.sbl{font-size:12px;color:var(--ts)}
 .ebtn{background:none;border:1px solid var(--ibdr);border-radius:var(--br);padding:4px 10px;font-size:11px;color:var(--ts);cursor:pointer;flex-shrink:0;font-family:'Sarabun',sans-serif;transition:all 0.2s}
-.ebtn:hover{border-color:var(--ga);color:var(--ga)}.ebtn:active{transform:scale(var(--bs))}
-.ebtn.del{color:var(--red);border-color:rgba(200,32,20,0.3)}.ebtn.del:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.ebtn:hover{border-color:var(--ga-text);color:var(--ga-text)}.ebtn:active{transform:scale(var(--bs))}
+.ebtn.del{color:var(--red-text);border-color:rgba(200,32,20,0.3)}.ebtn.del:hover{background:var(--red);color:#fff;border-color:var(--red-text)}
 
 .empty{text-align:center;padding:2.5rem 1rem;background:var(--white);border-radius:var(--cr);border:1.5px dashed var(--gl);color:var(--ts);box-shadow:var(--cs)}
 
@@ -93,15 +108,15 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .txb{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
 .txb.d{background:var(--gl)}.txb.w{background:#fde8e7}
 .txi-info{flex:1;min-width:0}.txn{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.txd{font-size:11px;color:var(--ts)}
-.txa{font-family:'Mitr',sans-serif;font-size:14px;font-weight:700;flex-shrink:0}.txa.d{color:var(--sbux)}.txa.w{color:var(--red)}
+.txa{font-family:'Mitr',sans-serif;font-size:14px;font-weight:700;flex-shrink:0}.txa.d{color:var(--sbux-text)}.txa.w{color:var(--red-text)}
 
 .btbl{width:100%;border-collapse:collapse;background:var(--white);border-radius:var(--cr);overflow:hidden;border:1px solid var(--gl);box-shadow:var(--cs)}
 .btbl th{background:var(--hg);color:#fff;padding:10px 12px;font-family:'Mitr',sans-serif;font-size:13px;text-align:left;letter-spacing:-0.01em}
 .btbl td{padding:8px 10px;border-bottom:1px solid var(--ceramic);font-size:14px}
 .btbl tr:last-child td{border-bottom:none}.btbl tr:nth-child(even) td{background:var(--warm)}
 .binp{width:90px;padding:6px 8px;border-radius:var(--br);border:1.5px solid var(--ibdr);font-size:14px;font-family:'Sarabun',sans-serif;outline:none;text-align:right;transition:border-color 0.2s}
-.binp:focus{border-color:var(--ga)}.binp.hv{border-color:var(--ga);background:var(--gl);font-weight:600}
-.bsum{background:var(--gl);border:1px solid var(--sbux);border-radius:var(--br);padding:12px 16px;margin-bottom:14px;font-size:14px;color:var(--sbux);font-weight:600;display:none;text-align:center}
+.binp:focus{border-color:var(--ga-text)}.binp.hv{border-color:var(--ga-text);background:var(--gl);font-weight:600}
+.bsum{background:var(--gl);border:1px solid var(--sbux-text);border-radius:var(--br);padding:12px 16px;margin-bottom:14px;font-size:14px;color:var(--sbux-text);font-weight:600;display:none;text-align:center}
 .bsave{width:100%;padding:13px;border-radius:var(--br);border:none;background:var(--ga);color:#fff;font-size:16px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;margin-top:14px;letter-spacing:-0.01em;transition:all 0.2s}
 .bsave:hover{opacity:.88}.bsave:active{transform:scale(var(--bs))}.bsave:disabled{opacity:.5;cursor:not-allowed}
 
@@ -109,43 +124,43 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .gv{font-family:'Mitr',sans-serif;font-size:36px;font-weight:700;color:var(--tw);letter-spacing:-0.01em}.gs{font-size:13px;color:var(--tws);margin-top:4px}
 .ovblk{background:var(--white);border-radius:var(--cr);border:1px solid var(--gl);margin-bottom:10px;overflow:hidden;box-shadow:var(--cs)}
 .ovhd{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;transition:background 0.15s}
-.ovhd:hover{background:var(--warm)}.ovg{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux)}.ovt{font-family:'Mitr',sans-serif;font-size:15px;color:var(--ga);font-weight:700}.ovc{font-size:11px;color:var(--ts)}
+.ovhd:hover{background:var(--warm)}.ovg{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux-text)}.ovt{font-family:'Mitr',sans-serif;font-size:15px;color:var(--ga-text);font-weight:700}.ovc{font-size:11px;color:var(--ts)}
 .ovbd{display:none;padding:8px 14px;border-top:1px solid var(--gl)}.ovbd.on{display:block}
 .ovr{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--ceramic);font-size:13px}.ovr:last-child{border-bottom:none}
 
 .atabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--hg);border-top:1px solid var(--gu);flex-shrink:0}
 .atab{padding:10px 2px;border:none;background:transparent;color:var(--tws);font-size:11px;font-family:'Sarabun',sans-serif;cursor:pointer;text-align:center;line-height:1.4;transition:color 0.2s;border-top:2px solid transparent}
-.atab.on{color:var(--tw);border-top-color:var(--ga)}.atab:hover{color:var(--tw)}
+.atab.on{color:var(--tw);border-top-color:var(--ga-text)}.atab:hover{color:var(--tw)}
 
 .ic{background:var(--white);border-radius:var(--cr);border:1px solid var(--gl);padding:1rem;margin-bottom:10px;box-shadow:var(--cs)}
-.ic-t{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:4px;letter-spacing:-0.01em}
+.ic-t{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux-text);margin-bottom:4px;letter-spacing:-0.01em}
 .ic-d{font-size:13px;color:var(--ts);line-height:1.6;margin-bottom:1rem}
 .pgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
 .pbtn{padding:10px 4px;border-radius:var(--cr);border:1.5px solid var(--gl);background:var(--warm);font-size:11px;font-family:'Mitr',sans-serif;cursor:pointer;text-align:center;line-height:1.5;color:var(--ts);transition:all 0.2s}
-.pbtn:hover{border-color:var(--ga);color:var(--ga);background:var(--gl)}.pbtn:active{transform:scale(var(--bs))}
+.pbtn:hover{border-color:var(--ga-text);color:var(--ga-text);background:var(--gl)}.pbtn:active{transform:scale(var(--bs))}
 .abtn{width:100%;padding:12px;border-radius:var(--br);border:none;color:#fff;font-size:15px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;letter-spacing:-0.01em;transition:all 0.2s}
 .abtn:hover{opacity:.88}.abtn:active{transform:scale(var(--bs))}.abtn:disabled{opacity:.5;cursor:not-allowed}
 
 .finp{width:100%;padding:10px 14px;border-radius:var(--br);border:1.5px solid var(--ibdr);font-size:14px;font-family:'Sarabun',sans-serif;outline:none;margin-bottom:8px;background:var(--white);transition:border-color 0.2s}
-.finp:focus{border-color:var(--ga)}
+.finp:focus{border-color:var(--ga-text)}
 .flbl{font-size:12px;color:var(--ts);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em}
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-.fok{background:var(--gl);border:1px solid var(--sbux);border-radius:var(--br);padding:9px 14px;font-size:13px;color:var(--sbux);margin-bottom:8px;display:none}
-.ferr{color:var(--red);font-size:13px;margin-bottom:8px;display:none}
+.fok{background:var(--gl);border:1px solid var(--sbux-text);border-radius:var(--br);padding:9px 14px;font-size:13px;color:var(--sbux-text);margin-bottom:8px;display:none}
+.ferr{color:var(--red-text);font-size:13px;margin-bottom:8px;display:none}
 
 .grdc{background:var(--gold-ll);border-radius:var(--cr);border:1px solid var(--gold-l);padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;box-shadow:var(--cs)}
-.grdn{font-weight:600;font-size:14px;color:var(--td)}.grdm{font-size:11px;color:var(--gold);margin-top:2px}.grdb{font-family:'Mitr',sans-serif;font-size:15px;font-weight:700;color:var(--sbux)}
+.grdn{font-weight:600;font-size:14px;color:var(--td)}.grdm{font-size:11px;color:var(--gold-text);margin-top:2px}.grdb{font-family:'Mitr',sans-serif;font-size:15px;font-weight:700;color:var(--sbux-text)}
 
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:100;padding:1rem}
 .mo.on{display:flex}
 .mb{background:var(--white);border-radius:var(--cr);padding:1.5rem;width:100%;max-width:360px;box-shadow:0 8px 40px rgba(0,0,0,0.2)}
 .mb-wide{max-width:420px}
-.mt{font-family:'Mitr',sans-serif;font-size:18px;font-weight:600;color:var(--sbux);margin-bottom:.4rem;letter-spacing:-0.01em}
+.mt{font-family:'Mitr',sans-serif;font-size:18px;font-weight:600;color:var(--sbux-text);margin-bottom:.4rem;letter-spacing:-0.01em}
 .ms{font-size:13px;color:var(--ts);margin-bottom:1rem;line-height:1.5}
-.mok{background:var(--gl);border:1px solid var(--sbux);border-radius:var(--br);padding:9px 14px;font-size:13px;color:var(--sbux);margin-bottom:8px;display:none}
-.merr{color:var(--red);font-size:13px;margin-bottom:8px;display:none}
+.mok{background:var(--gl);border:1px solid var(--sbux-text);border-radius:var(--br);padding:9px 14px;font-size:13px;color:var(--sbux-text);margin-bottom:8px;display:none}
+.merr{color:var(--red-text);font-size:13px;margin-bottom:8px;display:none}
 .minp{width:100%;padding:11px 14px;border-radius:var(--br);border:1.5px solid var(--ibdr);font-size:15px;font-family:'Sarabun',sans-serif;outline:none;margin-bottom:8px;transition:border-color 0.2s}
-.minp:focus{border-color:var(--ga)}
+.minp:focus{border-color:var(--ga-text)}
 .mbtns{display:flex;gap:8px;margin-top:8px}
 .mbtn{flex:1;padding:11px;border-radius:var(--br);font-size:14px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:600;border:none;transition:all 0.2s;letter-spacing:-0.01em}
 .mbtn:active{transform:scale(var(--bs))}
@@ -169,7 +184,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 /* ===== MANUAL STYLES ===== */
 .mo-manual,
 .mo-manual *{box-sizing:border-box;margin:0;padding:0}
-.mo-manual-body{font-family:'Sarabun',sans-serif;background:var(--warm);color:#1a1a1a;line-height:1.6;letter-spacing:-0.01em}
+.mo-manual-body{font-family:'Sarabun',sans-serif;background:var(--warm);color:var(--td);line-height:1.6;letter-spacing:-0.01em}
 
 /* ====== COVER ====== */
 .mo-manual .cover{
@@ -194,13 +209,13 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 /* ====== WHO SECTION ====== */
 .mo-manual .who{max-width:720px;margin:0 auto;padding:2.5rem 1.5rem 1.5rem}
-.mo-manual .who-title{font-family:'Mitr',sans-serif;font-size:13px;font-weight:600;color:var(--sbux);text-transform:uppercase;letter-spacing:.1em;text-align:center;margin-bottom:1.25rem}
+.mo-manual .who-title{font-family:'Mitr',sans-serif;font-size:13px;font-weight:600;color:var(--sbux-text);text-transform:uppercase;letter-spacing:.1em;text-align:center;margin-bottom:1.25rem}
 .mo-manual .who-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .mo-manual .who-card{background:var(--white);border-radius:16px;padding:1.25rem 1rem;text-align:center;border:2px solid var(--gl);box-shadow:0 2px 12px rgba(0,0,0,.05);transition:transform .2s}
 .mo-manual .who-card:hover{transform:translateY(-4px)}
 .mo-manual .who-card .wicon{font-size:44px;margin-bottom:.6rem;display:block}
 .mo-manual .who-card h3{font-family:'Mitr',sans-serif;font-size:14px;color:var(--hg);margin-bottom:.3rem}
-.mo-manual .who-card p{font-size:11.5px;color:#666;line-height:1.6}
+.mo-manual .who-card p{font-size:11.5px;color:var(--ts);line-height:1.6}
 .mo-manual .who-card .pw{display:inline-block;margin-top:.5rem;background:var(--hg);color:#fff;border-radius:50px;padding:3px 12px;font-size:11px;font-weight:600}
 
 /* ====== CHAPTER ====== */
@@ -215,10 +230,10 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .mo-manual .step{display:flex;gap:12px;background:var(--white);border-radius:14px;padding:13px 15px;border:1px solid #e8e4de;box-shadow:0 1px 4px rgba(0,0,0,.04)}
 .mo-manual .snum{width:28px;height:28px;border-radius:50%;background:var(--hg);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Mitr',sans-serif;font-size:13px;font-weight:700;flex-shrink:0;margin-top:1px}
 .mo-manual .sbody h4{font-family:'Mitr',sans-serif;font-size:13.5px;color:var(--hg);margin-bottom:3px}
-.mo-manual .sbody p{font-size:12.5px;color:#555;line-height:1.65}
+.mo-manual .sbody p{font-size:12.5px;color:var(--ts);line-height:1.65}
 .mo-manual .note{display:inline-flex;align-items:center;gap:4px;border-radius:8px;padding:4px 10px;font-size:11.5px;margin-top:6px;font-weight:600}
 .mo-manual .note-tip{background:#fef9ee;border:1px solid #fde68a;color:#92400e}
-.mo-manual .note-ok{background:var(--gl);border:1px solid #86efac;color:var(--sbux)}
+.mo-manual .note-ok{background:var(--gl);border:1px solid #86efac;color:var(--sbux-text)}
 .mo-manual .note-warn{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
 
 /* ====== MOCKUP ====== */
@@ -230,7 +245,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .mo-manual .phone-inner{background:rgba(0,0,0,.18);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .mo-manual .pcard{background:rgba(255,255,255,.92);border-radius:10px;padding:10px 12px}
 .mo-manual .pcard-label{font-size:10px;color:#888;margin-bottom:2px}
-.mo-manual .pcard-val{font-family:'Mitr',sans-serif;font-size:22px;font-weight:700;color:var(--ga)}
+.mo-manual .pcard-val{font-family:'Mitr',sans-serif;font-size:22px;font-weight:700;color:var(--ga-text)}
 .mo-manual .prow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.07)}
 .mo-manual .prow:last-child{border:none}
 .mo-manual .pname{font-size:12px;color:rgba(255,255,255,.88)}
@@ -251,7 +266,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .mo-manual .itable th{background:var(--hg);color:#fff;padding:9px 13px;font-family:'Mitr',sans-serif;font-size:12.5px;text-align:left;font-weight:600}
 .mo-manual .itable td{padding:9px 13px;font-size:12.5px;border-bottom:1px solid #f0ede8}
 .mo-manual .itable tr:last-child td{border:none}
-.mo-manual .itable tr:nth-child(even) td{background:#faf9f7}
+.mo-manual .itable tr:nth-child(even) td{background:var(--ceramic)}
 
 /* ====== HIGHLIGHT ====== */
 .mo-manual .hl{background:var(--hg);border-radius:14px;padding:1.1rem 1.25rem;margin:1rem 0;display:flex;gap:12px;align-items:flex-start}
@@ -461,7 +476,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
           <div style="font-size:10px;color:rgba(255,255,255,.45)">เข้าปี 2565</div>
         </div>
         <div style="text-align:right">
-          <div class="pamt" style="color:var(--ga);font-weight:700;font-size:14px">895 ฿</div>
+          <div class="pamt" style="color:var(--ga-text);font-weight:700;font-size:14px">895 ฿</div>
           <div style="font-size:9px;color:rgba(255,255,255,.3)">สะสม</div>
         </div>
       </div>
@@ -877,7 +892,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
         </div>
 
         <!-- ประวัติ -->
-        <div style="font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux);margin-bottom:10px;letter-spacing:-0.01em">📋 ประวัติการฝาก-ถอน</div>
+        <div style="font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux-text);margin-bottom:10px;letter-spacing:-0.01em">📋 ประวัติการฝาก-ถอน</div>
         <div class="txl" id="parent-history"></div>
 
         <button onclick="resetParent()"
@@ -1345,7 +1360,7 @@ function bootstrapTeacher() {
       if (!el2) return;
       var total = students.reduce(function(s,x){return s+x.balance;},0);
       el2.innerHTML = students.length
-        ? students.length+' คน · <b style="color:var(--ga)">'+fmt(total)+' ฿</b>'
+        ? students.length+' คน · <b style="color:var(--ga-text)">'+fmt(total)+' ฿</b>'
         : 'ยังไม่มีนักเรียน';
     });
   });
@@ -1366,7 +1381,7 @@ function renderGrades() {
       '<div class="gc-icon">'+ICONS[g]+'</div>' +
       '<div class="gc-name">'+g+'</div>' +
       '<div class="gc-info" id="gci-'+g.replace('.','_')+'">' +
-        (list.length ? list.length+' คน · <b style="color:var(--ga)">'+fmt(total)+' ฿</b>' : 'กำลังโหลด...') +
+        (list.length ? list.length+' คน · <b style="color:var(--ga-text)">'+fmt(total)+' ฿</b>' : 'กำลังโหลด...') +
       '</div></div>';
   }).join('');
   GRADES.forEach(function(g){
@@ -1381,7 +1396,7 @@ function renderGrades() {
       cache[g]=r.students||[];
       var list2=cache[g];
       var tot2=list2.reduce(function(s,x){return s+x.balance;},0);
-      el2.innerHTML=list2.length ? list2.length+' คน · <b style="color:var(--ga)">'+fmt(tot2)+' ฿</b>' : 'ยังไม่มีนักเรียน';
+      el2.innerHTML=list2.length ? list2.length+' คน · <b style="color:var(--ga-text)">'+fmt(tot2)+' ฿</b>' : 'ยังไม่มีนักเรียน';
     });
   });
 }
@@ -1457,7 +1472,7 @@ function renderStus() {
   var pageStus=stus.slice(start,start+PAGE_SIZE);
   el.innerHTML=pageStus.map(function(s){
     var sel=selStu&&selStu.id===s.id?' sel':'';
-    var bc=s.balance>=0?'var(--ga)':'var(--red)';
+    var bc=s.balance>=0?'var(--ga-text)':'var(--red-text)';
     var rollPrefix = s.rollNo ? '<b>'+esc(s.rollNo)+'.</b> ' : '';
     return '<div class="scard'+sel+'" onclick="pickStu(\''+s.id+'\')">'+
       '<div class="savt">'+(ICONS[s.grade]||'👦')+'</div>'+
@@ -1494,9 +1509,9 @@ function renderStats() {
   var total=allStus.reduce(function(s,x){return s+x.balance;},0);
   var avg=allStus.length?total/allStus.length:0;
   document.getElementById('stu-stats').innerHTML=
-    '<div class="sc"><div class="sv" style="color:var(--ga)">'+fmt(total)+'</div><div class="sl">ยอดรวม (฿)</div></div>'+
+    '<div class="sc"><div class="sv" style="color:var(--ga-text)">'+fmt(total)+'</div><div class="sl">ยอดรวม (฿)</div></div>'+
     '<div class="sc"><div class="sv">'+allStus.length+'</div><div class="sl">นักเรียน</div></div>'+
-    '<div class="sc"><div class="sv" style="color:var(--gold)">'+fmt(avg)+'</div><div class="sl">เฉลี่ย (฿)</div></div>';
+    '<div class="sc"><div class="sv" style="color:var(--gold-text)">'+fmt(avg)+'</div><div class="sl">เฉลี่ย (฿)</div></div>';
 }
 
 function pickStu(id) {
@@ -1521,7 +1536,7 @@ function openStuHist(id) {
     if (seq !== _histSeq) return; // มีคนกดเปิดคนใหม่ทับไปแล้ว ทิ้ง response เก่านี้ (F1)
     var el = document.getElementById('hist-list');
     if (!r.ok) { // F2: แยก error ออกจาก "ยังไม่มีประวัติ" จริงๆ กันเข้าใจผิดว่าเด็กไม่เคยฝากเลย
-      el.innerHTML = '<div style="text-align:center;color:var(--red);font-size:13px;padding:1rem">❌ โหลดประวัติไม่สำเร็จ: '+esc(r.error||'ไม่ทราบสาเหตุ')+'</div>';
+      el.innerHTML = '<div style="text-align:center;color:var(--red-text);font-size:13px;padding:1rem">❌ โหลดประวัติไม่สำเร็จ: '+esc(r.error||'ไม่ทราบสาเหตุ')+'</div>';
       return;
     }
     if (!r.transactions || !r.transactions.length) {
@@ -1577,7 +1592,7 @@ function cardRowsHtml(rows) {
         (r.sub ? '<div class="txd">'+r.sub+'</div>' : '') +
       '</div>' +
       '<div style="text-align:right;flex-shrink:0">' +
-        '<div class="txa" style="color:'+(r.valueColor||'var(--sbux)')+'">'+r.value+'</div>' +
+        '<div class="txa" style="color:'+(r.valueColor||'var(--sbux-text)')+'">'+r.value+'</div>' +
         (r.value2 ? '<div style="font-size:11px;color:'+(r.value2Color||'var(--ts)')+';margin-top:2px">'+r.value2+'</div>' : '') +
       '</div>' +
     '</div>';
@@ -1774,16 +1789,16 @@ function doLoadMonthData() {
     });
 
     var html =
-      '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px">'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux-text);margin-bottom:8px">'+
       'รายชื่อที่มีธุรกรรม ('+rows.length+' คน)</div>'+
       cardRowsHtml(rows.map(function(p){
         return {
           name: (p.roll ? p.roll+'. ' : '') + p.name,
           sub: p.count+' ครั้ง',
           value: (p.dep>0?'+'+fmt(p.dep)+' ฿':'-'),
-          valueColor: 'var(--ga)',
+          valueColor: 'var(--ga-text)',
           value2: (p.wit>0?'-'+fmt(p.wit)+' ฿':null),
-          value2Color: 'var(--red)'
+          value2Color: 'var(--red-text)'
         };
       }));
 
@@ -1804,7 +1819,7 @@ function doLoadMonthData() {
     if (noTx.length > 0) {
       html += '<div style="font-family:\'Mitr\',sans-serif;font-size:13px;font-weight:600;color:var(--ts);margin:12px 0 8px">⏳ ยังไม่มีธุรกรรมเดือนนี้ ('+noTx.length+' คน)</div>'+
         cardRowsHtml(noTx.map(function(s){
-          return { name: (s.rollNo?s.rollNo+'. ':'')+s.name, value: fmt(s.balance)+' ฿', valueColor:'var(--sbux)' };
+          return { name: (s.rollNo?s.rollNo+'. ':'')+s.name, value: fmt(s.balance)+' ฿', valueColor:'var(--sbux-text)' };
         }));
     }
 
@@ -1901,16 +1916,16 @@ function loadTodaySummary() {
       '<div style="font-size:11px;color:var(--tws);margin-top:2px">จาก '+allStus.length+' คน</div>'+
       '</div></div></div>'+
 
-      '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin-bottom:8px">✅ ฝากแล้ว ('+deposited.length+' คน)</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux-text);margin-bottom:8px">✅ ฝากแล้ว ('+deposited.length+' คน)</div>'+
       cardRowsHtml(deposited.map(function(s){
         var d=stuMap[s.id]||{dep:0};
-        return { name: (s.rollNo?s.rollNo+'. ':'')+s.name, sub: 'ยอดสะสม '+fmt(s.balance)+' ฿', value: '+'+fmt(d.dep)+' ฿', valueColor:'var(--ga)' };
+        return { name: (s.rollNo?s.rollNo+'. ':'')+s.name, sub: 'ยอดสะสม '+fmt(s.balance)+' ฿', value: '+'+fmt(d.dep)+' ฿', valueColor:'var(--ga-text)' };
       }))+'<div style="margin-bottom:16px"></div>';
 
     if (notDeposited.length>0) {
       html+='<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--ts);margin-bottom:8px">⏳ ยังไม่ได้ฝากวันนี้ ('+notDeposited.length+' คน)</div>'+
         cardRowsHtml(notDeposited.map(function(s){
-          return { name: (s.rollNo?s.rollNo+'. ':'')+s.name, value: fmt(s.balance)+' ฿', valueColor:'var(--sbux)' };
+          return { name: (s.rollNo?s.rollNo+'. ':'')+s.name, value: fmt(s.balance)+' ฿', valueColor:'var(--sbux-text)' };
         }));
     }
     el.innerHTML=html;
@@ -1929,7 +1944,7 @@ function renderBulk() {
   btn.disabled=false; btn.textContent='💾 บันทึกทั้งหมด';
   document.getElementById('bulk-body').innerHTML=allStus.map(function(s){
     return '<tr><td>'+esc(s.name)+'</td>'+
-      '<td style="color:var(--ga);font-weight:600">'+fmt(s.balance)+' ฿</td>'+
+      '<td style="color:var(--ga-text);font-weight:600">'+fmt(s.balance)+' ฿</td>'+
       '<td><input class="binp" type="number" min="0.01" step="0.01" id="bi-'+s.id+'" placeholder="0"'+
       ' oninput="this.classList.toggle(\'hv\',this.value>0);updBulk()" onfocus="this.select()"></td></tr>';
   }).join('');
@@ -2098,9 +2113,9 @@ function previewWithdraw() {
     '<div style="background:var(--warm);border-radius:var(--cr);padding:12px 14px;margin-bottom:10px;border:1px solid var(--gl)">'+
     '<div style="font-size:11px;color:var(--ts);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600">ยืนยันการถอนเงิน</div>'+
     '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;color:var(--ts)">นักเรียน</span><span style="font-size:14px;font-weight:600">'+esc(selStu.name)+'</span></div>'+
-    '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;color:var(--ts)">ถอนออก</span><span style="font-size:14px;font-weight:700;color:var(--red)">- '+fmt(amt)+' บาท</span></div>'+
+    '<div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:13px;color:var(--ts)">ถอนออก</span><span style="font-size:14px;font-weight:700;color:var(--red-text)">- '+fmt(amt)+' บาท</span></div>'+
     '<div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid var(--ibdr)"><span style="font-size:13px;color:var(--ts)">ยอดคงเหลือหลังถอน</span>'+
-    '<span style="font-family:\'Mitr\',sans-serif;font-size:16px;font-weight:700;color:var(--sbux)">'+fmt(selStu.balance-amt)+' บาท</span></div></div>';
+    '<span style="font-family:\'Mitr\',sans-serif;font-size:16px;font-weight:700;color:var(--sbux-text)">'+fmt(selStu.balance-amt)+' บาท</span></div></div>';
   document.getElementById('tx-amt').disabled=true;
   var btn=document.getElementById('tx-confirm');
   btn.textContent='✓ ยืนยันถอนเงิน'; btn.onclick=confirmTx;
@@ -2295,7 +2310,7 @@ function loadAdmin() {
     if (!r.ok) {
       document.getElementById('admin-body').innerHTML=
         '<div class="empty"><div style="font-size:32px;margin-bottom:8px">⚠️</div>'+
-        '<div style="font-weight:600;color:var(--red)">โหลดข้อมูลไม่ได้</div>'+
+        '<div style="font-weight:600;color:var(--red-text)">โหลดข้อมูลไม่ได้</div>'+
         '<div style="font-size:13px;color:var(--ts);margin-top:4px">'+(r.error||'ไม่ทราบสาเหตุ')+'</div>'+
         '<button onclick="loadAdmin()" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button></div>';
       return;
@@ -2396,7 +2411,7 @@ function renderOv(c) {
       '<div class="ovbd" id="ov-'+g.replace('.','_')+'">'+
       (d.students.length ? d.students.map(function(s){
         return '<div class="ovr"><span>'+(s.rollNo?'<b>'+esc(s.rollNo)+'.</b> ':'')+esc(s.name)+'</span>'+
-          '<span style="font-weight:600;color:'+(s.balance>=0?'var(--ga)':'var(--red)')+'">'+fmt(s.balance)+' ฿</span></div>';
+          '<span style="font-weight:600;color:'+(s.balance>=0?'var(--ga-text)':'var(--red-text)')+'">'+fmt(s.balance)+' ฿</span></div>';
       }).join('') : '<div style="color:var(--ts);font-size:13px;padding:4px 0">ยังไม่มีนักเรียน</div>')+
       '</div></div>';
   });
@@ -2546,8 +2561,8 @@ function renderGd(c) {
     }
     var tot=r.students.reduce(function(s,x){return s+x.balance;},0);
     c.innerHTML='<div style="background:var(--gold-ll);border-radius:var(--cr);padding:1rem;text-align:center;margin-bottom:14px;border:1px solid var(--gold-l)">'+
-      '<div style="font-size:12px;color:var(--gold);margin-bottom:4px">ยอดออมรวม (นักเรียนที่จบแล้ว)</div>'+
-      '<div style="font-family:\'Mitr\',sans-serif;font-size:24px;font-weight:700;color:var(--sbux)">'+fmt(tot)+' บาท</div>'+
+      '<div style="font-size:12px;color:var(--gold-text);margin-bottom:4px">ยอดออมรวม (นักเรียนที่จบแล้ว)</div>'+
+      '<div style="font-family:\'Mitr\',sans-serif;font-size:24px;font-weight:700;color:var(--sbux-text)">'+fmt(tot)+' บาท</div>'+
       '<div style="font-size:12px;color:var(--ts)">'+r.students.length+' คน</div></div>'+
       r.students.map(function(s){
         return '<div class="grdc"><div><div class="grdn">'+esc(s.name)+'</div>'+
@@ -2602,7 +2617,7 @@ function searchParent() {
           '<div class="savt">'+(ICONS[s.grade]||'👦')+'</div>'+
           '<div style="flex:1"><div class="sname">'+esc(s.name)+'</div>'+
           '<div class="smeta">ชั้น '+s.grade+'</div></div>'+
-          '<div class="sbal"><div class="sbv" style="color:var(--ga)">'+fmt(s.balance)+' ฿</div></div></div>';
+          '<div class="sbal"><div class="sbv" style="color:var(--ga-text)">'+fmt(s.balance)+' ฿</div></div></div>';
       }).join('');
     } else {
       document.getElementById('parent-multi').style.display='none';
