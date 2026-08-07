@@ -11,6 +11,7 @@
 <meta name="apple-mobile-web-app-title" content="ลงเวลา">
 <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="../js/theme-sync.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.108.2/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -21,8 +22,24 @@
       --tile-dark: #272729; --tile-dark2: #1d1d1f;
       --ink: #1d1d1f; --muted: #6e6e73; --faint: #aeaeb2;
       --hairline: #d2d2d7; --green: #34c759; --red: #ff3b30;
+      --primary-text: #0066cc; --red-text: #ff3b30; --ink-rgb: 29,29,31;
     }
-    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--parchment); color: var(--ink); min-height: 100vh; }
+    html.dark-mode {
+      --canvas: #242627; --parchment: #1a1c1c;
+      --ink: #F0EEEC; --muted: #a9a39c; --faint: #8a8580;
+      --hairline: #3a3d40;
+      --primary-text: #4da3ff; --red-text: #ff7a6a;
+      --ink-rgb: 240,238,236;
+      /* --tile-dark/--tile-dark2 ตั้งใจไม่แตะ — เป็นแถบมืดถาวรอยู่แล้วทั้ง 2 โหมด */
+    }
+    html.dark-mode .tag-in, html.dark-mode .tag-approved { background: rgba(52,199,89,0.22); color: #5fe08a; }
+    html.dark-mode .tag-out, html.dark-mode .tag-rejected { background: rgba(255,59,48,0.20); color: #ff8a80; }
+    html.dark-mode .tag-leave { background: rgba(255,159,10,0.22); color: #ffc266; }
+    html.dark-mode .tag-pending { background: rgba(142,142,147,0.20); color: #c7c7cc; }
+    html.dark-mode .leave-type-pill { background: rgba(255,159,10,0.22); border-color: rgba(255,159,10,0.4); color: #ffc266; }
+    html.dark-mode .sub-nav { background: rgba(26,28,28,0.88); }
+    html.dark-mode .modal-err { color: var(--red-text); }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--parchment); color: var(--ink); min-height: 100vh; transition: background-color .3s ease, color .3s ease; }
 
     /* NAV */
     #gnav { position: fixed; top: 0; left: 0; right: 0; z-index: 200; background: rgba(0,0,0,0.92); backdrop-filter: saturate(180%) blur(20px); height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
@@ -32,7 +49,7 @@
     .gnav-btn { background: none; border: 1px solid rgba(255,255,255,0.25); color: rgba(255,255,255,0.6); font-size: 11px; padding: 4px 12px; border-radius: 9999px; cursor: pointer; font-family: inherit; transition: all 0.15s; }
     .gnav-btn:hover { border-color: rgba(255,255,255,0.5); color: #fff; }
 
-    .spinner { width: 32px; height: 32px; border: 3px solid var(--hairline); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--hairline); border-top-color: var(--primary-text); border-radius: 50%; animation: spin 0.8s linear infinite; }
     .spinner-sm { width: 20px; height: 20px; border-width: 2px; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -72,7 +89,7 @@
     .scan-fab {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       z-index: 300;
-      background: var(--primary); color: #fff;
+      background:var(--primary); color: #fff;
       border: none; border-radius: 9999px;
       padding: 14px 28px;
       font-size: 16px; font-weight: 700; font-family: inherit;
@@ -179,7 +196,7 @@
     .tag-in { background: rgba(52,199,89,0.12); color: #1a7f37; }
     .tag-out { background: rgba(255,59,48,0.1); color: #c00; }
     .btn-in { width: 100%; background: var(--green); color: #fff; border: none; border-radius: 9999px; padding: 15px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; box-shadow: rgba(0,0,0,0.18) 0 4px 20px; transition: opacity 0.15s, transform 0.1s; margin-bottom: 10px; }
-    .btn-out { width: 100%; background: var(--red); color: #fff; border: none; border-radius: 9999px; padding: 15px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; box-shadow: rgba(0,0,0,0.18) 0 4px 20px; transition: opacity 0.15s, transform 0.1s; margin-bottom: 10px; }
+    .btn-out { width: 100%; background:var(--red); color: #fff; border: none; border-radius: 9999px; padding: 15px; font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit; box-shadow: rgba(0,0,0,0.18) 0 4px 20px; transition: opacity 0.15s, transform 0.1s; margin-bottom: 10px; }
     .btn-in:active, .btn-out:active { transform: scale(0.95); }
     .btn-cancel { width: 100%; background: var(--parchment); color: var(--muted); border: none; border-radius: 9999px; padding: 13px; font-size: 14px; cursor: pointer; font-family: inherit; }
 
@@ -187,18 +204,18 @@
     .admin-hero { background: var(--tile-dark2); padding: 48px 20px 56px; text-align: center; }
     .admin-hero h1 { font-size: 32px; font-weight: 600; color: #fff; letter-spacing: -0.374px; }
     .admin-hero p { color: rgba(255,255,255,0.5); font-size: 14px; margin-top: 6px; }
-    .sub-nav { position: sticky; top: 44px; z-index: 100; background: rgba(245,245,247,0.88); backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid rgba(0,0,0,0.08); display: flex; gap: 4px; padding: 0 16px; height: 52px; align-items: center; overflow-x: auto; }
+    .sub-nav { position: sticky; top: 44px; z-index: 100; background: rgba(245,245,247,0.88); backdrop-filter: saturate(180%) blur(20px); border-bottom: 1px solid rgba(var(--ink-rgb),0.08); display: flex; gap: 4px; padding: 0 16px; height: 52px; align-items: center; overflow-x: auto; }
     .sub-nav::-webkit-scrollbar { display: none; }
     .tab { background: transparent; border: none; padding: 7px 14px; border-radius: 9999px; font-size: 13px; color: var(--muted); cursor: pointer; font-family: inherit; white-space: nowrap; transition: all 0.15s; }
-    .tab.active { background: var(--primary); color: #fff; font-weight: 600; }
-    .tab:hover:not(.active) { background: rgba(0,0,0,0.06); }
+    .tab.active { background:var(--primary); color: #fff; font-weight: 600; }
+    .tab:hover:not(.active) { background: rgba(var(--ink-rgb),0.06); }
     .admin-body { max-width: 900px; margin: 0 auto; padding: 36px 20px 80px; }
     .card { background: var(--canvas); border: 1px solid var(--hairline); border-radius: 18px; padding: 22px; margin-bottom: 18px; }
     .card-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
     .sec-head { font-size: 17px; font-weight: 600; margin-bottom: 16px; }
     .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
     .tbl th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--hairline); }
-    .tbl td { padding: 12px 14px; border-bottom: 1px solid rgba(0,0,0,0.04); vertical-align: middle; }
+    .tbl td { padding: 12px 14px; border-bottom: 1px solid rgba(var(--ink-rgb),0.04); vertical-align: middle; }
     .tbl tr:last-child td { border-bottom: none; }
     .tbl tr:hover td { background: var(--parchment); }
     .fg { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -206,22 +223,22 @@
     .ff label { display: block; font-size: 11px; font-weight: 600; color: var(--faint); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
     .ff input, .ff select { width: 100%; border: 1px solid var(--hairline); background: var(--canvas); color: var(--ink); border-radius: 11px; padding: 10px 14px; font-size: 14px; outline: none; font-family: inherit; }
     .ff input:focus { border-color: #0071e3; box-shadow: 0 0 0 2px rgba(0,113,227,0.12); }
-    .btn-blue { background: var(--primary); color: #fff; border: none; border-radius: 9999px; padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity 0.15s, transform 0.1s; }
+    .btn-blue { background:var(--primary); color: #fff; border: none; border-radius: 9999px; padding: 10px 20px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity 0.15s, transform 0.1s; }
     .btn-blue:hover { opacity: 0.88; }
     .btn-blue:active { transform: scale(0.95); }
-    .btn-ghost { background: transparent; color: var(--red); border: none; border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .btn-ghost { background: transparent; color: var(--red-text); border: none; border-radius: 8px; padding: 6px 10px; font-size: 12px; cursor: pointer; font-family: inherit; }
     .btn-ghost:hover { background: rgba(255,59,48,0.08); }
-    .btn-outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); border-radius: 9999px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
+    .btn-outline { background: transparent; color: var(--primary-text); border: 1px solid var(--primary-text); border-radius: 9999px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; white-space: nowrap; }
     .btn-outline:hover { background: rgba(0,102,204,0.06); }
-    .btn-gps { display: flex; align-items: center; gap: 6px; background: rgba(0,102,204,0.08); color: var(--primary); border: 1px solid rgba(0,102,204,0.2); border-radius: 9999px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-gps { display: flex; align-items: center; gap: 6px; background: rgba(0,102,204,0.08); color: var(--primary-text); border: 1px solid rgba(0,102,204,0.2); border-radius: 9999px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
     .btn-gps:hover { background: rgba(0,102,204,0.14); }
     .sel { border: 1px solid var(--hairline); background: var(--canvas); color: var(--ink); border-radius: 9999px; padding: 7px 14px; font-size: 13px; font-family: inherit; outline: none; }
     .modal-input { width: 100%; border: 1px solid var(--hairline); background: var(--canvas); color: var(--ink); border-radius: 9999px; padding: 12px 20px; font-size: 15px; outline: none; font-family: inherit; margin-bottom: 12px; }
     .modal-input:focus { border-color: #0071e3; box-shadow: 0 0 0 2px rgba(0,113,227,0.15); }
-    .modal-err { color: #c00; font-size: 13px; text-align: center; margin-bottom: 10px; min-height: 18px; }
+    .modal-err { color: var(--red-text); font-size: 13px; text-align: center; margin-bottom: 10px; min-height: 18px; }
 
     /* Employee row in admin */
-    .emp-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.04); gap: 12px; }
+    .emp-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(var(--ink-rgb),0.04); gap: 12px; }
     .emp-row:last-child { border-bottom: none; }
     .emp-thumb { width: 44px; height: 58px; border-radius: 8px; object-fit: cover; background: #e8eaf0; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #3a4a7a; font-size: 16px; overflow: hidden; }
     .emp-thumb img { width: 100%; height: 100%; object-fit: cover; }
@@ -233,7 +250,7 @@
       padding: 20px; text-align: center; cursor: pointer;
       transition: border-color 0.15s; margin-bottom: 12px;
     }
-    .photo-upload-area:hover { border-color: var(--primary); }
+    .photo-upload-area:hover { border-color: var(--primary-text); }
     .photo-preview { width: 100px; height: 133px; object-fit: cover; border-radius: 10px; margin: 8px auto; display: block; }
 
     /* LEAVE */
@@ -252,7 +269,7 @@
     .btn-orange:disabled { opacity: 0.5; }
     .ff textarea { width: 100%; border: 1px solid var(--hairline); background: var(--canvas); color: var(--ink); border-radius: 11px; padding: 10px 14px; font-size: 14px; outline: none; font-family: inherit; resize: vertical; min-height: 72px; }
     .ff textarea:focus { border-color: #0071e3; box-shadow: 0 0 0 2px rgba(0,113,227,0.12); }
-    .leave-days-badge { display: inline-block; background: var(--primary); color: #fff; border-radius: 9999px; padding: 3px 12px; font-size: 13px; font-weight: 700; margin-left: 8px; }
+    .leave-days-badge { display: inline-block; background:var(--primary); color: #fff; border-radius: 9999px; padding: 3px 12px; font-size: 13px; font-weight: 700; margin-left: 8px; }
 
     /* Monthly */
     .m-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 16px; }
@@ -396,13 +413,13 @@ function openScanModal(){
       aEl.innerHTML=`<button class="btn-in" onclick="startFaceScan()">🔍 เริ่มสแกนใบหน้า</button>`;
     }else{
       if(gpsEl)gpsEl.textContent=`⚠️ ห่างออฟฟิศ ${Math.round(d)} ม. (เกิน ${settingsCache.radius} ม.)`;
-      aEl.innerHTML=`<p style="text-align:center;color:var(--red);font-size:13px;font-weight:600;padding:8px 0;">❌ กรุณาเดินเข้าใกล้ออฟฟิศก่อน</p>`;
+      aEl.innerHTML=`<p style="text-align:center;color:var(--red-text);font-size:13px;font-weight:600;padding:8px 0;">❌ กรุณาเดินเข้าใกล้ออฟฟิศก่อน</p>`;
     }
   },()=>{
     const gpsEl=document.getElementById('gpsStatus');
     const aEl=document.getElementById('actionArea');
     if(gpsEl)gpsEl.textContent='⚠️ ไม่สามารถดึง GPS ได้';
-    if(aEl)aEl.innerHTML=`<p style="text-align:center;color:var(--red);font-size:13px;padding:8px 0;">❌ กรุณาเปิด GPS แล้วลองใหม่</p>`;
+    if(aEl)aEl.innerHTML=`<p style="text-align:center;color:var(--red-text);font-size:13px;padding:8px 0;">❌ กรุณาเปิด GPS แล้วลองใหม่</p>`;
   },{enableHighAccuracy:true,timeout:8000});
 }
 
@@ -452,12 +469,12 @@ async function loadCheckModal(empId){
       aEl.innerHTML=`<button id="actionBtn" class="${nextType==='in'?'btn-in':'btn-out'}" onclick="startFaceScan()">${nextType==='in'?'🔍 สแกนใบหน้าเพื่อเช็คอิน':'🔍 สแกนใบหน้าเพื่อเช็คเอาท์'}</button><button class="btn-orange" style="margin-top:8px;" onclick="openLeaveModal('${empId}')">📋 ยื่นใบลา</button>`;
     }else{
       if(gpsEl)gpsEl.textContent=`⚠️ ห่างออฟฟิศ ${Math.round(d)} ม. (เกิน ${settingsCache.radius} ม.)`;
-      aEl.innerHTML=`<p style="text-align:center;color:var(--red);font-size:13px;font-weight:600;padding:8px 0;">❌ กรุณาเดินเข้าใกล้ออฟฟิศก่อน</p><button class="btn-orange" onclick="openLeaveModal('${empId}')">📋 ยื่นใบลา</button>`;
+      aEl.innerHTML=`<p style="text-align:center;color:var(--red-text);font-size:13px;font-weight:600;padding:8px 0;">❌ กรุณาเดินเข้าใกล้ออฟฟิศก่อน</p><button class="btn-orange" onclick="openLeaveModal('${empId}')">📋 ยื่นใบลา</button>`;
     }
   },()=>{
     const gpsEl=document.getElementById('gpsStatus');
     if(gpsEl)gpsEl.textContent='⚠️ ไม่สามารถดึง GPS ได้';
-    aEl.innerHTML=`<p style="text-align:center;color:var(--red);font-size:13px;padding:8px 0;">❌ กรุณาเปิด GPS แล้วลองใหม่</p><button class="btn-orange" onclick="openLeaveModal('${empId}')">📋 ยื่นใบลา</button>`;
+    aEl.innerHTML=`<p style="text-align:center;color:var(--red-text);font-size:13px;padding:8px 0;">❌ กรุณาเปิด GPS แล้วลองใหม่</p><button class="btn-orange" onclick="openLeaveModal('${empId}')">📋 ยื่นใบลา</button>`;
   },{enableHighAccuracy:true,timeout:8000});
 }
 
@@ -570,7 +587,7 @@ async function loadLeaveQuota(){
         ${QUOTA_TYPES.map(t=>{
           const used=r.used[t.v]||0, remain=t.max-used, over=remain<0;
           const pct=Math.min(100,Math.round(used/t.max*100));
-          const color=over?'var(--red)':pct>=80?'#f59e0b':'var(--primary)';
+          const color=over?'var(--red-text)':pct>=80?'#f59e0b':'var(--primary-text)';
           return `<td style="text-align:center;min-width:110px;">
             <div style="font-size:13px;font-weight:700;color:${color};">${used} / ${t.max}</div>
             <div style="height:5px;background:var(--hairline);border-radius:3px;margin-top:4px;overflow:hidden;">
@@ -700,7 +717,7 @@ async function loadHistory(){
         <td style="font-size:12px;">${fDate(r.timestamp)}</td>
         <td style="font-size:13px;font-family:monospace;">${fTime(r.timestamp)}</td>
         <td style="font-size:12px;">${r.distance??'-'} ม.</td>
-        <td><button onclick="delAttendance('${r.id}')" style="background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;padding:2px 6px;" title="ลบรายการนี้">🗑️</button></td>
+        <td><button onclick="delAttendance('${r.id}')" style="background:none;border:none;color:var(--red-text);font-size:14px;cursor:pointer;padding:2px 6px;" title="ลบรายการนี้">🗑️</button></td>
       </tr>`).join('')}</tbody>
     </table></div>`}
   </div>`;
@@ -773,17 +790,17 @@ async function loadMonthly(){
     <thead>
       <tr style="background:var(--parchment);">
         <th style="text-align:left;padding:14px 18px;font-size:13px;font-weight:600;color:var(--ink);">พนักงาน</th>
-        <th style="text-align:center;padding:14px 12px;font-size:13px;font-weight:600;color:var(--primary);">✅ มา</th>
+        <th style="text-align:center;padding:14px 12px;font-size:13px;font-weight:600;color:var(--primary-text);">✅ มา</th>
         <th style="text-align:center;padding:14px 12px;font-size:13px;font-weight:600;color:var(--green);">🟢 ครบ</th>
         <th style="text-align:center;padding:14px 12px;font-size:13px;font-weight:600;color:#ff9500;">🏖️ ลา</th>
-        <th style="text-align:center;padding:14px 12px;font-size:13px;font-weight:600;color:var(--red);">❌ ขาด</th>
+        <th style="text-align:center;padding:14px 12px;font-size:13px;font-weight:600;color:var(--red-text);">❌ ขาด</th>
         <th style="text-align:center;padding:14px 12px;font-size:13px;font-weight:600;color:var(--muted);">% มา</th>
       </tr>
     </thead>
     <tbody>
       ${sum.map((s,i)=>{
         const pct=s.workDays>0?Math.round(s.presentDays/s.workDays*100):0;
-        const barColor=pct>=80?'var(--green)':pct>=60?'#ff9500':'var(--red)';
+        const barColor=pct>=80?'var(--green)':pct>=60?'#ff9500':'var(--red-text)';
         return `<tr style="border-top:1px solid var(--hairline);${i%2===1?'background:var(--parchment);':''}">
           <td style="padding:14px 18px;">
             <div style="display:flex;align-items:center;gap:10px;">
@@ -794,10 +811,10 @@ async function loadMonthly(){
               </div>
             </div>
           </td>
-          <td style="text-align:center;padding:14px 12px;font-size:18px;font-weight:600;color:var(--primary);">${s.presentDays}</td>
+          <td style="text-align:center;padding:14px 12px;font-size:18px;font-weight:600;color:var(--primary-text);">${s.presentDays}</td>
           <td style="text-align:center;padding:14px 12px;font-size:18px;font-weight:600;color:var(--green);">${s.completeDays}</td>
           <td style="text-align:center;padding:14px 12px;font-size:18px;font-weight:600;color:#ff9500;">${s.leaveDays}</td>
-          <td style="text-align:center;padding:14px 12px;font-size:18px;font-weight:600;color:var(--red);">${s.absentDays}</td>
+          <td style="text-align:center;padding:14px 12px;font-size:18px;font-weight:600;color:var(--red-text);">${s.absentDays}</td>
           <td style="text-align:center;padding:14px 20px;min-width:100px;">
             <div style="font-size:12px;font-weight:600;color:${barColor};margin-bottom:5px;">${pct}%</div>
             <div style="background:var(--hairline);border-radius:9999px;height:6px;overflow:hidden;">
@@ -810,10 +827,10 @@ async function loadMonthly(){
     <tfoot>
       <tr style="border-top:2px solid var(--hairline);background:var(--parchment);">
         <td style="padding:12px 18px;font-size:12px;font-weight:600;color:var(--muted);">รวม (${sum.length} คน)</td>
-        <td style="text-align:center;padding:12px;font-size:14px;font-weight:700;color:var(--primary);">${sum.reduce((a,s)=>a+s.presentDays,0)}</td>
+        <td style="text-align:center;padding:12px;font-size:14px;font-weight:700;color:var(--primary-text);">${sum.reduce((a,s)=>a+s.presentDays,0)}</td>
         <td style="text-align:center;padding:12px;font-size:14px;font-weight:700;color:var(--green);">${sum.reduce((a,s)=>a+s.completeDays,0)}</td>
         <td style="text-align:center;padding:12px;font-size:14px;font-weight:700;color:#ff9500;">${sum.reduce((a,s)=>a+s.leaveDays,0)}</td>
-        <td style="text-align:center;padding:12px;font-size:14px;font-weight:700;color:var(--red);">${sum.reduce((a,s)=>a+s.absentDays,0)}</td>
+        <td style="text-align:center;padding:12px;font-size:14px;font-weight:700;color:var(--red-text);">${sum.reduce((a,s)=>a+s.absentDays,0)}</td>
         <td></td>
       </tr>
     </tfoot>
@@ -1095,34 +1112,34 @@ async function loadLineBadge(){
   if(!el)return;
   try{
     const {data,error}=await sb.rpc('get_line_quota_info');
-    if(error||!data){el.innerHTML=`<span style="font-size:13px;color:var(--red);">❌ โหลดไม่ได้: ${error?.message||'unknown'}</span>`;return;}
-    if(data.error){el.innerHTML=`<span style="font-size:13px;color:var(--red);">❌ ${data.error}</span>`;return;}
+    if(error||!data){el.innerHTML=`<span style="font-size:13px;color:var(--red-text);">❌ โหลดไม่ได้: ${error?.message||'unknown'}</span>`;return;}
+    if(data.error){el.innerHTML=`<span style="font-size:13px;color:var(--red-text);">❌ ${data.error}</span>`;return;}
     const used=data.usage||0;
     const lim=data.limit;
     const rem=data.remaining!=null?data.remaining:(lim!=null?lim-used:null);
     const pct=lim?Math.min(100,Math.round(used/lim*100)):0;
-    const barColor=rem==null?'var(--primary)':rem>50?'var(--green)':rem>10?'#ff9500':'var(--red)';
+    const barColor=rem==null?'var(--primary-text)':rem>50?'var(--green)':rem>10?'#ff9500':'var(--red-text)';
     el.innerHTML=`
       <div style="width:100%;">
         <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
           <span style="font-size:28px;font-weight:700;color:${barColor};">${rem!=null?rem:'∞'}</span>
           <span style="font-size:13px;color:var(--muted);">เครดิตคงเหลือ</span>
           ${lim!=null?`<span style="font-size:12px;color:var(--faint);margin-left:auto;">ใช้ ${used}/${lim} (${pct}%)</span>`:'<span style="font-size:12px;color:var(--faint);margin-left:auto;">ไม่จำกัด</span>'}
-          <button onclick="loadLineBadge()" style="background:none;border:none;color:var(--primary);font-size:14px;cursor:pointer;padding:2px 6px;" title="รีเฟรช">↻</button>
+          <button onclick="loadLineBadge()" style="background:none;border:none;color:var(--primary-text);font-size:14px;cursor:pointer;padding:2px 6px;" title="รีเฟรช">↻</button>
         </div>
         ${lim!=null?`<div style="background:var(--hairline);border-radius:9999px;height:6px;overflow:hidden;">
           <div style="height:100%;width:${pct}%;background:${barColor};border-radius:9999px;transition:width 0.4s;"></div>
         </div>
-        <div style="font-size:11px;color:var(--faint);margin-top:6px;">รีเซ็ตทุกต้นเดือน · <a href="https://manager.line.biz" target="_blank" style="color:var(--primary);text-decoration:none;">ดูใน LINE OA Manager →</a></div>`:''}
+        <div style="font-size:11px;color:var(--faint);margin-top:6px;">รีเซ็ตทุกต้นเดือน · <a href="https://manager.line.biz" target="_blank" style="color:var(--primary-text);text-decoration:none;">ดูใน LINE OA Manager →</a></div>`:''}
       </div>`;
-  }catch(e){el.innerHTML=`<span style="font-size:13px;color:var(--red);">❌ ${e.message}</span>`;}
+  }catch(e){el.innerHTML=`<span style="font-size:13px;color:var(--red-text);">❌ ${e.message}</span>`;}
 }
 
 function renderHolidayList(arr, type){
   if(!arr||!arr.length)return`<div style="font-size:12px;color:var(--faint);padding:4px 0;">ยังไม่มีรายการ</div>`;
   return arr.slice().sort().map(d=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--hairline);">
     <span style="font-size:13px;">${new Date(d+'T00:00:00').toLocaleDateString('th-TH',{weekday:'short',day:'numeric',month:'long',year:'numeric'})}</span>
-    <button onclick="removeDay('${d}','${type}')" style="background:none;border:none;color:var(--red);font-size:13px;cursor:pointer;padding:2px 6px;">✕</button>
+    <button onclick="removeDay('${d}','${type}')" style="background:none;border:none;color:var(--red-text);font-size:13px;cursor:pointer;padding:2px 6px;">✕</button>
   </div>`).join('');
 }
 
@@ -1343,7 +1360,7 @@ function renderLeaveTable(lvs, filter){
           <button class="btn-blue" style="padding:5px 12px;font-size:11px;margin-right:4px;" onclick="approveLeave('${l.id}','approved')">อนุมัติ</button>
           <button class="btn-ghost" style="font-size:11px;" onclick="approveLeave('${l.id}','rejected')">ปฏิเสธ</button>
         `:'<span style="font-size:11px;color:var(--faint);">—</span>'}
-        <button onclick="delLeave('${l.id}')" style="background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;padding:2px 6px;margin-left:4px;" title="ลบใบลานี้">🗑️</button>
+        <button onclick="delLeave('${l.id}')" style="background:none;border:none;color:var(--red-text);font-size:14px;cursor:pointer;padding:2px 6px;margin-left:4px;" title="ลบใบลานี้">🗑️</button>
       </td>
     </tr>`).join('')}
     </tbody></table></div>`;
@@ -1453,7 +1470,7 @@ async function startFaceScan(){
         :[new Float32Array(e.face_descriptor)]
     }));
   if(!allDescs.length){
-    aEl.innerHTML=`<p style="text-align:center;color:var(--red);font-size:13px;padding:10px 0;">❌ ยังไม่มีข้อมูลใบหน้าของพนักงานคนใด<br>กรุณาให้ Admin อัปโหลดรูปก่อน</p><button class="btn-cancel" style="margin-top:10px;" onclick="closeModal()">ปิด</button>`;
+    aEl.innerHTML=`<p style="text-align:center;color:var(--red-text);font-size:13px;padding:10px 0;">❌ ยังไม่มีข้อมูลใบหน้าของพนักงานคนใด<br>กรุณาให้ Admin อัปโหลดรูปก่อน</p><button class="btn-cancel" style="margin-top:10px;" onclick="closeModal()">ปิด</button>`;
     return;
   }
   aEl.innerHTML=`<div style="position:relative;border-radius:14px;overflow:hidden;background:#000;width:160px;aspect-ratio:3/4;margin:0 auto 10px;">
@@ -1467,14 +1484,14 @@ async function startFaceScan(){
     const vid=document.getElementById('faceVid');
     vid.srcObject=faceStream;await vid.play();
   }catch(e){
-    aEl.innerHTML=`<p style="color:var(--red);text-align:center;font-size:13px;padding:10px 0;">❌ ไม่สามารถเปิดกล้องได้</p><button class="btn-cancel" style="margin-top:10px;" onclick="closeModal()">ปิด</button>`;return;
+    aEl.innerHTML=`<p style="color:var(--red-text);text-align:center;font-size:13px;padding:10px 0;">❌ ไม่สามารถเปิดกล้องได้</p><button class="btn-cancel" style="margin-top:10px;" onclick="closeModal()">ปิด</button>`;return;
   }
   const faceTxt=document.getElementById('faceTxt');
   if(!window._faceApiReady){
     try{
       await loadFaceModels(function(msg){ if(faceTxt) faceTxt.textContent=msg; });
     }catch(e){
-      aEl.innerHTML=`<p style="color:var(--red);text-align:center;font-size:13px;padding:10px 0;">❌ โหลด AI ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต</p><button class="btn-cancel" style="margin-top:10px;" onclick="stopFaceScan();closeModal()">ปิด</button>`;return;
+      aEl.innerHTML=`<p style="color:var(--red-text);text-align:center;font-size:13px;padding:10px 0;">❌ โหลด AI ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต</p><button class="btn-cancel" style="margin-top:10px;" onclick="stopFaceScan();closeModal()">ปิด</button>`;return;
     }
   }
   if(faceTxt)faceTxt.textContent='👤 หันหน้าเข้ากล้อง…';
