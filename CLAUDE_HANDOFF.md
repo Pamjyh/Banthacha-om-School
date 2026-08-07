@@ -373,6 +373,14 @@ duty_types: `['ไปราชการ','อบรม','ประชุม','�
 
 **ยังไม่แก้ (ต่ำ ไม่เร่งด่วน)**: `employees.pin` column ไม่ถูกใช้ในโค้ดเลย (grep ไม่เจอ) เป็นของเก่า, ไม่มี index บน `attendance.employee_id`/`leaves.employee_id`, `pg_net` extension อยู่ใน public schema (Supabase แนะนำย้าย แต่เสี่ยงถ้าแตะเอง ไม่แนะนำ)
 
+### 🔴 INCIDENT 2026-07-11 — deploy sequencing พลาด ทำเช็คอินพังสด revert ฉุกเฉินแล้ว
+
+Apply migration column-restrict `settings` (ด้านบน) ก่อน frontend ที่แก้คู่กันจะถูก push ขึ้น GitHub Pages จริง — Supabase มีผลทันทีแต่เว็บจริงยังรันโค้ดเก่า (`select('*')`) → โดน permission denied ทั้งแถว → `settingsCache` fallback พิกัด default ผิด → **ครูเช็คอินไม่ได้จริงระหว่าง session** (Pam รายงานสด "บอกให้เดินเข้าใกล้ออฟฟิศ ทั้งที่ยืนตรงหมุดพอดี")
+
+**Revert ฉุกเฉินแล้ว**: `GRANT SELECT ON settings TO anon,authenticated` กลับเป็นทั้งตาราง (migration `emergency_revert_settings_select_restore_checkin`) — verified เช็คอินใช้งานได้ปกติแล้ว **แต่ `admin_hash` กลับมาอ่านได้ public ชั่วคราว** (trade-off ตั้งใจ)
+
+⚠️ **ค้างอยู่**: ต้องรอ Pam push commit ที่ค้างทั้งหมด (รวม `6117e89` sw.js bump) + ยืนยันว่าเว็บจริงโหลดโค้ดใหม่แล้ว (เช็ค network tab ว่า query เป็น column list ไม่ใช่ `*`) ถึงจะ apply column-restrict ซ้ำได้อย่างปลอดภัย — **Claude ห้าม apply เองอีกจนกว่า Pam ยืนยัน**
+
 ---
 
 ## 5. ระบบสารบัญ
