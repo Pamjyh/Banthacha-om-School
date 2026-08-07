@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="../js/theme-sync.js"></script>
   <!-- DOCX text extraction -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
   <!-- PDF text extraction -->
@@ -38,11 +39,13 @@
       --success:       #1aae39;   /* accent-green */
       --success-bg:    #e8fded;
       --success-bd:    #a7f3c8;
+      --success-text:  #0f7a28;   /* เข้มกว่า --success — ใช้เป็นตัวอักษรบน --success-bg โดยเฉพาะ */
       --warn:          #dd5b00;   /* accent-orange */
       --error:         #dd5b00;
       --error-bg:      #fff3ec;
       --error-bd:      #fbbf9a;
       --primary-bg:    #e8f3fd;   /* tint ของ primary */
+      --primary-text:  #0075de;   /* role ข้อความ/เส้นขอบ แยกจาก --primary (role พื้นปุ่ม) */
 
       /* ── Radius (rounded.* tokens) ── */
       --r-xs:   4px;              /* inputs, tags */
@@ -69,6 +72,17 @@
       --font: 'Sarabun', Inter, -apple-system, system-ui, sans-serif;
     }
 
+    html.dark-mode {
+      --canvas: #18191a; --white: #232527;
+      --ink: #F2F1EF; --ink-secondary: #D4D1CC; --ink-muted: #A39D96; --ink-faint: #8A857E;
+      --hairline: #35373a;
+      --primary-text: #5eb0ff;
+      --primary-bg: #16232f;
+      --success: #4ADE80; --success-bg: #16281c; --success-bd: #2d6b45; --success-text: #4ADE80;
+      --warn: #ff9152; --error-bg: #2a1810; --error-bd: #7a4a2c;
+      /* --primary/--primary-h ไม่แตะ — เป็น role พื้นปุ่ม (ตัวอักษรขาวบนพื้นน้ำเงินเดิม contrast พอแล้ว) */
+    }
+
     body {
       font-family: var(--font);
       background: var(--canvas);
@@ -76,6 +90,7 @@
       min-height: 100vh;
       font-size: 15px; /* body-sm */
       line-height: 1.33;
+      transition: background-color .3s ease, color .3s ease;
     }
 
     /* ─── Header ─── */
@@ -127,8 +142,8 @@
       transition: border-color 0.18s, background 0.18s;
       user-select: none;
     }
-    #dropZone:hover  { border-color: var(--primary); background: var(--primary-bg); }
-    #dropZone.over   { border-color: var(--primary); background: var(--primary-bg); }
+    #dropZone:hover  { border-color: var(--primary-text); background: var(--primary-bg); }
+    #dropZone.over   { border-color: var(--primary-text); background: var(--primary-bg); }
     #dropZone.filled {
       border-style: solid;
       border-color: var(--success);
@@ -144,7 +159,7 @@
     .file-name { font-size: 14px; font-weight: 600; color: var(--ink); word-break: break-all; }
     .file-meta { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
     .file-change {
-      font-size: 12px; color: var(--primary);
+      font-size: 12px; color: var(--primary-text);
       cursor: pointer; text-decoration: underline; margin-top: 4px;
       display: inline-block;
     }
@@ -189,7 +204,7 @@
     input[type="text"]:focus,
     select:focus,
     textarea:focus {
-      border-color: var(--primary);
+      border-color: var(--primary-text);
       box-shadow: var(--shadow-1); /* Level-1 on focus per spec */
     }
     textarea { resize: vertical; min-height: 76px; }
@@ -208,7 +223,7 @@
       width: 100%;
       padding: 13px var(--sp-lg);
       min-height: 48px;             /* comfortable touch target */
-      background: var(--primary);
+      background:var(--primary);
       color: #fff;
       border: none;
       border-radius: var(--r-full); /* 9999px — pill */
@@ -240,14 +255,14 @@
     .r-title { font-size: 16px; font-weight: 600; color: var(--ink); margin-bottom: 10px; }
     .r-link  {
       display: inline-block; margin-bottom: 4px;
-      font-size: 14px; color: var(--primary);
+      font-size: 14px; color: var(--primary-text);
       word-break: break-all; text-decoration: none;
     }
     .r-link:hover { text-decoration: underline; }
     .r-err { font-size: 13px; color: var(--warn); }
     .btn-reset {
       margin-top: 12px; font-size: 13px;
-      color: var(--primary); cursor: pointer;
+      color: var(--primary-text); cursor: pointer;
       text-decoration: underline; background: none;
       border: none; font-family: var(--font);
     }
@@ -310,7 +325,7 @@
       text-align: center;
       white-space: nowrap;
     }
-    .quota-ok   { background: var(--success-bg); border-color: var(--success-bd); color: #0f7a28; }
+    .quota-ok   { background: var(--success-bg); border-color: var(--success-bd); color: var(--success-text); }
     .quota-warn { background: #fff7ed;            border-color: #fcd4a6;           color: #9a4500; }
     .quota-low  { background: var(--error-bg);    border-color: var(--error-bd);   color: var(--warn); }
 
@@ -335,7 +350,7 @@
     }
     .radio-opt input[type="radio"] {
       width: 16px; height: 16px;
-      accent-color: var(--primary);
+      accent-color: var(--primary-text);
       cursor: pointer;
     }
     #yearSel { width: auto; min-width: 110px; }
@@ -359,8 +374,8 @@
       transition: background 0.12s, border-color 0.12s, color 0.12s;
     }
     .quick-btn:hover {
-      border-color: var(--primary);
-      color: var(--primary);
+      border-color: var(--primary-text);
+      color: var(--primary-text);
     }
     .teacher-chips {
       display: flex;
@@ -379,10 +394,10 @@
       transition: background 0.12s, border-color 0.12s, color 0.12s;
       user-select: none;
     }
-    .t-chip:hover { border-color: var(--primary); color: var(--primary); }
+    .t-chip:hover { border-color: var(--primary-text); color: var(--primary-text); }
     .t-chip.selected {
-      background: var(--primary);
-      border-color: var(--primary);
+      background:var(--primary);
+      border-color: var(--primary-text);
       color: #fff;
       font-weight: 500;
     }
@@ -877,7 +892,7 @@ function setupAttachDrop() {
   });
   zone.addEventListener('dragover', function(e) {
     e.preventDefault();
-    zone.style.borderColor = 'var(--primary)';
+    zone.style.borderColor = 'var(--primary-text)';
   });
   zone.addEventListener('dragleave', function(e) {
     if (!zone.contains(e.relatedTarget)) zone.style.borderColor = 'var(--hairline)';
