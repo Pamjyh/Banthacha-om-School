@@ -517,7 +517,7 @@ function renderAdmin(){
   <div style="padding-top:44px;">
     <section class="admin-hero"><h1>จัดการระบบ</h1><p>ยินดีต้อนรับ ${adminUser.name}</p></section>
     <nav class="sub-nav">
-      ${[['history','📋 ประวัติ'],['leaves','📝 ใบลา'],['monthly','📊 รายเดือน'],['employees','👥 พนักงาน'],['settings','⚙️ ตั้งค่า']]
+      ${[['history','📋 ประวัติ'],['leaves','📝 ใบลา'],['leavecal','📅 ปฏิทินลา'],['quota','🎯 โควตาลา'],['monthly','📊 รายเดือน'],['employees','👥 พนักงาน'],['audit','🔍 บันทึกระบบ'],['settings','⚙️ ตั้งค่า']]
         .map(([k,v])=>`<button class="tab ${adminTab===k?'active':''}" onclick="setTab('${k}')">${v}</button>`).join('')}
     </nav>
     <div class="admin-body" id="adminBody"><div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div></div>
@@ -525,7 +525,7 @@ function renderAdmin(){
   loadAdminTab();
 }
 
-function setTab(t){adminTab=t;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));const lbl={history:'ประวัติ',leaves:'ใบลา',monthly:'รายเดือน',employees:'พนักงาน',settings:'ตั้งค่า'};document.querySelectorAll('.tab').forEach(b=>{if(b.textContent.trim().includes(lbl[t]||''))b.classList.add('active');});loadAdminTab();}
+function setTab(t){adminTab=t;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));const lbl={history:'ประวัติ',leaves:'ใบลา',leavecal:'ปฏิทินลา',quota:'โควตาลา',monthly:'รายเดือน',employees:'พนักงาน',audit:'บันทึกระบบ',settings:'ตั้งค่า'};document.querySelectorAll('.tab').forEach(b=>{if(b.textContent.trim().includes(lbl[t]||''))b.classList.add('active');});loadAdminTab();}
 
 async function loadAdminTab(){
   const body=document.getElementById('adminBody');
@@ -533,9 +533,145 @@ async function loadAdminTab(){
   body.innerHTML=`<div style="display:flex;justify-content:center;padding:40px;"><div class="spinner"></div></div>`;
   if(adminTab==='history')await loadHistory();
   else if(adminTab==='leaves')await loadLeaves();
+  else if(adminTab==='leavecal')await loadLeaveCalendar();
+  else if(adminTab==='quota')await loadLeaveQuota();
   else if(adminTab==='monthly')await loadMonthly();
   else if(adminTab==='employees')await loadEmployeesAdmin();
+  else if(adminTab==='audit')await loadAuditLog();
   else loadSettingsUI();
+}
+
+const QUOTA_TYPES=[{v:'ลาป่วย',max:60},{v:'ลากิจส่วนตัว',max:45},{v:'ลาพักผ่อน',max:10}];
+let quotaYear=new Date().getFullYear();
+async function loadLeaveQuota(){
+  const {data:emps}=await sb.from('employees').select('*').order('name');
+  const yStart=`${quotaYear}-01-01`, yEnd=`${quotaYear}-12-31`;
+  const {data:leaves}=await sb.from('leaves').select('*').eq('status','approved').lte('start_date',yEnd).gte('end_date',yStart);
+  const body=document.getElementById('adminBody');if(!body)return;
+  const rows=(emps||[]).map(u=>{
+    const used={};QUOTA_TYPES.forEach(t=>used[t.v]=0);
+    (leaves||[]).filter(l=>l.employee_id===u.id).forEach(l=>{
+      if(l.leave_type in used) used[l.leave_type]+=(l.days||0);
+    });
+    return {u,used};
+  });
+  body.innerHTML=`
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+    <div class="sec-head" style="margin:0;">🎯 โควตาวันลาคงเหลือรายปี</div>
+    <select class="sel" onchange="quotaYear=Number(this.value);loadAdminTab()">${Array.from({length:5},(_,i)=>{const y=new Date().getFullYear()-2+i;return `<option value="${y}" ${y===quotaYear?'selected':''}>พ.ศ. ${y+543}</option>`;}).join('')}</select>
+    <span style="font-size:11px;color:var(--faint);">เกณฑ์มาตรฐานข้าราชการ: ลาป่วย 60 / ลากิจ 45 / ลาพักผ่อน 10 วันทำการต่อปี</span>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    ${rows.length===0?'<div class="empty">ไม่มีข้อมูลพนักงาน</div>':`
+    <div style="overflow-x:auto;"><table class="tbl">
+      <thead><tr><th>พนักงาน</th>${QUOTA_TYPES.map(t=>`<th style="text-align:center;">${t.v}<br><span style="font-weight:400;text-transform:none;">(${t.max} วัน)</span></th>`).join('')}</tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td><b>${esc(r.u.name)}</b><br><span style="font-size:11px;color:var(--faint);">${esc(r.u.username)}</span></td>
+        ${QUOTA_TYPES.map(t=>{
+          const used=r.used[t.v]||0, remain=t.max-used, over=remain<0;
+          const pct=Math.min(100,Math.round(used/t.max*100));
+          const color=over?'var(--red)':pct>=80?'#f59e0b':'var(--primary)';
+          return `<td style="text-align:center;min-width:110px;">
+            <div style="font-size:13px;font-weight:700;color:${color};">${used} / ${t.max}</div>
+            <div style="height:5px;background:var(--hairline);border-radius:3px;margin-top:4px;overflow:hidden;">
+              <div style="height:100%;width:${pct}%;background:${color};"></div>
+            </div>
+            <div style="font-size:10px;color:var(--faint);margin-top:2px;">${over?'เกินโควตา '+Math.abs(remain)+' วัน':'เหลือ '+remain+' วัน'}</div>
+          </td>`;
+        }).join('')}
+      </tr>`).join('')}</tbody>
+    </table></div>`}
+  </div>`;
+}
+
+const LEAVE_COLORS=['#3b82f6','#f59e0b','#10b981','#ef4444','#8b5cf6','#ec4899'];
+async function loadLeaveCalendar(){
+  const [yr,mo]=activeMonth.split('-').map(Number);
+  const months=[];
+  for(let m=0;m<12;m++){const d=new Date(yr,m,1);months.push({v:`${yr}-${String(m+1).padStart(2,'0')}`,l:d.toLocaleDateString('th-TH',{month:'long',year:'numeric'})});}
+  const lastDay=new Date(yr,mo,0).getDate();
+  const firstDayStr=`${yr}-${String(mo).padStart(2,'0')}-01`;
+  const lastDayStr=`${yr}-${String(mo).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  const {data:leaves}=await sb.from('leaves').select('*, employees(name)').eq('status','approved').lte('start_date',lastDayStr).gte('end_date',firstDayStr);
+  const parseDate=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+  const localDateStr=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  // map date -> [{name,type,colorIdx}]
+  const byDate={};
+  const empColor={};let colorSeq=0;
+  (leaves||[]).forEach(l=>{
+    if(!(l.employee_id in empColor)){empColor[l.employee_id]=colorSeq%LEAVE_COLORS.length;colorSeq++;}
+    const ls=new Date(Math.max(parseDate(l.start_date),new Date(yr,mo-1,1)));
+    const le=new Date(Math.min(parseDate(l.end_date),new Date(yr,mo-1,lastDay)));
+    for(let d=new Date(ls);d<=le;d.setDate(d.getDate()+1)){
+      const ds=localDateStr(d);
+      (byDate[ds]=byDate[ds]||[]).push({name:l.employees?.name||'-',type:l.leave_type,colorIdx:empColor[l.employee_id]});
+    }
+  });
+  const first=new Date(yr,mo-1,1);
+  const startPad=first.getDay(); // 0=Sun
+  const cells=[];
+  for(let i=0;i<startPad;i++)cells.push(null);
+  for(let d=1;d<=lastDay;d++)cells.push(d);
+  const monthLabel=months.find(m=>m.v===activeMonth)?.l||activeMonth;
+  const body=document.getElementById('adminBody');if(!body)return;
+  body.innerHTML=`
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+    <div class="sec-head" style="margin:0;">📅 ปฏิทินการลา</div>
+    <select class="sel" onchange="activeMonth=this.value+'-'+activeMonth.slice(5,7);loadAdminTab()">${Array.from({length:7},(_,i)=>{const y=new Date().getFullYear()-5+i;return `<option value="${y}" ${y===yr?'selected':''}>${y}</option>`;}).join('')}</select>
+    <select class="sel" onchange="activeMonth=this.value;loadAdminTab()">${months.map(m=>`<option value="${m.v}" ${activeMonth===m.v?'selected':''}>${m.l}</option>`).join('')}</select>
+    <span style="font-size:12px;color:var(--faint);">${monthLabel} · ${(leaves||[]).length} รายการลาที่อนุมัติ</span>
+  </div>
+  <div class="card" style="padding:10px;">
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:11px;color:var(--faint);text-align:center;margin-bottom:4px;">
+      ${['อา','จ','อ','พ','พฤ','ศ','ส'].map(d=>`<div>${d}</div>`).join('')}
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">
+      ${cells.map(d=>{
+        if(d===null)return `<div style="min-height:70px;"></div>`;
+        const ds=`${yr}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const items=byDate[ds]||[];
+        const isToday=ds===localDateStr(new Date());
+        return `<div style="min-height:70px;border:1px solid var(--hairline);border-radius:8px;padding:4px;${isToday?'background:var(--parchment);':''}">
+          <div style="font-size:11px;color:var(--faint);margin-bottom:2px;">${d}</div>
+          ${items.map(it=>`<div title="${esc(it.name)} — ${esc(it.type)}" style="font-size:10px;background:${LEAVE_COLORS[it.colorIdx]}22;color:${LEAVE_COLORS[it.colorIdx]};border-radius:4px;padding:1px 4px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(it.name)}</div>`).join('')}
+        </div>`;
+      }).join('')}
+    </div>
+    ${(leaves||[]).length===0?'<div class="empty" style="padding:20px;">ไม่มีใบลาที่อนุมัติในเดือนนี้</div>':''}
+  </div>`;
+}
+
+const AUDIT_ACTION_LABEL={
+  add_employee:'➕ เพิ่มพนักงาน', delete_employee:'🗑️ ลบพนักงาน',
+  update_employee_photo:'🖼️ อัปเดตรูป/ใบหน้า', add_face_descriptor:'🙂 เพิ่มข้อมูลใบหน้า',
+  delete_attendance:'🗑️ ลบประวัติเข้างาน', update_leave:'📝 อนุมัติ/ปฏิเสธใบลา', delete_leave:'🗑️ ลบใบลา',
+  update_settings:'⚙️ แก้ไขตั้งค่าระบบ', set_password_initial:'🔑 ตั้งรหัสผ่านครั้งแรก', change_password:'🔑 เปลี่ยนรหัสผ่าน',
+};
+async function loadAuditLog(){
+  const {data:rows,error}=await sb.rpc('admin_get_audit_log',{p_hash:getH(),p_limit:150});
+  const body=document.getElementById('adminBody');if(!body)return;
+  if(error){body.innerHTML=`<div class="sec-head">บันทึกการทำงานของระบบ</div><div class="card empty">โหลดไม่สำเร็จ</div>`;return;}
+  body.innerHTML=`<div class="sec-head">บันทึกการทำงานของระบบ <span style="font-size:11px;color:var(--faint);font-weight:400;">(150 รายการล่าสุด)</span></div>
+  <div class="card" style="padding:0;overflow:hidden;">
+    ${!rows||rows.length===0?'<div class="empty">ยังไม่มีบันทึก</div>':`
+    <div style="overflow-x:auto;"><table class="tbl">
+      <thead><tr><th>การกระทำ</th><th>รายละเอียด</th><th>วันที่</th><th>เวลา</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr>
+        <td style="font-size:13px;white-space:nowrap;">${AUDIT_ACTION_LABEL[r.action]||r.action}</td>
+        <td style="font-size:12px;color:var(--faint);">${esc(auditDetailText(r))}</td>
+        <td style="font-size:12px;">${fDate(r.created_at)}</td>
+        <td style="font-size:13px;font-family:monospace;">${fTime(r.created_at)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`}
+  </div>`;
+}
+function auditDetailText(r){
+  const d=r.detail||{};
+  if(r.action==='add_employee')return `${d.name||''} (${d.username||''})`;
+  if(r.action==='delete_employee')return d.name||'';
+  if(r.action==='update_leave')return d.status==='approved'?'✅ อนุมัติ':d.status==='rejected'?'❌ ปฏิเสธ':'';
+  if(r.action==='update_settings')return `${d.school_name||''} · รัศมี ${d.radius??'-'} ม.`;
+  return '';
 }
 
 async function loadHistory(){
@@ -623,12 +759,14 @@ async function loadMonthly(){
   });
   const body=document.getElementById('adminBody');if(!body)return;
   const monthLabel=months.find(m=>m.v===activeMonth)?.l||activeMonth;
+  window._monthlySum={sum,workDays,monthLabel};
   body.innerHTML=`
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap;">
     <div class="sec-head" style="margin:0;">📊 สรุปรายเดือน</div>
     <select class="sel" onchange="activeMonth=this.value+'-'+activeMonth.slice(5,7);loadAdminTab()">${Array.from({length:7},(_,i)=>{const y=new Date().getFullYear()-5+i;return `<option value="${y}" ${y===yr?'selected':''}>${y}</option>`;}).join('')}</select>
     <select class="sel" onchange="activeMonth=this.value;loadAdminTab()">${months.map(m=>`<option value="${m.v}" ${activeMonth===m.v?'selected':''}>${m.l}</option>`).join('')}</select>
     <span style="font-size:12px;color:var(--faint);">วันทำงาน ${workDays} วัน</span>
+    <button class="btn-blue" onclick="exportMonthlyPDF()" style="margin-left:auto;">📄 Export PDF</button>
   </div>
   <div style="overflow-x:auto;">
   <table style="width:100%;border-collapse:collapse;background:var(--canvas);border-radius:18px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
@@ -681,6 +819,86 @@ async function loadMonthly(){
     </tfoot>
   </table>
   </div>`;
+}
+
+// ===== PDF Export: สรุปเวลาปฏิบัติงานรายเดือน =====
+// pattern เดียวกับ ระบบบริหารงาน/js/pdf-templates.js: สร้าง HTML แล้วสั่ง browser print แทน jsPDF วาดเอง
+// (jsPDF custom Thai text shaping เจอบั๊กซ้ำหลายรอบมาก่อน — HTML+print ให้ browser จัดการ Thai เอง)
+function printHtmlDocTime(html){
+  const iframe=document.createElement('iframe');
+  iframe.style.position='fixed';iframe.style.right='0';iframe.style.bottom='0';
+  iframe.style.width='0';iframe.style.height='0';iframe.style.border='0';
+  iframe.onload=function(){
+    setTimeout(function(){
+      try{ iframe.contentWindow.focus(); iframe.contentWindow.print(); }
+      catch(e){ alert('เปิดหน้าต่างพิมพ์ไม่สำเร็จ: '+e.message); }
+      setTimeout(function(){ if(iframe.parentNode) iframe.parentNode.removeChild(iframe); }, 1000);
+    }, 300);
+  };
+  document.body.appendChild(iframe);
+  const idoc=iframe.contentWindow.document;
+  idoc.open();idoc.write(html);idoc.close();
+}
+
+function exportMonthlyPDF(){
+  const data=window._monthlySum;
+  if(!data||!data.sum||!data.sum.length){toast('ไม่มีข้อมูลให้ export','err');return;}
+  const {sum,workDays,monthLabel}=data;
+  const schoolName=settingsCache?.school_name||'โรงเรียนบ้านท่าชะอม';
+  const genDate=new Date().toLocaleDateString('th-TH',{day:'numeric',month:'long',year:'numeric'});
+  const rows=sum.map((s,i)=>{
+    const pct=s.workDays>0?Math.round(s.presentDays/s.workDays*100):0;
+    return `<tr>
+      <td style="text-align:center;">${i+1}</td>
+      <td>${esc(s.u.name)}</td>
+      <td style="text-align:center;">${s.presentDays}</td>
+      <td style="text-align:center;">${s.leaveDays}</td>
+      <td style="text-align:center;">${s.absentDays}</td>
+      <td style="text-align:center;">${pct}%</td>
+    </tr>`;
+  }).join('');
+  const totalPresent=sum.reduce((a,s)=>a+s.presentDays,0);
+  const totalLeave=sum.reduce((a,s)=>a+s.leaveDays,0);
+  const totalAbsent=sum.reduce((a,s)=>a+s.absentDays,0);
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    @page{size:A4;margin:18mm 15mm;}
+    *{box-sizing:border-box;}
+    body{font-family:'Sarabun',sans-serif;color:#1d1d1f;font-size:14px;}
+    .hdr{text-align:center;margin-bottom:6px;}
+    .hdr .school{font-size:18px;font-weight:700;}
+    .hdr .title{font-size:16px;font-weight:600;margin-top:2px;}
+    .hdr .sub{font-size:13px;color:#555;margin-top:2px;}
+    table{width:100%;border-collapse:collapse;margin-top:16px;}
+    th,td{border:1px solid #999;padding:6px 8px;font-size:13px;}
+    th{background:#eee;font-weight:600;text-align:center;}
+    tfoot td{font-weight:700;background:#f5f5f5;}
+    .sign{margin-top:48px;display:flex;justify-content:flex-end;}
+    .sign-box{text-align:center;width:260px;font-size:13px;}
+    .sign-line{margin-top:48px;border-top:1px dotted #333;padding-top:4px;}
+    .footer-note{margin-top:24px;font-size:11px;color:#888;}
+  </style></head>
+  <body>
+    <div class="hdr">
+      <div class="school">${esc(schoolName)}</div>
+      <div class="title">สรุปเวลาปฏิบัติงานประจำเดือน${esc(monthLabel)}</div>
+      <div class="sub">วันทำการ ${workDays} วัน</div>
+    </div>
+    <table>
+      <thead><tr><th style="width:36px;">ที่</th><th style="text-align:left;">ชื่อ-สกุล</th><th>มาทำงาน (วัน)</th><th>ลา (วัน)</th><th>ขาด (วัน)</th><th>% มาทำงาน</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="2">รวม (${sum.length} คน)</td><td style="text-align:center;">${totalPresent}</td><td style="text-align:center;">${totalLeave}</td><td style="text-align:center;">${totalAbsent}</td><td></td></tr></tfoot>
+    </table>
+    <div class="sign">
+      <div class="sign-box">
+        <div class="sign-line">( ................................................ )</div>
+        <div>ผู้อำนวยการ${esc(schoolName)}</div>
+      </div>
+    </div>
+    <div class="footer-note">พิมพ์เอกสารเมื่อวันที่ ${genDate}</div>
+  </body></html>`;
+  printHtmlDocTime(html);
 }
 
 async function loadEmployeesAdmin(){
