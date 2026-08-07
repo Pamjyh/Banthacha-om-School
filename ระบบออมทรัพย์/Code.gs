@@ -184,6 +184,9 @@ function styleHeader(sheet, cols) {
 function getStudentByName(p) {
   const keyword = (p.name || '').trim().toLowerCase();
   if (!keyword) return { ok: false, error: 'กรุณาใส่ชื่อ' };
+  // F3 fix (scrutinize 2026-08-07): endpoint นี้ไม่ต้องรหัสผ่าน (ผู้ปกครองใช้) เดิมไม่มีความยาวขั้นต่ำ
+  // คำค้นสั้นเกินไป (เช่น 1 ตัวอักษร) จะได้ชื่อ+ยอดออมของนักเรียนเกือบทั้งโรงเรียนกลับมาในคำขอเดียว
+  if (keyword.length < 2) return { ok: false, error: 'กรุณาพิมพ์ชื่ออย่างน้อย 2 ตัวอักษร' };
 
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const studSheet = ss.getSheetByName('นักเรียน');
@@ -218,6 +221,8 @@ function getStudentByName(p) {
     }));
 
   if (!matches.length) return { ok: false, error: 'ไม่พบนักเรียนชื่อ "' + p.name + '"' };
+  // F3 fix (scrutinize 2026-08-07): จำกัดจำนวนผลลัพธ์ — กันคำค้นกว้างๆ (เช่นพบพ้องกันหลายสิบคน) ดึงยอดออมออกมาได้เยอะเกินจำเป็น
+  if (matches.length > 15) return { ok: false, error: 'พบนักเรียนหลายคนเกินไป (' + matches.length + ' คน) กรุณาพิมพ์ชื่อให้เจาะจงมากขึ้น' };
 
   // ถ้าเจอคนเดียว ดึงประวัติธุรกรรมมาด้วย
   if (matches.length === 1) {
@@ -456,76 +461,87 @@ function addTransaction(p, type) {
   if (!p.studentId || isNaN(amount) || amount <= 0)
     return { ok: false, error: 'ข้อมูลไม่ถูกต้อง' };
 
-  if (type === 'ถอน') {
-    const bal = getBalance(p.studentId);
-    if (amount > bal) return { ok: false, error: 'ยอดไม่พอ (มี ' + bal + ' บาท)' };
+  // F2 fix (scrutinize 2026-08-07): เดิมอ่าน balance ก่อนเช็ค/เขียน โดยไม่มี lock คั่นกลาง
+  // ถ้า 2 คำขอ (ฝาก/ถอน คนเดียวกัน) มาพร้อมกัน ทั้งคู่อ่าน balance เก่าเหมือนกัน เช็คผ่านทั้งคู่ แล้วเขียนทับกัน
+  // ยอดติดลบได้จริงโดยไม่มีแถวไหน "ผิด" เดี่ยวๆเลย — ครอบทั้งฟังก์ชันด้วย LockService กันการอ่าน-แล้ว-เขียนแบบนี้ชนกัน
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return { ok: false, error: 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณารอสักครู่แล้วลองใหม่' };
   }
-
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const txSheet = ss.getSheetByName('ธุรกรรม');
-  if (!txSheet) return { ok: false, error: 'ไม่พบ sheet "ธุรกรรม" — กรุณารัน initSheets ก่อน (SHEET_ID=' + SHEET_ID + ')' };
-
-  // หาชื่อและชั้นนักเรียน — ใช้ dynamic header ป้องกัน column order เปลี่ยน
-  const studAllData = ss.getSheetByName('นักเรียน').getDataRange().getValues();
-  const studHeaders = studAllData[0].map(function(h) { return String(h).trim(); });
-  function findSColTx(names) {
-    for (var n of names) { var idx = studHeaders.indexOf(n); if (idx >= 0) return idx; }
-    return -1;
-  }
-  const siName  = findSColTx(['ชื่อ-สกุล', 'ชื่อ สกุล', 'ชื่อ']);
-  const siGrade = findSColTx(['ชั้นปัจจุบัน', 'ชั้น']);
-  let studentName = '', studentGrade = '';
-  for (let i = 1; i < studAllData.length; i++) {
-    if (String(studAllData[i][0]) === String(p.studentId)) {
-      studentName  = siName  >= 0 ? String(studAllData[i][siName]  || '') : '';
-      studentGrade = siGrade >= 0 ? String(studAllData[i][siGrade] || '') : '';
-      break;
+  try {
+    if (type === 'ถอน') {
+      const bal = getBalance(p.studentId);
+      if (amount > bal) return { ok: false, error: 'ยอดไม่พอ (มี ' + bal + ' บาท)' };
     }
-  }
 
-  const id = 'T' + Date.now();
-  const dateStr = thaiDate(new Date());
-  const yearVal = thaiYear();
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const txSheet = ss.getSheetByName('ธุรกรรม');
+    if (!txSheet) return { ok: false, error: 'ไม่พบ sheet "ธุรกรรม" — กรุณารัน initSheets ก่อน (SHEET_ID=' + SHEET_ID + ')' };
 
-  // อ่าน balance ปัจจุบัน ก่อน append (เพื่อหลีกเลี่ยง cache issue หลัง write)
-  const sid = String(p.studentId);
-  let currentBal = 0;
-  const allRows = txSheet.getDataRange().getValues();
-  allRows.slice(1).forEach(function(row) {
-    if (String(row[1]) === sid) {
-      currentBal += (row[4] === 'ฝาก' ? parseFloat(row[5])||0 : -(parseFloat(row[5])||0));
+    // หาชื่อและชั้นนักเรียน — ใช้ dynamic header ป้องกัน column order เปลี่ยน
+    const studAllData = ss.getSheetByName('นักเรียน').getDataRange().getValues();
+    const studHeaders = studAllData[0].map(function(h) { return String(h).trim(); });
+    function findSColTx(names) {
+      for (var n of names) { var idx = studHeaders.indexOf(n); if (idx >= 0) return idx; }
+      return -1;
     }
-  });
+    const siName  = findSColTx(['ชื่อ-สกุล', 'ชื่อ สกุล', 'ชื่อ']);
+    const siGrade = findSColTx(['ชั้นปัจจุบัน', 'ชั้น']);
+    let studentName = '', studentGrade = '';
+    for (let i = 1; i < studAllData.length; i++) {
+      if (String(studAllData[i][0]) === String(p.studentId)) {
+        studentName  = siName  >= 0 ? String(studAllData[i][siName]  || '') : '';
+        studentGrade = siGrade >= 0 ? String(studAllData[i][siGrade] || '') : '';
+        break;
+      }
+    }
 
-  // กันบันทึกซ้ำ — เผื่อกดส่งพร้อมกันจาก 2 อุปกรณ์ด้วยรหัสครูเดียวกัน (ฝั่ง frontend disable ปุ่มกันได้แค่เครื่องเดียวกัน)
-  // เช็ค transaction คนเดียวกัน+ประเภทเดียวกัน+ยอดเท่ากัน ที่เพิ่งถูกบันทึกภายใน 8 วินาทีล่าสุด (ใช้ epoch ใน id "T<ms>" ไม่ต้องเพิ่มคอลัมน์ใหม่)
-  const DUP_WINDOW_MS = 8000;
-  const nowMs = Date.now();
-  const isDupTx = allRows.slice(1).some(function(row) {
-    if (String(row[1]) !== sid || row[4] !== type || (parseFloat(row[5])||0) !== amount) return false;
-    const m = String(row[0]).match(/^T(\d+)$/);
-    return m && (nowMs - parseInt(m[1], 10)) < DUP_WINDOW_MS;
-  });
-  if (isDupTx) {
-    return { ok: false, error: 'ดูเหมือนเพิ่งบันทึกรายการนี้ไปแล้วเมื่อครู่ (คนเดียวกัน ยอดเดียวกัน) ถ้าตั้งใจทำซ้ำจริง รอสักครู่แล้วลองใหม่' };
+    const id = 'T' + Date.now();
+    const dateStr = thaiDate(new Date());
+    const yearVal = thaiYear();
+
+    // อ่าน balance ปัจจุบัน ก่อน append (เพื่อหลีกเลี่ยง cache issue หลัง write) — ตอนนี้ปลอดภัยเพราะอยู่ใน lock แล้ว
+    const sid = String(p.studentId);
+    let currentBal = 0;
+    const allRows = txSheet.getDataRange().getValues();
+    allRows.slice(1).forEach(function(row) {
+      if (String(row[1]) === sid) {
+        currentBal += (row[4] === 'ฝาก' ? parseFloat(row[5])||0 : -(parseFloat(row[5])||0));
+      }
+    });
+
+    // กันบันทึกซ้ำ — เผื่อกดส่งพร้อมกันจาก 2 อุปกรณ์ด้วยรหัสครูเดียวกัน (ฝั่ง frontend disable ปุ่มกันได้แค่เครื่องเดียวกัน)
+    // เช็ค transaction คนเดียวกัน+ประเภทเดียวกัน+ยอดเท่ากัน ที่เพิ่งถูกบันทึกภายใน 8 วินาทีล่าสุด (ใช้ epoch ใน id "T<ms>" ไม่ต้องเพิ่มคอลัมน์ใหม่)
+    const DUP_WINDOW_MS = 8000;
+    const nowMs = Date.now();
+    const isDupTx = allRows.slice(1).some(function(row) {
+      if (String(row[1]) !== sid || row[4] !== type || (parseFloat(row[5])||0) !== amount) return false;
+      const m = String(row[0]).match(/^T(\d+)$/);
+      return m && (nowMs - parseInt(m[1], 10)) < DUP_WINDOW_MS;
+    });
+    if (isDupTx) {
+      return { ok: false, error: 'ดูเหมือนเพิ่งบันทึกรายการนี้ไปแล้วเมื่อครู่ (คนเดียวกัน ยอดเดียวกัน) ถ้าตั้งใจทำซ้ำจริง รอสักครู่แล้วลองใหม่' };
+    }
+
+    const rowsBefore = txSheet.getLastRow();
+    // append ตรงๆ ตาม column order ที่กำหนด: id, นักเรียน_id, ชื่อ, ชั้น, ประเภท, จำนวนเงิน, ปีการศึกษา, วันที่, [หมายเหตุ]
+    // หมายเหตุ (เช่น "ดอกเบี้ย") อยู่คอลัมน์ท้ายสุดเสมอ ตำแหน่งขึ้นกับ ensureTxNoteCol (กันชนกับ column index 0-7 ที่ฟังก์ชันอื่น hardcode ไว้)
+    const noteColIdx = ensureTxNoteCol(txSheet);
+    const rowVals = [id, p.studentId, studentName, studentGrade, type, amount, yearVal, dateStr];
+    while (rowVals.length < noteColIdx) rowVals.push('');
+    rowVals[noteColIdx] = String(p.note || '').trim();
+    txSheet.appendRow(rowVals);
+    SpreadsheetApp.flush(); // บังคับ commit
+    invalidateBalanceCache();
+    const rowsAfter = txSheet.getLastRow();
+
+    // คำนวณ balance ใหม่จาก balance เก่า + transaction นี้ (ไม่ re-read sheet หลัง write)
+    const newBalance = type === 'ฝาก' ? currentBal + amount : currentBal - amount;
+
+    return { ok: true, id, type, amount, date: dateStr, newBalance, debug: { rowsBefore, rowsAfter, wrote: rowsAfter > rowsBefore, currentBal } };
+  } finally {
+    lock.releaseLock();
   }
-
-  const rowsBefore = txSheet.getLastRow();
-  // append ตรงๆ ตาม column order ที่กำหนด: id, นักเรียน_id, ชื่อ, ชั้น, ประเภท, จำนวนเงิน, ปีการศึกษา, วันที่, [หมายเหตุ]
-  // หมายเหตุ (เช่น "ดอกเบี้ย") อยู่คอลัมน์ท้ายสุดเสมอ ตำแหน่งขึ้นกับ ensureTxNoteCol (กันชนกับ column index 0-7 ที่ฟังก์ชันอื่น hardcode ไว้)
-  const noteColIdx = ensureTxNoteCol(txSheet);
-  const rowVals = [id, p.studentId, studentName, studentGrade, type, amount, yearVal, dateStr];
-  while (rowVals.length < noteColIdx) rowVals.push('');
-  rowVals[noteColIdx] = String(p.note || '').trim();
-  txSheet.appendRow(rowVals);
-  SpreadsheetApp.flush(); // บังคับ commit
-  invalidateBalanceCache();
-  const rowsAfter = txSheet.getLastRow();
-
-  // คำนวณ balance ใหม่จาก balance เก่า + transaction นี้ (ไม่ re-read sheet หลัง write)
-  const newBalance = type === 'ฝาก' ? currentBal + amount : currentBal - amount;
-
-  return { ok: true, id, type, amount, date: dateStr, newBalance, debug: { rowsBefore, rowsAfter, wrote: rowsAfter > rowsBefore, currentBal } };
 }
 
 function getBalance(studentId) {
@@ -573,24 +589,33 @@ function editTransaction(p) {
   if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   const newAmount = parseFloat(p.amount);
   if (!p.txId || isNaN(newAmount) || newAmount <= 0) return { ok: false, error: 'ข้อมูลไม่ถูกต้อง' };
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const txSheet = ss.getSheetByName('ธุรกรรม');
-  const data = txSheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === p.txId) {
-      const sid = data[i][1], type = data[i][4];
-      if (type === 'ถอน') {
-        const oldAmt = parseFloat(data[i][5])||0;
-        const balWithout = getBalance(sid) + oldAmt;
-        if (newAmount > balWithout) return { ok: false, error: 'ยอดไม่พอ (มี ' + balWithout + ' บาท)' };
-      }
-      txSheet.getRange(i+1, 6).setValue(newAmount);
-      SpreadsheetApp.flush();
-      invalidateBalanceCache();
-      return { ok: true, newBalance: getBalance(sid) };
-    }
+  // F2 fix (scrutinize 2026-08-07): เหตุผลเดียวกับ addTransaction — เช็คยอด (balWithout) แล้วค่อยเขียน ไม่มี lock คั่นเดิม
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return { ok: false, error: 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณารอสักครู่แล้วลองใหม่' };
   }
-  return { ok: false, error: 'ไม่พบรายการ' };
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const txSheet = ss.getSheetByName('ธุรกรรม');
+    const data = txSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === p.txId) {
+        const sid = data[i][1], type = data[i][4];
+        if (type === 'ถอน') {
+          const oldAmt = parseFloat(data[i][5])||0;
+          const balWithout = getBalance(sid) + oldAmt;
+          if (newAmount > balWithout) return { ok: false, error: 'ยอดไม่พอ (มี ' + balWithout + ' บาท)' };
+        }
+        txSheet.getRange(i+1, 6).setValue(newAmount);
+        SpreadsheetApp.flush();
+        invalidateBalanceCache();
+        return { ok: true, newBalance: getBalance(sid) };
+      }
+    }
+    return { ok: false, error: 'ไม่พบรายการ' };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function deleteTransaction(p) {

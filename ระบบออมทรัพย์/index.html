@@ -1152,7 +1152,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbw5c3iHyVPVE4MoGJ5zE14O2N8Y1zQQ44AZngbvnkipgPZuEZopfeTIFlGgEB5vRPTTNw/exec';
+var API = 'https://script.google.com/macros/s/AKfycbyCcNj42XGOYVfLFiMnjg8OtrzfqR1jZ_HlNbaGmCC3dPoZg4-6y5OxCixDGSySYDZbtg/exec';
 // รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
 var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
@@ -1195,7 +1195,11 @@ function fmtDate(v) {
 // ไม่ปัดทศนิยม (Math.round เดิม) — มีดอกเบี้ยที่โพสต์เป็นเศษสตางค์ ปัดแล้วยอดจะไม่ตรงกับสมุดบัญชีจริง
 // โชว์สูงสุด 2 ทศนิยม (หน่วยสตางค์) แบบเดียวกับที่แบงก์แสดง ไม่โชว์ .00 ห้อยถ้าเป็นจำนวนเต็มพอดี
 function fmt(n) { return Number(n||0).toLocaleString('th-TH', {minimumFractionDigits:0, maximumFractionDigits:2}); }
-function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;'); }
+// F1 fix (scrutinize 2026-08-07): เดิมไม่ escape " ทำให้ชื่อที่มี " หลุดออกจาก attribute onclick="..." ได้
+// (พิสูจน์แล้วว่า esc() เดิมคืน " ดิบๆ ออกมา → attribute ตัดขาดกลางคัน เปิด attribute ใหม่ เช่น onmouseover= ได้ทันที)
+// escape " เพิ่มปิดช่องหลุด attribute — ส่วน onclick ที่ยังฝัง argument เป็น string ต้องเปลี่ยนไปใช้ data-* แทนด้วย (ดู renderStus/renderTxList)
+// เพราะ ' ที่ escape เป็น &#39; ก็ยัง JS-parse หลุดได้อยู่ดี (browser HTML-decode attribute ก่อนค่อยรัน JS เสมอ)
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function hide(id) { var e=document.getElementById(id); if(e) e.style.display='none'; }
 function toast(msg,type) {
   var t=document.createElement('div');
@@ -1462,8 +1466,11 @@ function renderStus() {
       '<div class="sbal"><div class="sbv" style="color:'+bc+'">'+fmt(s.balance)+' ฿</div>'+
       '<div class="sbl">สะสม</div></div>'+
       '<button class="ebtn" onclick="event.stopPropagation();openStuHist(\''+s.id+'\')">📋</button>'+
-      '<button class="ebtn" onclick="event.stopPropagation();openEdit(\''+s.id+'\',\''+esc(s.name)+'\',\''+esc(s.bankAccount||'')+'\',\''+esc(s.rollNo||'')+'\')">✏️</button>'+
-      (role==='admin'?'<button class="ebtn del" onclick="event.stopPropagation();askDelStu(\''+s.id+'\',\''+esc(s.name)+'\','+s.balance+')">🗑️</button>':'')+
+      // F1 fix (scrutinize 2026-08-07): เดิมฝัง esc(s.name)/esc(s.bankAccount)/esc(s.rollNo) เป็น JS string argument ตรงใน onclick=""
+      // ชื่อที่มี " หรือ ' หลุดออกจาก attribute/JS string ได้ (ดู esc() ด้านบน) — เปลี่ยนมาอ่านผ่าน data-* + this.dataset แทน
+      // เพราะ data-* attribute ไม่ถูก re-parse เป็น JS เลย ปลอดภัยไม่ว่าค่าจะมีอักขระอะไรก็ตาม
+      '<button class="ebtn" data-id="'+esc(s.id)+'" data-name="'+esc(s.name)+'" data-bank="'+esc(s.bankAccount||'')+'" data-roll="'+esc(s.rollNo||'')+'" onclick="event.stopPropagation();openEdit(this.dataset.id,this.dataset.name,this.dataset.bank,this.dataset.roll)">✏️</button>'+
+      (role==='admin'?'<button class="ebtn del" data-id="'+esc(s.id)+'" data-name="'+esc(s.name)+'" data-bal="'+s.balance+'" onclick="event.stopPropagation();askDelStu(this.dataset.id,this.dataset.name,parseFloat(this.dataset.bal))">🗑️</button>':'')+
       '</div>';
   }).join('');
   if (total<=1) {pgEl.style.display='none'; return;}
@@ -1614,9 +1621,12 @@ function renderTxList(id,txs) {
       '<div class="txn">'+esc(t.name)+'</div>'+
       '<div class="txd">'+fmtDate(t.date)+' · ชั้น'+t.grade+'</div></div>'+
       '<div class="txa '+(isD?'d':'w')+'">'+(isD?'+':'-')+fmt(t.amount)+'฿</div>'+
+      // F1 fix (scrutinize 2026-08-07): เดิมฝัง esc(t.name) เป็น JS string argument ตรงใน onclick="" — ชื่อที่มี " หลุด attribute ได้
+      // (นี่คือจุดที่อันตรายสุด เพราะ role==='admin' เท่านั้นที่ render — แอดมินเปิดแท็บธุรกรรมแล้วโดน onmouseover แปลกปลอมได้ตรงนี้)
+      // เปลี่ยนมาอ่านผ่าน data-* + this.dataset แทน เหมือน renderStus ด้านบน
       (role==='admin'?'<div style="display:flex;flex-direction:column;gap:3px;margin-left:5px">'+
-      '<button class="ebtn" style="font-size:10px;padding:3px 5px" onclick="openEditTx(\''+t.id+'\',\''+t.type+'\','+t.amount+',\''+esc(t.name)+'\')">✏️</button>'+
-      '<button class="ebtn del" style="font-size:10px;padding:3px 5px" onclick="askDelTx(\''+t.id+'\',\''+t.type+'\','+t.amount+',\''+esc(t.name)+'\',\''+t.studentId+'\')">🗑️</button>'+
+      '<button class="ebtn" style="font-size:10px;padding:3px 5px" data-id="'+esc(t.id)+'" data-type="'+esc(t.type)+'" data-amt="'+t.amount+'" data-name="'+esc(t.name)+'" onclick="openEditTx(this.dataset.id,this.dataset.type,parseFloat(this.dataset.amt),this.dataset.name)">✏️</button>'+
+      '<button class="ebtn del" style="font-size:10px;padding:3px 5px" data-id="'+esc(t.id)+'" data-type="'+esc(t.type)+'" data-amt="'+t.amount+'" data-name="'+esc(t.name)+'" data-sid="'+esc(t.studentId)+'" onclick="askDelTx(this.dataset.id,this.dataset.type,parseFloat(this.dataset.amt),this.dataset.name,this.dataset.sid)">🗑️</button>'+
       '</div>':'')+'</div>';
   }).join('');
 }
