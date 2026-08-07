@@ -74,6 +74,24 @@ html.dark-mode {
 }
 html.dark-mode #system-overlay { background: var(--canvas); }
 
+/* ปุ่มสลับ dark/light — ลอยมุมขวาล่าง เห็นได้ทั้งจอกว้าง/มือถือ (ซ่อนอัตโนมัติตอนเปิดระบบงานย่อยเพราะ #system-overlay ทับอยู่) */
+#theme-toggle-btn {
+  position: fixed;
+  right: 18px; bottom: 18px;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--canvas);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-hover);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 21px;
+  cursor: pointer;
+  z-index: 50;
+  transition: background-color .35s ease, border-color .35s ease, transform .15s ease;
+}
+#theme-toggle-btn:hover  { transform: scale(1.08); }
+#theme-toggle-btn:active { transform: scale(0.94); }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 17px; -webkit-text-size-adjust: 100%; transition: background-color .35s ease; }
 body {
@@ -611,6 +629,8 @@ a { color: inherit; text-decoration: none; }
 <!-- Portal page -->
 <div id="page-wrapper">
 
+  <button type="button" id="theme-toggle-btn" aria-label="สลับโหมดมืด/สว่าง" title="สลับโหมดมืด/สว่าง">🌙</button>
+
   <header id="site-header" role="banner">
     <div class="header-inner">
       <img src="assets/school-logo.jpg"
@@ -829,8 +849,8 @@ function updateGreeting() {
   if (cdEl) cdEl.textContent = dateStr;   // ← fix: was never set
   if (bEl)  { bEl.textContent = g.badge; bEl.style.background = g.bg; bEl.style.color = g.color; }
 
-  // 🌙 Dark mode อัตโนมัติ — สลับเข้าช่วงเดียวกับ "ตอนดึก" (21:00–04:59)
-  document.documentElement.classList.toggle('dark-mode', g === GREETINGS[3]);
+  // 🌙 Dark mode — auto ตามเวลา เว้นแต่ผู้ใช้กดเลือกเองแล้ว (ดู THEME_KEY ด้านล่าง)
+  applyTheme(currentThemeIsDark(now));
 
   updateSpecialDayBanner(now);
 }
@@ -839,6 +859,37 @@ function updateClock() {
   const el  = document.getElementById('clock-time');
   if (el) el.textContent = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())} น.`;
 }
+
+/* ─────────────────────────────────────────────
+   THEME (มืด/สว่าง) — กดสลับเองได้ จำค่าไว้ข้ามหน้า
+   ใช้ localStorage คีย์เดียวกันนี้ (schoolPortalTheme) — origin เดียวกับระบบงานย่อยทุกตัว
+   ทีหลังพอทำ dark mode ให้แต่ละระบบ แค่อ่านคีย์นี้ก็ sync กับ Portal ได้เลย ไม่ต้องออกแบบใหม่
+───────────────────────────────────────────── */
+const THEME_KEY = 'schoolPortalTheme'; // 'dark' | 'light' — ยังไม่เคยกดเลือกเอง (ไม่มีคีย์) = auto ตามเวลา
+function isAutoDark(now) {
+  const h = now.getHours();
+  return h >= 21 || h < 5; // ช่วงเดียวกับ badge "🌙 ตอนดึก"
+}
+function currentThemeIsDark(now) {
+  const stored = localStorage.getItem(THEME_KEY);
+  if (stored === 'dark')  return true;
+  if (stored === 'light') return false;
+  return isAutoDark(now);
+}
+function applyTheme(isDark) {
+  document.documentElement.classList.toggle('dark-mode', isDark);
+  const btn = document.getElementById('theme-toggle-btn');
+  if (btn) btn.textContent = isDark ? '☀️' : '🌙'; // โชว์ไอคอนของโหมดที่จะกดสลับไป
+}
+function toggleTheme() {
+  const next = !document.documentElement.classList.contains('dark-mode');
+  localStorage.setItem(THEME_KEY, next ? 'dark' : 'light');
+  applyTheme(next);
+}
+// รองรับกรณีมีหลายแท็บ/หน้าต่างเปิด Portal พร้อมกัน — สลับที่หนึ่ง อีกที่ sync ตามทันที
+window.addEventListener('storage', e => {
+  if (e.key === THEME_KEY) applyTheme(currentThemeIsDark(new Date()));
+});
 
 /* ─────────────────────────────────────────────
    SPECIAL DAY BANNER — วันสำคัญที่โรงเรียนมักฉลอง/ระลึกถึง
@@ -1292,6 +1343,8 @@ document.addEventListener('DOMContentLoaded', () => {
   animateCards();
   initCardTiltEffect();
   initCardRippleEffect();
+
+  document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
 
   const fyEl = document.getElementById('footer-year');
   if (fyEl) fyEl.textContent = new Date().getFullYear() + 543;
