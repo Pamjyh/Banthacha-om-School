@@ -157,6 +157,16 @@ h2.page-title{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1
 /* ======= TABLE CARD ======= */
 .table-card{background:var(--lifted);border-radius:0 var(--r-card) var(--r-card) var(--r-card);border:1px solid rgba(20,20,19,.08);overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow-card)}
 .table-card + .table-card{margin-top:0}
+/* ⚠️ บั๊กจริง (Pam รายงาน 2026-08-07): table-card เดิม overflow-x:auto ครอบทั้ง table-meta (header
+   ตัวกรอง/badge) + table + pagination ไว้ใน scroll region เดียวกัน แต่ table-meta/pagination เป็น block
+   width:auto ธรรมดา (ไม่ได้ยืดตาม min-width ของ table) — พอเลื่อนตารางไปทางขวา table-meta/pagination
+   ค้างอยู่ตำแหน่งเดิม (แคบกว่า) ทำให้เห็น "พื้นที่ว่าง" ด้านขวาที่ header/pagination ไปไม่ถึง ทั้งที่ตัวตารางเลื่อน
+   ไปแสดงข้อมูลจริงต่อได้ — แก้เฉพาะหน้าพัสดุ/การเงิน/เงินนอก (ตามที่ Pam รายงาน) โดยปิด scroll ที่ table-card เอง
+   แล้วย้ายไปที่ .table-scroll ซึ่งครอบเฉพาะ <table> เท่านั้น ให้ table-meta/pagination นิ่งเต็มความกว้างการ์ดเสมอ */
+#page-procurement .table-card,
+#page-finance .table-card,
+#page-external .table-card{overflow:hidden}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .table-meta{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--white);border-bottom:1px solid rgba(20,20,19,.06)}
 .meta-txt{font-size:13px;color:var(--slate)}
 .meta-pills{display:flex;gap:8px}
@@ -320,6 +330,12 @@ textarea.fc{resize:vertical;min-height:60px}
   /* ป้องกัน page-level horizontal scroll */
   .app{overflow-x:hidden}
 
+  /* ⚠️ ปุ่มฝั่งขวาของ page-header (div ท้าย .page-header) เดิม inline style display:flex ไม่มี
+     flex-wrap — ทุกหน้ายกเว้นพัสดุ (การเงิน 2-3 ปุ่ม, เงินนอก 3 ปุ่ม) ปุ่มจึงล้นขอบจอมือถือแทนที่จะ
+     ตัดขึ้นบรรทัดใหม่ (2026-08-07 Pam รายงานซ้ำว่า "ไม่พอดีกับหน้าจอ" หน้าการเงิน/เงินนอก) แก้ทุกหน้าแบบ
+     general, พัสดุมี grid 2 col เฉพาะทางอยู่แล้วด้านล่าง (specificity สูงกว่า ยังทับ rule นี้ได้ปกติ) */
+  .page-header > div:last-child{flex-wrap:wrap;justify-content:flex-end}
+
   /* page-header: stack แนวตั้ง, ปุ่ม grid 2 col */
   #page-procurement .page-header{flex-direction:column;align-items:stretch}
   #page-procurement .page-header > div:last-child{
@@ -355,6 +371,12 @@ textarea.fc{resize:vertical;min-height:60px}
     box-sizing:border-box;
     font-size:12px;
   }
+
+  /* table-meta (header ใน table-card: badge/filter/ปุ่ม export) เดิมไม่มี flex-wrap — ตอนนี้
+     #page-procurement/finance/external .table-card เปลี่ยนเป็น overflow:hidden แล้ว (แก้บั๊ก
+     scroll เจอพื้นที่ว่างด้านบน) เนื้อหาที่เคยล้นแล้ว scroll ไปดูได้ จะกลายเป็นถูกตัดหายเงียบๆ แทน
+     ต้องให้ wrap ขึ้นบรรทัดใหม่แทนการล้น (2026-08-07 Pam รายงานซ้ำ) */
+  .table-meta{flex-wrap:wrap;row-gap:8px}
 
   /* ⚠️ grid หลายคอลัมน์ที่ไม่มี breakpoint มาก่อน (2026-08-06, scrutinize มือถือ) — ยุบเหลือคอลัมน์เดียว/
      ครึ่งเดียวกันข้อความ/กราฟบีบแน่นจนล้นกรอบบนจอแคบ */

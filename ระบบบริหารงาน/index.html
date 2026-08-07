@@ -302,6 +302,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
             <span class="mpill mp-a" id="proc-ma">—</span>
           </div>
         </div>
+        <div class="table-scroll">
         <table>
           <thead><tr>
             <th>ลำดับ</th><th>ประเภท</th><th>รายการ</th><th>โครงการ</th>
@@ -311,6 +312,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
           <tbody id="proc-tbody"></tbody>
           <tfoot id="proc-tfoot"></tfoot>
         </table>
+        </div>
         <div id="proc-pagination"></div>
       </div>
     </div>
@@ -370,6 +372,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
         <span class="meta-txt" id="fin-info">ยังไม่ได้โหลดข้อมูลการเงิน</span>
         <button class="btn-outline-sm" onclick="exportBalanceCSV()" style="font-size:12px;padding:5px 14px">↓ Export CSV</button>
       </div>
+      <div class="table-scroll">
       <table>
         <thead><tr>
           <th>หมวดเงิน</th><th>ที่เก็บเงิน</th>
@@ -380,6 +383,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
         </tbody>
         <tfoot id="fin-balance-tfoot"></tfoot>
       </table>
+      </div>
     </div>
 
     <!-- Tab: Daily Report (Pivot) -->
@@ -388,7 +392,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
         <span class="meta-txt" id="fin-daily-info">—</span>
         <button class="btn-outline-sm" onclick="exportBalanceCSV()" style="font-size:12px;padding:5px 14px">↓ Export CSV</button>
       </div>
-      <div style="overflow-x:auto">
+      <div class="table-scroll">
         <table id="fin-daily-table">
           <thead>
             <tr>
@@ -421,6 +425,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
           <button class="btn-outline-sm" onclick="exportFinanceCSV()" style="font-size:12px;padding:5px 14px">↓ Export CSV</button>
         </div>
       </div>
+      <div class="table-scroll">
       <table>
         <thead><tr>
           <th>วันที่</th><th>ประเภท</th><th>หมวดเงิน</th><th>รายละเอียด</th>
@@ -431,6 +436,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
         </tbody>
         <tfoot id="fin-tx-tfoot"></tfoot>
       </table>
+      </div>
     </div>
   </div>
 
@@ -518,6 +524,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
         <div class="table-meta">
           <span class="meta-txt" id="ext-info">—</span>
         </div>
+        <div class="table-scroll">
         <table>
           <thead><tr>
             <th>วันที่</th><th>ประเภท</th><th>หมวด</th><th>หมายเหตุ</th>
@@ -528,6 +535,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
           </tbody>
           <tfoot id="ext-tfoot"></tfoot>
         </table>
+        </div>
         <div id="ext-pagination"></div>
       </div>
     </div>
@@ -538,6 +546,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
         <div class="table-meta">
           <span class="meta-txt">สรุปรายเดือน (ตามปีและตัวกรองที่เลือก)</span>
         </div>
+        <div class="table-scroll">
         <table>
           <thead><tr>
             <th>เดือน</th>
@@ -551,6 +560,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
           </tbody>
           <tfoot id="ext-monthly-tfoot"></tfoot>
         </table>
+        </div>
       </div>
 
       <div class="table-card" style="padding:20px">
