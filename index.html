@@ -463,7 +463,17 @@ a { color: inherit; text-decoration: none; }
   .greeting-main { font-size: 20px; }
 }
 @media (max-width: 539px) {
-  #card-grid { grid-template-columns: 1fr; gap: 12px; }
+  /* การ์ดระบบงาน: เล็กลง 2 คอลัมน์บนมือถือ (จอกว้าง/คอมไม่กระทบ) */
+  #card-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .sys-card { min-height: 128px; }
+  .card-icon-band { height: 52px; font-size: 24px; }
+  .card-body { padding: 8px 10px 10px; gap: 2px; }
+  .card-title { font-size: 13px; line-height: 1.25; }
+  .card-desc { display: none; } /* ซ่อนคำอธิบายบนมือถือ ให้การ์ดกระชับ */
+  .card-foot { margin-top: 6px; flex-wrap: wrap; gap: 4px; }
+  .badge { font-size: 10px; padding: 2px 7px; }
+  .card-btn, .card-btn-inactive { font-size: 11px; }
+
   .school-logo, .school-logo-placeholder { width: 56px; height: 56px; font-size: 24px; }
   .school-name { font-size: 18px; }
 }
