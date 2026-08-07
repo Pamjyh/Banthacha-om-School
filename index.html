@@ -74,7 +74,9 @@ html.dark-mode {
 }
 html.dark-mode #system-overlay { background: var(--canvas); }
 
-/* ปุ่มสลับ dark/light — ลอยมุมขวาล่าง เห็นได้ทั้งจอกว้าง/มือถือ (ซ่อนอัตโนมัติตอนเปิดระบบงานย่อยเพราะ #system-overlay ทับอยู่) */
+/* ปุ่มสลับ dark/light — ลอยมุมขวาล่าง เห็นได้ทั้งจอกว้าง/มือถือ
+   ซ่อนอัตโนมัติตอนเปิดระบบงานย่อย เพราะปุ่มอยู่ใต้ #page-wrapper ซึ่งโดน display:none
+   (ดู wrapper.classList.add('hidden') ใน openSystem()) ไม่เกี่ยวกับ z-index ของ #system-overlay */
 #theme-toggle-btn {
   position: fixed;
   right: 18px; bottom: 18px;
@@ -344,6 +346,7 @@ a { color: inherit; text-decoration: none; }
   .sys-card { animation: none; opacity: 1; }
   .sys-card--inactive { animation: none; opacity: 0.5; }
   .badge-active::before { animation: none; }
+  .card-ripple { display: none; } /* ปิด ripple ตามค่าที่ผู้ใช้ตั้งไว้ (ดู initCardTiltEffect() ที่ข้าม tilt ด้วยเหตุผลเดียวกัน) */
 }
 
 .card-icon-band {
@@ -867,11 +870,13 @@ function updateClock() {
 ───────────────────────────────────────────── */
 const THEME_KEY = 'schoolPortalTheme'; // 'dark' | 'light' — ยังไม่เคยกดเลือกเอง (ไม่มีคีย์) = auto ตามเวลา
 function isAutoDark(now) {
-  const h = now.getHours();
-  return h >= 21 || h < 5; // ช่วงเดียวกับ badge "🌙 ตอนดึก"
+  // อิงจาก GREETINGS[3] ("ตอนดึก") โดยตรง แทนที่จะเขียนช่วงเวลาซ้ำ — กัน drift ถ้ามีคนแก้ threshold ใน GREETINGS ทีหลังแล้วลืมที่นี่
+  return getGreetingData(now.getHours()) === GREETINGS[3];
 }
 function currentThemeIsDark(now) {
-  const stored = localStorage.getItem(THEME_KEY);
+  let stored = null;
+  try { stored = localStorage.getItem(THEME_KEY); }
+  catch (e) { /* storage ถูกบล็อก/ไม่รองรับ (บาง in-app browser) — ตกไปใช้ auto ตามเวลาแทน ไม่ throw ต่อ */ }
   if (stored === 'dark')  return true;
   if (stored === 'light') return false;
   return isAutoDark(now);
@@ -883,7 +888,8 @@ function applyTheme(isDark) {
 }
 function toggleTheme() {
   const next = !document.documentElement.classList.contains('dark-mode');
-  localStorage.setItem(THEME_KEY, next ? 'dark' : 'light');
+  try { localStorage.setItem(THEME_KEY, next ? 'dark' : 'light'); }
+  catch (e) { /* จำค่าไม่ได้ก็ยังสลับสีตอนนี้ได้ปกติ แค่รีเฟรชแล้วจะกลับไป auto */ }
   applyTheme(next);
 }
 // รองรับกรณีมีหลายแท็บ/หน้าต่างเปิด Portal พร้อมกัน — สลับที่หนึ่ง อีกที่ sync ตามทันที
@@ -943,7 +949,8 @@ function animateCards() {
 ───────────────────────────────────────────── */
 function initCardTiltEffect() {
   const supportsHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-  if (!supportsHover) return; // จอสัมผัส/มือถือ ใช้ ripple แทน ไม่ใช้ tilt
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!supportsHover || reducedMotion) return; // จอสัมผัส/มือถือ ใช้ ripple แทน / reduced-motion ปิดทั้งคู่
   document.querySelectorAll('.sys-card').forEach(card => {
     card.addEventListener('mousemove', e => {
       if (card.classList.contains('sys-card--inactive')) return; // ระบบปิดชั่วคราว — ไม่ tilt กันสับสนว่ากดได้
