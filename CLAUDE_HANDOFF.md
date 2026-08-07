@@ -100,7 +100,11 @@ commit `76b8abc` (School Portal: ปุ่มปิด/เปิดระบบ�
 - แก้กรอบทักทายซ้ำกับ header-clock: `#greeting-section` ซ่อนบนจอกว้าง (`display:none` default) โผล่เฉพาะมือถือผ่าน media query (header-clock เองก็ซ่อนตอนจอแคบ ≤767px อยู่แล้ว)
 - การ์ดระบบงานบนมือถือ (≤539px) เล็กลง 2 คอลัมน์ กระชับ (ตัด `.card-desc`, ลด icon/font/padding) — จอกว้าง/คอมไม่กระทบ
 - **Dark mode**: ปุ่มลอยมุมขวาล่าง (`#theme-toggle-btn`) กดสลับเอง จำค่าใน `localStorage['schoolPortalTheme']` ('dark'/'light', ไม่มีคีย์ = auto ตามเวลาเดิม ช่วงเดียวกับ badge "🌙 ตอนดึก") — override เฉพาะ CSS custom properties กลาง (`--canvas*`, `--ink*`, `--hairline`, `--primary*`, `--shadow*`) ผ่าน `html.dark-mode {...}` สีแบรนด์/ไอคอนแต่ละระบบคงเดิม
-  - **ยังไม่ครอบคลุมระบบงานย่อยทั้ง 6** (เปิดผ่าน iframe คนละ CSS) — ตกลงกับ Pam ว่าจะทำทีละระบบ เริ่มจาก Portal ก่อน คีย์ localStorage เดียวกันนี้พร้อมให้ระบบอื่นอ่าน sync ได้เลยตอนทำต่อ (ไม่ต้องออกแบบใหม่)
+  - **✅ ครอบคลุมครบทั้ง 6 ระบบย่อยแล้ว (2026-08-07)** — แต่ละระบบ sync ธีมจาก `localStorage['schoolPortalTheme']` เดียวกันนี้ ผ่านไฟล์กลาง `School Portal/js/theme-sync.js` (โหลดใน `<head>` ก่อน `<style>` กันกระพริบ, wrap try/catch เหมือน Portal, ฟัง `storage` event sync สดถ้าเปิดหลายแท็บ) — **ระบบย่อยไม่มีปุ่มของตัวเอง** สลับได้จากปุ่มที่ Portal จุดเดียวเท่านั้น (one-way sync)
+  - ออกแบบพาเลตต์มืดแยกทีละไฟล์ (ไม่ใช้ CSS filter-invert ทั่วบอร์ด) เพราะแต่ละระบบมีตัวแปรสี role ปนกัน (ตัวอักษร vs พื้นปุ่ม) ต้องแยก `-text`/`-rgb` variant เป็นราย ๆ กันปุ่มพื้นเข้ม+ตัวอักษรขาวพัง — ผ่าน WCAG contrast check ทุกคู่สีก่อน commit (script Python คำนวณ relative luminance)
+  - commit แยกระบบละ 1 commit: ระบบการเงินและพัสดุ `a8d9994`, ระบบออมทรัพย์ `d786347`, ระบบลงเวลา `8f323b6`, ระบบสารบัญ `6c8fb50`, ระบบค่ารถ `a6a019f`, ระบบดูแลช่วยเหลือนักเรียน `3ec2b69`
+  - รายละเอียดเฉพาะจุดของแต่ละระบบ (ตัวแปรไหนแยก, จุดไหน self-contained ไม่แตะ) ดูใน commit message ของแต่ละระบบ หรือหัวข้อของระบบนั้นด้านล่าง
+  - **ยังไม่ได้ live-test ทั้ง 6 ระบบในเบราว์เซอร์จริง** (ตรวจแค่ contrast math + brace balance + JS syntax check ผ่านหมด) — รอ Pam push + เปิดทดสอบจริงทุกระบบ โดยเฉพาะจุดที่เป็น dynamic JS-rendered content (ตาราง/badge/chip ที่ render จาก JS)
 - แบนเนอร์วันสำคัญ (`#special-day-banner`) — ปีใหม่, วันเด็ก (เสาร์ที่ 2 ม.ค.), วันครู (16 ม.ค.), สงกรานต์ (13-15 เม.ย.), วันแม่ (12 ส.ค.), วันพ่อ (5 ธ.ค.) โผล่อัตโนมัติเฉพาะวันที่ตรง
 - เอฟเฟกต์การ์ด: เอียงตามเมาส์ (`initCardTiltEffect`, เฉพาะจอที่ `hover:hover`+`pointer:fine`) / ripple ตอนแตะ (`initCardRippleEffect`, เฉพาะ `pointerType==='touch'`) — การ์ดที่ `.sys-card--inactive` (ปิดปรับปรุง) ไม่มีเอฟเฟกต์ กันสับสนว่ากดได้
 - ทำเนียบบุคลากรตอนโหลดเสร็จ fade-in นุ่มๆ แทนโผล่ทันที (`.staff-directory-section.ready` + `@keyframes staffFadeIn`)
@@ -115,6 +119,8 @@ commit `76b8abc` (School Portal: ปุ่มปิด/เปิดระบบ�
 ## 1. ระบบการเงินและพัสดุ
 
 > โฟลเดอร์ยังชื่อ `ระบบบริหารงาน/` — เปลี่ยนแค่ชื่อที่แสดงผล (title, manifest, nav, portal card)
+
+> ✅ Dark mode sync จาก Portal — commit `a8d9994` (2026-08-07) ดูรายละเอียดในหัวข้อ Portal ด้านบน
 
 **เป้าหมาย**: บริหารงานโครงการ / พัสดุ / การเงิน / รายงาน  
 **Stack**: HTML/JS (13 ไฟล์) → Supabase → GitHub Pages
@@ -165,6 +171,8 @@ IS_ADMIN             // boolean — set ใน auth.js
 
 **เป้าหมาย**: บันทึกฝาก-ถอนเงินออมทรัพย์นักเรียน  
 **Stack**: HTML/JS → GAS Web App → Google Sheets
+
+> ✅ Dark mode sync จาก Portal — commit `d786347` (2026-08-07) ดูรายละเอียดในหัวข้อ Portal ด้านบน
 
 ### สำคัญ
 - `Code.gs` ใน git = **placeholder** (`REPLACE_WITH_YOUR_ADMIN_PASSWORD`) — ห้ามใส่รหัสจริง
@@ -235,6 +243,8 @@ Frontend ล้วนๆ ไม่แตะ `Code.gs`/ชีตเลย (ยื
 **เป้าหมาย**: บันทึกค่าเดินทางรับ-ส่งนักเรียน  
 **Stack**: HTML/JS → GAS Web App → Google Sheets
 
+> ✅ Dark mode sync จาก Portal — commit `a6a019f` (2026-08-07) ดูรายละเอียดในหัวข้อ Portal ด้านบน
+
 ### สำคัญ
 - GAS cache เพิ่มแล้ว (readRiders, readFarePaid + invalidation)
 - Supabase RLS tighten แล้ว
@@ -260,6 +270,8 @@ Frontend ล้วนๆ ไม่แตะ `Code.gs`/ชีตเลย (ยื
 
 **เป้าหมาย**: เช็คอิน/เอาท์ด้วยใบหน้า + บริหารข้อมูลครู + ลา  
 **Stack**: HTML/JS → Supabase → face-api.js + LINE bot
+
+> ✅ Dark mode sync จาก Portal — commit `8f323b6` (2026-08-07) ดูรายละเอียดในหัวข้อ Portal ด้านบน
 
 ### Auth
 - Admin hash: `localStorage['thatime_admin_hash']` + `settings.admin_hash` ใน Supabase
@@ -418,6 +430,8 @@ Backend ทั้งหมด apply บน Supabase แล้ว (project `cgwtg
 **เป้าหมาย**: อัปโหลดเอกสารราชการขึ้น Drive + แจ้งครูทาง LINE อัตโนมัติ  
 **Stack**: HTML/JS (chip UI) → GAS Web App → Google Drive + LINE Messaging API
 
+> ✅ Dark mode sync จาก Portal — commit `6c8fb50` (2026-08-07) ดูรายละเอียดในหัวข้อ Portal ด้านบน — Code.gs ไม่แตะ (gitignored)
+
 ### Config (ใน Code.gs — gitignored)
 | ตัวแปร | ค่า |
 |--------|-----|
@@ -507,6 +521,8 @@ Backend ทั้งหมด apply บน Supabase แล้ว (project `cgwtg
 ## 6. ระบบดูแลช่วยเหลือนักเรียน (student-care) — ใหม่ 2026-07-09
 
 **เป้าหมาย**: ฐานข้อมูลโปรไฟล์นักเรียนละเอียด (สุขภาพ/ที่อยู่/ผู้ปกครอง/พิกัดบ้าน) — สร้างผ่าน grill-to-build เต็มรูปแบบ ดูรายละเอียดทั้งหมดใน `BLUEPRINT-student-care.md` + `CONSTRUCTION_PLAN-student-care.md` (root ของ `ระบบงานโรงเรียนบ้านท่าชะอม/`)
+
+> ✅ Dark mode sync จาก Portal — commit `3ec2b69` (2026-08-07) ดูรายละเอียดในหัวข้อ Portal ด้านบน
 
 **Stack**: HTML/JS เดี่ยว → Supabase RPC เท่านั้น (ไม่มี anon table access ตรงเลยสักตาราง) → project `school-attendance` (`cgwtgqyllalaogdgyxlo`, ใช้ร่วมกับระบบลงเวลา/portal status — ไม่สร้าง project ใหม่ เพราะเช็ค advisor แล้วปลอดภัยกว่า School Management System ที่มี RLS gap เปิดอยู่จริงตอนนั้น)
 
