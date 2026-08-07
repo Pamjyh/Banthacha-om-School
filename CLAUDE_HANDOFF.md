@@ -381,6 +381,22 @@ Apply migration column-restrict `settings` (ด้านบน) ก่อน fro
 
 ✅ **ปิด incident แล้ว**: พบว่า `origin/main` มี fix ตัวจริง (`c4999a5`+`6117e89`) push ไปแล้วจริงระหว่างทาง (อีก session push ไปพร้อมกัน) Pam ทดสอบเช็คอินกับเว็บจริงยืนยันใช้งานได้ปกติ → re-apply column-restrict `admin_hash` สำเร็จ (migration `reapply_settings_admin_hash_protection`) verified ครบ 2 ทาง — จบ incident, ไม่มีอะไรค้าง
 
+### ✅ Feature batch 2026-08-07 — 6 ฟีเจอร์ตามคำขอ Pam ("ลองทั้งหมดเลยครับ") commit `3edf2df`
+
+Backend ทั้งหมด apply บน Supabase แล้ว (project `cgwtgqyllalaogdgyxlo`), frontend commit local แล้ว **รอ Pam push**
+
+1. **วันหยุดราชการ 2569** — populate `settings.holidays` 22 วัน (ตัด 16 ต.ค. ออกเพราะเป็น WFH เฉพาะ กทม.)
+2. **Audit log** — table `admin_audit_log` (RLS ปิดสนิท อ่านผ่าน RPC เท่านั้น) + helper `_log_admin_action()` hook เข้าทุก `admin_*` RPC (10 ตัว) + RPC อ่าน `admin_get_audit_log(p_hash, p_limit)` — tab ใหม่ "🔍 บันทึกระบบ" ใน admin UI
+3. **ปฏิทินลา** — tab "📅 ปฏิทินลา" แสดง grid รายเดือน, สีต่อคน, แสดงเฉพาะใบลาที่อนุมัติแล้ว
+4. **โควตาลา** — tab "🎯 โควตาลา" ต่อพนักงาน/ปี เทียบเกณฑ์ที่มีอยู่แล้วใน `LEAVE_TYPES` (ลาป่วย 60/ลากิจ 45/ลาพักผ่อน 10 วันทำการ) progress bar + สีเตือนเมื่อเกิน
+5. **LINE weekly/monthly summary** — ฟังก์ชันใหม่ `send_line_weekly_summary()` (ศุกร์ 16:50 ไทย `50 9 * * 5`) + `send_line_monthly_summary()` (วันที่ 1 เดือนถัดไป 07:30 ไทย `30 0 1 * *`) — ส่งหา ผอ. คนเดียวกับสรุปเย็น (to_id/token เดิม), pattern fire-and-forget เดียวกับที่แก้ไว้ (**ไม่แตะ `send_line_evening_summary()` เดิมเลย** — กันความเสี่ยงซ้ำ incident เก่า)
+6. **แจ้งเตือนขาดติดต่อกัน** — `check_absence_streak_alert()` เช้าวันทำการ 08:30 ไทย (`30 1 * * 1-5`) เช็ค 2 วันทำการล่าสุดก่อนวันนี้ (นับ holidays/extra_workdays จริง) ถ้าไม่มีทั้งเช็คอินและใบลาอนุมัติในทั้ง 2 วัน → push แจ้ง ผอ.
+9. **Export PDF สรุปรายเดือน** — ปุ่มใน tab "📊 รายเดือน" → `exportMonthlyPDF()` ใช้ pattern เดียวกับ `ระบบบริหารงาน/js/pdf-templates.js` (HTML + iframe + `window.print()`, ฟอนต์ Sarabun จาก Google Fonts) **ไม่ใช้ jsPDF วาดเอง** เพราะโปรเจกต์นี้เคยพิสูจน์แล้วว่า jsPDF custom Thai text shaping มีบั๊กซ้ำ 4 รอบ (ดู pdf-templates.js บรรทัด 9-15) — ยังไม่มี template อ้างอิงจริงมาก่อน ออกแบบฟอร์มมาตรฐานเอง (ตาราง: ชื่อ/มา/ลา/ขาด/% + ช่องเซ็น ผอ.)
+
+**Parked (ตามคำขอ Pam)**: สรุปส่วนตัวรายบุคคลทาง LINE (ต้องมี LINE userId รายคน — ยังไม่มี, ขอทำทีหลัง)
+
+**ยังไม่ทดสอบจริง**: ยังไม่ได้เห็น weekly/monthly summary หรือ absence-alert ยิงจริงรอบแรก (ยังไม่ถึงกำหนดเวลา) — เช็ค `cron.job_run_details` วันจันทร์เป็นต้นไป
+
 ---
 
 ## 5. ระบบสารบัญ
