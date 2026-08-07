@@ -569,6 +569,23 @@ window.addEventListener('DOMContentLoaded', function() {
   loadLineQuota();
   setInterval(loadLineQuota, 5 * 60 * 1000); // refresh ทุก 5 นาที
 
+  // (F1) เตือนถ้ามีการอัปโหลดค้างจากรอบก่อน (ปิด/รีเฟรชหน้าตอนไฟล์แนบยังไม่ครบ)
+  // กู้ไฟล์แนบเดิมคืนไม่ได้ (browser ไม่ persist File object ข้าม reload) — แค่บอกให้รู้ตัว
+  // แทนปล่อยให้โฟลเดอร์ค้างเงียบๆ ไม่เข้าคิวแจ้ง LINE เลย
+  var _pending = sessionStorage.getItem('sarabun_pending');
+  if (_pending) {
+    try {
+      var p = JSON.parse(_pending);
+      document.getElementById('resultArea').innerHTML =
+        '<div class="result error"><div class="r-icon">⚠️</div>' +
+        '<div class="r-title">มีการอัปโหลดค้างจากรอบก่อน: "' + esc(p.docTitle) + '"</div>' +
+        '<div class="r-err">ไฟล์หลักอัปโหลดสำเร็จแล้วแต่ไฟล์แนบยังไม่ครบ และยังไม่ได้แจ้ง LINE — ' +
+        'เปิดตรวจสอบที่ <a class="r-link" href="' + esc(p.url) + '" target="_blank">โฟลเดอร์นี้</a> ' +
+        'แล้วอัปโหลดใหม่ทั้งชุดถ้ายังไม่ครบ</div></div>';
+    } catch (e) {}
+    sessionStorage.removeItem('sarabun_pending');
+  }
+
   document.getElementById('fileInput').addEventListener('change', function() {
     if (this.files[0]) handleFile(this.files[0]);
   });
@@ -839,6 +856,7 @@ function clearFile() {
   document.getElementById('attachSection').classList.add('hidden');
   _pendingFolderId = null;
   _pendingUrl = null;
+  sessionStorage.removeItem('sarabun_pending'); // (F1) ผู้ใช้เปลี่ยนไฟล์เอง = ยกเลิกของค้างเดิม
   refreshSubmit();
 }
 
@@ -1060,6 +1078,9 @@ async function submitDoc() {
       driveUrl = data.url;
       _pendingFolderId = folderId;
       _pendingUrl = driveUrl;
+      // กันเอกสารหายเงียบถ้าปิด/รีเฟรชหน้าระหว่างอัปโหลดไฟล์แนบ (F1) — เก็บพอให้เตือนได้
+      // ตอนเปิดหน้าใหม่ ไม่ได้เก็บเพื่อ "resume" จริง (browser คืน File object เดิมไม่ได้)
+      sessionStorage.setItem('sarabun_pending', JSON.stringify({ docTitle: title, url: driveUrl, folderId: folderId }));
     }
 
     // มีไฟล์แนบ — อัปโหลดทีละไฟล์ก่อน (ยังไม่แจ้ง LINE จนกว่าจะครบ กันครูเห็นโฟลเดอร์ที่ไฟล์แนบยังมาไม่ครบ)
@@ -1096,6 +1117,7 @@ async function submitDoc() {
     renderAttachList();
     _pendingFolderId = null;
     _pendingUrl = null;
+    sessionStorage.removeItem('sarabun_pending'); // (F1) แจ้ง LINE สำเร็จแล้ว ไม่ค้างอีกต่อไป
   } catch (err) {
     showError('ไม่สามารถเชื่อมต่อได้: ' + err.message);
   }
