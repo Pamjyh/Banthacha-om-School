@@ -611,7 +611,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <div><h2>📅 สรุปรายวัน และ 📆 รายเดือน</h2><p>ติดตามว่าใครฝากแล้ว ใครยังไม่ฝาก</p></div>
   </div>
 
-  <p style="font-size:13px;color:#555;margin-bottom:1rem">ในหน้าชั้นเรียน มีแถบ 3 มุมมอง เลือกได้ตามต้องการ:</p>
+  <p style="font-size:13px;color:var(--ts);margin-bottom:1rem">ในหน้าชั้นเรียน มีแถบ 3 มุมมอง เลือกได้ตามต้องการ:</p>
 
   <table class="itable">
     <tr><th>แถบ</th><th>เห็นอะไร</th></tr>
@@ -1390,7 +1390,7 @@ function renderGrades() {
       var el2=document.getElementById('gci-'+g.replace('.','_'));
       if (!el2) return;
       if (!r.ok) {
-        el2.innerHTML='<span style="color:#c0392b;font-size:11px">⚠️ '+(r.error||'โหลดไม่ได้')+'</span>';
+        el2.innerHTML='<span style="color:var(--red-text);font-size:11px">⚠️ '+(r.error||'โหลดไม่ได้')+'</span>';
         return;
       }
       cache[g]=r.students||[];
@@ -1429,10 +1429,10 @@ function loadStus(forceRefresh) {
   apiCall({action:'getStudents',grade:curGrade,password:_pw},function(r){
     if (!r.ok) {
       document.getElementById('stu-list').innerHTML=
-        '<div style="padding:20px;text-align:center;color:#c0392b">'+
+        '<div style="padding:20px;text-align:center;color:var(--red-text)">'+
         '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'+
         '<div style="font-weight:600;margin-bottom:4px">โหลดรายชื่อไม่ได้</div>'+
-        '<div style="font-size:12px;color:#666;word-break:break-all">'+(r.error||'ไม่ทราบสาเหตุ')+'</div>'+
+        '<div style="font-size:12px;color:var(--ts);word-break:break-all">'+(r.error||'ไม่ทราบสาเหตุ')+'</div>'+
         '<button onclick="loadStus(true)" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button>'+
         '</div>';
       return;
@@ -1711,10 +1711,10 @@ function doLoadMonthData() {
     if (_monthWaitCount > 10) {
       _monthWaitCount = 0;
       if (mEl) mEl.innerHTML =
-        '<div style="text-align:center;padding:2rem;color:#c0392b">'+
+        '<div style="text-align:center;padding:2rem;color:var(--red-text)">'+
         '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'+
         '<div style="font-weight:600;margin-bottom:4px">โหลดรายชื่อไม่สำเร็จ</div>'+
-        '<div style="font-size:12px;color:#666">ลองกดปุ่มด้านล่าง หรือดูข้อความ error ที่แท็บ "รายชื่อ"</div>'+
+        '<div style="font-size:12px;color:var(--ts)">ลองกดปุ่มด้านล่าง หรือดูข้อความ error ที่แท็บ "รายชื่อ"</div>'+
         '<button onclick="loadStus(true);doLoadMonthData();" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button>'+
         '</div>';
       return;
@@ -1851,10 +1851,10 @@ function loadTodaySummary() {
     if (_todayWaitCount > 10) {
       _todayWaitCount = 0;
       el.innerHTML =
-        '<div style="text-align:center;padding:2rem;color:#c0392b">'+
+        '<div style="text-align:center;padding:2rem;color:var(--red-text)">'+
         '<div style="font-size:24px;margin-bottom:8px">⚠️</div>'+
         '<div style="font-weight:600;margin-bottom:4px">โหลดรายชื่อไม่สำเร็จ</div>'+
-        '<div style="font-size:12px;color:#666">ลองกดปุ่มด้านล่าง หรือดูข้อความ error ที่แท็บ "รายชื่อ"</div>'+
+        '<div style="font-size:12px;color:var(--ts)">ลองกดปุ่มด้านล่าง หรือดูข้อความ error ที่แท็บ "รายชื่อ"</div>'+
         '<button onclick="loadStus(true);loadTodaySummary();" style="margin-top:12px;padding:8px 20px;background:var(--ga);color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px">↺ ลองใหม่</button>'+
         '</div>';
       return;
