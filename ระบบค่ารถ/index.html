@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="../js/theme-sync.js"></script>
 <style>
   :root{
     --canvas:#ffffff; --canvas-soft:#f6f5f4; --surface:#ffffff;
@@ -24,9 +25,20 @@
     --shadow-sm:0 1px 3px rgba(0,0,0,.06); --shadow-md:0 4px 12px rgba(0,0,0,.08);
     --r-sm:6px; --r-md:10px; --r-lg:14px;
     --font:'Sarabun',sans-serif;
+    --green-text:#1aae39; --red-text:#e03e3e;
   }
+  html.dark-mode{
+    --canvas:#18191a; --canvas-soft:#18191a; --surface:#232527;
+    --ink:#F0EFED; --ink-2:#D3D0CA; --ink-muted:#A8A29B; --ink-faint:#87827B;
+    --border:#35373a; --border-light:#2b2d2f;
+    --green-text:#4ADE80; --red-text:#ff7a70;
+    /* --primary/--green/--red/--amber (role fill/border/chip กับ -soft) ไม่แตะ — soft bg เป็น literal คงที่ทั้ง 2 โหมด ตัวอักษรเดิมบนนั้น contrast ผ่านอยู่แล้ว */
+  }
+  html.dark-mode tr.norider td{background:#1c1e1f}
+  html.dark-mode .route-inp:disabled{background:#1c1e1f;color:var(--ink-faint)}
+  html.dark-mode .pill-gray{background:#3a3d40;color:var(--ink-muted)}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:var(--font);background:var(--canvas-soft);color:var(--ink);font-size:15px;line-height:1.5}
+  body{font-family:var(--font);background:var(--canvas-soft);color:var(--ink);font-size:15px;line-height:1.5;transition:background-color .3s ease,color .3s ease}
   .wrap{max-width:1080px;margin:0 auto;padding:20px 16px 60px}
   .hide{display:none!important}
 
@@ -116,12 +128,12 @@
   .empty{text-align:center;color:var(--ink-faint);padding:36px 20px;font-size:14px}
   .scroll-hint{font-size:11px;color:var(--ink-faint);text-align:right;padding:2px 4px 4px;margin:0}
   #classBox{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:30px;font-size:14px;box-shadow:var(--shadow-md);opacity:0;pointer-events:none;transition:.25s;z-index:50}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1e1e1e;color:#fff;padding:11px 20px;border-radius:30px;font-size:14px;box-shadow:var(--shadow-md);opacity:0;pointer-events:none;transition:.25s;z-index:50}
   .toast.show{opacity:1}
   .toast.err{background:var(--red)}
 
   .note{font-size:13px;color:var(--ink-muted);background:var(--canvas-soft);border:1px solid var(--border-light);border-radius:var(--r-md);padding:12px 14px;margin-bottom:14px;line-height:1.55}
-  .ext-amt{font-size:30px;font-weight:700;color:var(--green);letter-spacing:-.5px}
+  .ext-amt{font-size:30px;font-weight:700;color:var(--green-text);letter-spacing:-.5px}
   @media(max-width:600px){
     th,td{padding:7px 5px;font-size:13px}
     .tick{width:24px;height:24px;font-size:13px}
@@ -596,7 +608,7 @@ function renderDash(res){
     var out = g.expected - g.collected;
     var pct = g.expected>0?Math.round(g.collected/g.expected*100):0;
     h+='<tr><td class="name">'+g.grade+'</td><td class="c">'+g.riders+'</td><td class="c">'+g.fullyPaid+'</td>'+
-       '<td class="r">'+money(g.collected)+'</td><td class="r" style="color:var(--red)">'+(out>0?money(out):'—')+'</td>'+
+       '<td class="r">'+money(g.collected)+'</td><td class="r" style="color:var(--red-text)">'+(out>0?money(out):'—')+'</td>'+
        '<td class="c"><div style="background:var(--border-light);border-radius:20px;height:8px;overflow:hidden;min-width:70px"><div style="background:var(--green);height:100%;width:'+pct+'%"></div></div><span class="muted" style="font-size:11px">'+pct+'%</span></td></tr>';
   });
   h+='</tbody></table>';
@@ -690,9 +702,9 @@ function renderMonthContent(res,month){
     h+='<span style="font-weight:600;color:var(--primary);display:inline-block;min-width:38px">'+esc(g.grade)+'</span> ';
     h+='<span class="pill '+(unpaid.length===0?'pill-green':'pill-amber')+'" style="margin-right:6px">จ่าย '+paid.length+'/'+g.students.length+'</span>';
     if(unpaid.length>0){
-      h+='<span style="color:var(--red);font-size:13px">ค้าง: '+unpaid.map(function(s){return esc((s.rollNo?s.rollNo+'. ':'')+s.name);}).join(', ')+'</span>';
+      h+='<span style="color:var(--red-text);font-size:13px">ค้าง: '+unpaid.map(function(s){return esc((s.rollNo?s.rollNo+'. ':'')+s.name);}).join(', ')+'</span>';
     } else {
-      h+='<span style="color:var(--green);font-size:13px">✓ ครบทุกคน</span>';
+      h+='<span style="color:var(--green-text);font-size:13px">✓ ครบทุกคน</span>';
     }
     h+='</div>';
   });
@@ -725,7 +737,7 @@ function loadExternal(){
     var isAdmin = STATE.role==='admin';
     var h='<table><thead><tr><th>วันที่</th><th>รายการ</th><th class="r">จำนวนเงิน</th><th>หมายเหตุ</th>'+(isAdmin?'<th></th>':'')+'</tr></thead><tbody>';
     res.records.forEach(function(r){
-      h+='<tr><td class="muted">'+esc(r.date)+'</td><td>'+esc(r.label)+'</td><td class="r" style="color:var(--green);font-weight:600">'+money(r.amount)+'</td><td class="muted">'+esc(r.note)+'</td>'+
+      h+='<tr><td class="muted">'+esc(r.date)+'</td><td>'+esc(r.label)+'</td><td class="r" style="color:var(--green-text);font-weight:600">'+money(r.amount)+'</td><td class="muted">'+esc(r.note)+'</td>'+
          (isAdmin?'<td class="c"><button class="btn btn-sm btn-ghost" onclick="delExternal(\''+r.id+'\')">ลบ</button></td>':'')+'</tr>';
     });
     h+='</tbody></table>';
