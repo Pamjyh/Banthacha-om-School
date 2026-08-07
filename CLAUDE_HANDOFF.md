@@ -96,6 +96,20 @@ commit `76b8abc` (School Portal: ปุ่มปิด/เปิดระบบ�
 - **Admin panel**: คลิกชื่อโรงเรียนตรงท้ายหน้า (`.footer-school`) 5 ครั้งติดกันภายใน 3 วิ → เปิด modal ใส่รหัสผ่าน + ปุ่ม toggle 5 ระบบ กดแล้วมีผลทันทีไม่ต้อง reload (เรียก `initCards()` ใหม่หลัง toggle สำเร็จ)
 - ไม่มีข้อความกำหนดเอง (เช่น "จะกลับมา 18:00") และไม่มีสวิตช์ปิดทุกระบบพร้อมกัน — พักไว้เป็นไอเดียอนาคตถ้าต้องการ
 
+### ✅ UI polish + dark mode (manual toggle) — 2026-08-07, commit `d5d8c06..eea3233`
+- แก้กรอบทักทายซ้ำกับ header-clock: `#greeting-section` ซ่อนบนจอกว้าง (`display:none` default) โผล่เฉพาะมือถือผ่าน media query (header-clock เองก็ซ่อนตอนจอแคบ ≤767px อยู่แล้ว)
+- การ์ดระบบงานบนมือถือ (≤539px) เล็กลง 2 คอลัมน์ กระชับ (ตัด `.card-desc`, ลด icon/font/padding) — จอกว้าง/คอมไม่กระทบ
+- **Dark mode**: ปุ่มลอยมุมขวาล่าง (`#theme-toggle-btn`) กดสลับเอง จำค่าใน `localStorage['schoolPortalTheme']` ('dark'/'light', ไม่มีคีย์ = auto ตามเวลาเดิม ช่วงเดียวกับ badge "🌙 ตอนดึก") — override เฉพาะ CSS custom properties กลาง (`--canvas*`, `--ink*`, `--hairline`, `--primary*`, `--shadow*`) ผ่าน `html.dark-mode {...}` สีแบรนด์/ไอคอนแต่ละระบบคงเดิม
+  - **ยังไม่ครอบคลุมระบบงานย่อยทั้ง 6** (เปิดผ่าน iframe คนละ CSS) — ตกลงกับ Pam ว่าจะทำทีละระบบ เริ่มจาก Portal ก่อน คีย์ localStorage เดียวกันนี้พร้อมให้ระบบอื่นอ่าน sync ได้เลยตอนทำต่อ (ไม่ต้องออกแบบใหม่)
+- แบนเนอร์วันสำคัญ (`#special-day-banner`) — ปีใหม่, วันเด็ก (เสาร์ที่ 2 ม.ค.), วันครู (16 ม.ค.), สงกรานต์ (13-15 เม.ย.), วันแม่ (12 ส.ค.), วันพ่อ (5 ธ.ค.) โผล่อัตโนมัติเฉพาะวันที่ตรง
+- เอฟเฟกต์การ์ด: เอียงตามเมาส์ (`initCardTiltEffect`, เฉพาะจอที่ `hover:hover`+`pointer:fine`) / ripple ตอนแตะ (`initCardRippleEffect`, เฉพาะ `pointerType==='touch'`) — การ์ดที่ `.sys-card--inactive` (ปิดปรับปรุง) ไม่มีเอฟเฟกต์ กันสับสนว่ากดได้
+- ทำเนียบบุคลากรตอนโหลดเสร็จ fade-in นุ่มๆ แทนโผล่ทันที (`.staff-directory-section.ready` + `@keyframes staffFadeIn`)
+- **scrutinize 2026-08-07 พบ 4 findings แก้ครบแล้ว** (commit `eea3233`):
+  - F1 (MAJOR): `localStorage.getItem/setItem` ไม่มี try/catch — ถ้า throw (เช่นบาง in-app browser อย่าง LINE บน Android บางรุ่น) จะทำให้ `DOMContentLoaded` handler หยุดกลางทาง รวมถึง `animateCards()` ไม่รัน → การ์ดทั้ง 6 ใบ (`opacity:0` ตั้งต้น) หายไปถาวรทั้งที่กดได้จริง (มองไม่เห็น) → ครอบ try/catch แล้วใน `currentThemeIsDark()`/`toggleTheme()`
+  - F2 (MINOR): tilt/ripple effect ใหม่ไม่เคารพ `prefers-reduced-motion` ทั้งที่โค้ดเดิมมี pattern นี้อยู่แล้วสำหรับ card animation อื่น → เพิ่ม guard แล้ว
+  - F3/F4 (NIT): แก้ comment ที่บอกกลไกซ่อนปุ่ม theme-toggle ผิด (จริงๆ ซ่อนเพราะอยู่ใต้ `#page-wrapper.hidden` ไม่ใช่ z-index overlay) + ลดโค้ดซ้ำช่วงเวลา "ตอนดึก" ให้อิงจาก `GREETINGS[3]` แหล่งเดียว
+- **ยังไม่ได้ live-test ในเบราว์เซอร์จริง** (ตรวจโค้ด + scrutinize + syntax check ผ่านหมดแล้ว) — รอ Pam push + ทดสอบ
+
 ---
 
 ## 1. ระบบการเงินและพัสดุ
