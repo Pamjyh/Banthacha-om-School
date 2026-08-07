@@ -104,6 +104,12 @@ commit `76b8abc` (School Portal: ปุ่มปิด/เปิดระบบ�
   - ออกแบบพาเลตต์มืดแยกทีละไฟล์ (ไม่ใช้ CSS filter-invert ทั่วบอร์ด) เพราะแต่ละระบบมีตัวแปรสี role ปนกัน (ตัวอักษร vs พื้นปุ่ม) ต้องแยก `-text`/`-rgb` variant เป็นราย ๆ กันปุ่มพื้นเข้ม+ตัวอักษรขาวพัง — ผ่าน WCAG contrast check ทุกคู่สีก่อน commit (script Python คำนวณ relative luminance)
   - commit แยกระบบละ 1 commit: ระบบการเงินและพัสดุ `a8d9994`, ระบบออมทรัพย์ `d786347`, ระบบลงเวลา `8f323b6`, ระบบสารบัญ `6c8fb50`, ระบบค่ารถ `a6a019f`, ระบบดูแลช่วยเหลือนักเรียน `3ec2b69`
   - รายละเอียดเฉพาะจุดของแต่ละระบบ (ตัวแปรไหนแยก, จุดไหน self-contained ไม่แตะ) ดูใน commit message ของแต่ละระบบ หรือหัวข้อของระบบนั้นด้านล่าง
+  - **scrutinize รอบ 2 (2026-08-07) พบ 4 findings แก้ครบแล้ว** (commit `de3366c`) — เจอจาก grep ซ้ำหา `color:#XXX`/`color:rgba(` ทั้ง 6 ไฟล์แบบ outsider ไม่พึ่ง memory ตอน implement:
+    - F1 (MAJOR, ระบบออมทรัพย์): error-state ตอนโหลดรายชื่อ/รายเดือน/วันนี้/การ์ดสรุปรายชั้นไม่สำเร็จ (4 จุด) ใช้ `color:#c0392b`/`#666` literal บน `body{background:var(--warm)}` ที่ flip มืด — หลุดมาเพราะเป็น inline style ไม่ผ่าน CSS class ที่แก้รอบแรก → เปลี่ยนเป็น `var(--red-text)`/`var(--ts)`
+    - F2 (MINOR, ระบบออมทรัพย์): ข้อความคู่มือผู้ปกครอง `color:#555` → `var(--ts)`
+    - F3 (MINOR, ระบบลงเวลา): `#addErr` ฟอร์มเพิ่มพนักงาน `color:#c00` → `var(--red-text)`
+    - F4 (NIT): `theme-sync.js` ซ้ำ threshold "ตอนดึก" (21:00-05:00) กับ Portal เพราะไฟล์ standalone ไม่ผูก script อื่น — ยอมรับเป็น known tradeoff (มีคอมเมนต์อธิบายในไฟล์แล้ว) ไม่แก้โค้ด
+    - **พบเพิ่มนอก scope**: ระบบออมทรัพย์บรรทัด ~2396 `color:#c0392b` บนพื้น `--hg` (เข้มถาวรทั้ง 2 โหมด) contrast 2.29:1 — เป็นปัญหาเดิมก่อนงาน dark mode ไม่ใช่ regression จากงานนี้ ไม่ได้แตะ รอ Pam ตัดสินใจแยก
   - **ยังไม่ได้ live-test ทั้ง 6 ระบบในเบราว์เซอร์จริง** (ตรวจแค่ contrast math + brace balance + JS syntax check ผ่านหมด) — รอ Pam push + เปิดทดสอบจริงทุกระบบ โดยเฉพาะจุดที่เป็น dynamic JS-rendered content (ตาราง/badge/chip ที่ render จาก JS)
 - แบนเนอร์วันสำคัญ (`#special-day-banner`) — ปีใหม่, วันเด็ก (เสาร์ที่ 2 ม.ค.), วันครู (16 ม.ค.), สงกรานต์ (13-15 เม.ย.), วันแม่ (12 ส.ค.), วันพ่อ (5 ธ.ค.) โผล่อัตโนมัติเฉพาะวันที่ตรง
 - เอฟเฟกต์การ์ด: เอียงตามเมาส์ (`initCardTiltEffect`, เฉพาะจอที่ `hover:hover`+`pointer:fine`) / ripple ตอนแตะ (`initCardRippleEffect`, เฉพาะ `pointerType==='touch'`) — การ์ดที่ `.sys-card--inactive` (ปิดปรับปรุง) ไม่มีเอฟเฟกต์ กันสับสนว่ากดได้
