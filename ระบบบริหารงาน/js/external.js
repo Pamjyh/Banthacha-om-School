@@ -503,7 +503,7 @@ function closeExtForm(){
 function setExtType(val){
   document.getElementById('extTypeHidden').value = val;
   var colors = { รายรับ:'var(--up)', รายจ่าย:'var(--signal)' };
-  var bgs    = { รายรับ:'rgba(45,156,92,.12)', รายจ่าย:'rgba(207,69,0,.1)' };
+  var bgs    = { รายรับ:'rgba(var(--up-rgb),.12)', รายจ่าย:'rgba(var(--signal-rgb),.1)' }; // ใช้ตัวแปร CSS ไม่ hardcode ตรงๆ กันพื้นหลังจางหายตอน dark mode
   document.querySelectorAll('.ext-type-btn').forEach(function(btn){
     var v = btn.dataset.val;
     var active = (v === val);

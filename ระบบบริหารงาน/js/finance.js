@@ -256,7 +256,7 @@ function populateProcDropdown(){
 function setFinType(val){
   document.getElementById('finType').value = val;
   var colors = {รับ:'var(--up)',จ่าย:'var(--signal)',ยอดยกมา:'var(--slate)'};
-  var bgs = {รับ:'rgba(45,156,92,.12)',จ่าย:'rgba(207,69,0,.1)',ยอดยกมา:'rgba(105,105,105,.1)'};
+  var bgs = {รับ:'rgba(var(--up-rgb),.12)',จ่าย:'rgba(var(--signal-rgb),.1)',ยอดยกมา:'rgba(var(--slate-rgb),.1)'}; // ใช้ตัวแปร CSS ไม่ hardcode ตรงๆ กันพื้นหลังจางหายตอน dark mode
   document.querySelectorAll('.fin-type-btn').forEach(function(btn){
     var v = btn.dataset.val;
     var active = (v===val);

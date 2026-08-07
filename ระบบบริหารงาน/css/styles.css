@@ -3,14 +3,35 @@
   --ink:#141413; --slate:#696969; --dust:#D1CDC7; --muted:#9a948e;
   --signal:#CF4500; --arc:#F37338;
   --up:#2d9c5c; --down:#CF4500;
+  --ink-rgb:20,20,19; --canvas-rgb:243,240,238; /* triplet คู่กับ --ink/--canvas ไว้ทำ rgba(...) แบบ alpha (border/hover tint) ที่ปรับตาม dark mode ได้ */
+  --canvas-dim:#EDEAE7; /* เดิม hardcode #f5f5f3 อยู่ใน index.html บรรทัดหัวตาราง "รวม" — ย้ายมาเป็นตัวแปรให้ปรับ dark mode ได้ */
+  --up-rgb:45,156,92; --signal-rgb:207,69,0; --slate-rgb:105,105,105; /* triplet ให้ finance.js/external.js ทำพื้นหลังปุ่ม "รับ/จ่าย" แบบโปร่งใสที่ปรับ dark mode ได้ (เดิม hardcode rgba(...) ตรงๆ ใน JS) */
   --r-btn:20px; --r-card:24px; --r-pill:999px;
   --shadow-nav:0 4px 24px rgba(0,0,0,.06);
   --shadow-card:0 8px 32px rgba(0,0,0,.07);
   --font:'Sarabun',sans-serif; --mono:'JetBrains Mono',monospace;
 }
+/* 🌙 Dark mode — สลับผ่านปุ่มใน Portal (localStorage คีย์ schoolPortalTheme, sync ข้าม iframe อัตโนมัติ)
+   --ink/--canvas/--lifted/--white ใช้ทั้งเป็น "สีตัวอักษร" และ "สีพื้นปุ่ม/แถบ active" ปนกันทั้งไฟล์
+   (เช่น .btn-ink, .nav-tab.active ใช้ ink เป็นพื้นหลัง+canvas เป็นตัวอักษร) — สลับ 2 ตัวนี้พร้อมกันแล้ว
+   ปุ่มพวกนี้จะกลับด้าน (พื้นสว่าง-ตัวอักษรเข้ม) แทนที่จะเป็นพื้นเข้ม-ตัวอักษรสว่าง ถือว่าถูกต้อง เพราะยัง
+   คงความสัมพันธ์เดิม (ปุ่มคือจุดที่ contrast สูงสุดของหน้า) ตรวจ contrast ทุกคู่แล้วผ่าน WCAG AA */
+html.dark-mode {
+  --canvas:#17191a; --lifted:#221f1c; --white:#2b2723;
+  --ink:#F0EEEC; --slate:#A9A39C; --dust:#4a4540; --muted:#948d84;
+  --signal:#FF6B4A; --arc:#F37338;
+  --up:#4CBF7D; --down:#FF6B4A;
+  --ink-rgb:240,238,236; --canvas-rgb:23,25,26;
+  --canvas-dim:#1e2021;
+  --up-rgb:76,191,125; --signal-rgb:255,107,74; --slate-rgb:169,163,156;
+}
+/* .b-buy/.b-hire ใช้ rgba() พื้นหลังแบบโปร่งใส (ไม่ใช่สีทึบเหมือน badge อื่น) — บนพื้นมืดจะจางจนอ่านไม่ออก
+   ต้องบอกสีใหม่ตรงๆ ให้ dark mode แทนที่จะพึ่งตัวแปรกลาง */
+html.dark-mode .b-buy{background:rgba(96,146,255,.18);color:#8fb4ff}
+html.dark-mode .b-hire{background:rgba(255,152,92,.18);color:#ffb08a}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{font-family:var(--font);background:var(--canvas);color:var(--ink);font-size:16px;min-height:100vh}
+body{font-family:var(--font);background:var(--canvas);color:var(--ink);font-size:16px;min-height:100vh;transition:background-color .3s ease,color .3s ease}
 
 /* ======= SETUP SCREEN ======= */
 .setup-screen{
@@ -32,7 +53,7 @@ body{font-family:var(--font);background:var(--canvas);color:var(--ink);font-size
 .form-group{margin-bottom:16px}
 .form-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);margin-bottom:6px;display:block}
 .form-inp{
-  width:100%;border:1.5px solid rgba(20,20,19,.15);border-radius:var(--r-btn);
+  width:100%;border:1.5px solid rgba(var(--ink-rgb),.15);border-radius:var(--r-btn);
   padding:12px 16px;font-family:var(--font);font-size:14px;color:var(--ink);
   background:var(--lifted);outline:none;transition:.2s;
 }
@@ -75,7 +96,7 @@ body{font-family:var(--font);background:var(--canvas);color:var(--ink);font-size
 .nav-tab.active{background:var(--ink);color:var(--canvas)}
 .nav-right{display:flex;align-items:center;gap:8px}
 .year-sel{
-  background:var(--canvas);border:1.5px solid rgba(20,20,19,.15);
+  background:var(--canvas);border:1.5px solid rgba(var(--ink-rgb),.15);
   border-radius:var(--r-pill);padding:7px 14px;font-family:var(--font);
   font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;outline:none;
 }
@@ -87,7 +108,7 @@ body{font-family:var(--font);background:var(--canvas);color:var(--ink);font-size
 }
 .btn-sm:hover{opacity:.8}
 .btn-outline-sm{
-  background:none;border:1.5px solid rgba(20,20,19,.2);color:var(--ink);
+  background:none;border:1.5px solid rgba(var(--ink-rgb),.2);color:var(--ink);
   padding:7px 14px;border-radius:var(--r-btn);font-family:var(--font);
   font-size:12px;font-weight:600;cursor:pointer;transition:.15s;
 }
@@ -123,7 +144,7 @@ h2.page-title{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1
 /* ======= STAT CARDS ======= */
 .stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:40px}
 .finance-stats{grid-template-columns:repeat(4,1fr)}
-.stat-card{background:var(--lifted);border-radius:var(--r-card);padding:28px 24px;border:1px solid rgba(20,20,19,.08);transition:box-shadow .2s}
+.stat-card{background:var(--lifted);border-radius:var(--r-card);padding:28px 24px;border:1px solid rgba(var(--ink-rgb),.08);transition:box-shadow .2s}
 .stat-card:hover{box-shadow:var(--shadow-card)}
 .stat-ey{display:flex;align-items:center;gap:6px;margin-bottom:12px}
 .stat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
@@ -135,27 +156,27 @@ h2.page-title{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1
 .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}
 .search-pill{
   display:flex;align-items:center;gap:8px;flex:1;min-width:200px;max-width:300px;
-  background:var(--lifted);border:1.5px solid rgba(20,20,19,.1);border-radius:var(--r-pill);
+  background:var(--lifted);border:1.5px solid rgba(var(--ink-rgb),.1);border-radius:var(--r-pill);
   padding:9px 16px;transition:.2s;
 }
 .search-pill:focus-within{background:var(--white);border-color:var(--ink)}
 .search-pill input{background:none;border:none;outline:none;font-family:var(--font);font-size:13px;color:var(--ink);width:100%}
 .search-pill input::placeholder{color:var(--dust)}
 .filter-sel{
-  background:var(--lifted);border:1.5px solid rgba(20,20,19,.1);border-radius:var(--r-pill);
+  background:var(--lifted);border:1.5px solid rgba(var(--ink-rgb),.1);border-radius:var(--r-pill);
   padding:8px 14px;font-family:var(--font);font-size:13px;color:var(--ink);cursor:pointer;outline:none;
 }
 .filter-sel:focus{border-color:var(--ink)}
 .ml{margin-left:auto}
 
 /* ======= TABS ======= */
-.tab-bar{display:flex;border-bottom:1.5px solid rgba(20,20,19,.1);margin-bottom:0}
+.tab-bar{display:flex;border-bottom:1.5px solid rgba(var(--ink-rgb),.1);margin-bottom:0}
 .tab-btn{padding:13px 24px;font-size:14px;font-weight:600;cursor:pointer;color:var(--slate);background:none;border:none;border-bottom:2.5px solid transparent;margin-bottom:-1.5px;font-family:var(--font);letter-spacing:-.01em;transition:.15s}
 .tab-btn.active{color:var(--ink);border-bottom-color:var(--ink)}
 .tab-btn:hover{color:var(--ink)}
 
 /* ======= TABLE CARD ======= */
-.table-card{background:var(--lifted);border-radius:0 var(--r-card) var(--r-card) var(--r-card);border:1px solid rgba(20,20,19,.08);overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow-card)}
+.table-card{background:var(--lifted);border-radius:0 var(--r-card) var(--r-card) var(--r-card);border:1px solid rgba(var(--ink-rgb),.08);overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow-card)}
 .table-card + .table-card{margin-top:0}
 /* ⚠️ บั๊กจริง (Pam รายงาน 2026-08-07): table-card เดิม overflow-x:auto ครอบทั้ง table-meta (header
    ตัวกรอง/badge) + table + pagination ไว้ใน scroll region เดียวกัน แต่ table-meta/pagination เป็น block
@@ -167,21 +188,21 @@ h2.page-title{font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1
 #page-finance .table-card,
 #page-external .table-card{overflow:hidden}
 .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.table-meta{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--white);border-bottom:1px solid rgba(20,20,19,.06)}
+.table-meta{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--white);border-bottom:1px solid rgba(var(--ink-rgb),.06)}
 .meta-txt{font-size:13px;color:var(--slate)}
 .meta-pills{display:flex;gap:8px}
 .mpill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:var(--r-pill)}
 .mp-g{background:#e6f9f0;color:#1a6b42}
 .mp-a{background:#fef3e6;color:#8b4a00}
 table{width:100%;border-collapse:collapse}
-th{background:var(--white);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);padding:13px 18px;text-align:left;border-bottom:1px solid rgba(20,20,19,.08);white-space:nowrap}
+th{background:var(--white);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);padding:13px 18px;text-align:left;border-bottom:1px solid rgba(var(--ink-rgb),.08);white-space:nowrap}
 th.r{text-align:right}
-td{padding:14px 18px;font-size:14px;border-bottom:1px solid rgba(20,20,19,.05);vertical-align:middle;color:var(--slate)}
+td{padding:14px 18px;font-size:14px;border-bottom:1px solid rgba(var(--ink-rgb),.05);vertical-align:middle;color:var(--slate)}
 td.r{text-align:right;font-family:var(--mono);font-size:13px;font-weight:500;color:var(--ink)}
 td.ink{color:var(--ink);font-weight:600}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:rgba(243,240,238,.5)}
-.sum-row td{background:rgba(243,240,238,.8);font-weight:700;border-top:1.5px solid rgba(20,20,19,.1);border-bottom:none;color:var(--ink)}
+tr:hover td{background:rgba(var(--canvas-rgb),.5)}
+.sum-row td{background:rgba(var(--canvas-rgb),.8);font-weight:700;border-top:1.5px solid rgba(var(--ink-rgb),.1);border-bottom:none;color:var(--ink)}
 .no-data{text-align:center;padding:72px;color:var(--dust);font-size:15px}
 
 /* ======= BADGES ======= */
@@ -202,19 +223,19 @@ tr:hover td{background:rgba(243,240,238,.5)}
 .sd-pend{background:var(--arc)}
 
 /* ======= ACTION BTNS ======= */
-.act-btn{width:30px;height:30px;border-radius:50%;border:1px solid rgba(20,20,19,.12);background:var(--white);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;transition:.15s}
+.act-btn{width:30px;height:30px;border-radius:50%;border:1px solid rgba(var(--ink-rgb),.12);background:var(--white);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;transition:.15s}
 .act-btn:hover{border-color:var(--ink)}
 .act-btn.del:hover{background:#fee2e2;border-color:#ef4444}
 .act-group{display:flex;gap:5px}
 
 /* ======= PROJECT CARDS ======= */
 .project-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:32px}
-.proj-card{background:var(--lifted);border-radius:var(--r-card);padding:28px;border:1px solid rgba(20,20,19,.08);cursor:pointer;transition:box-shadow .2s,border-color .2s}
-.proj-card:hover{box-shadow:var(--shadow-card);border-color:rgba(20,20,19,.2)}
+.proj-card{background:var(--lifted);border-radius:var(--r-card);padding:28px;border:1px solid rgba(var(--ink-rgb),.08);cursor:pointer;transition:box-shadow .2s,border-color .2s}
+.proj-card:hover{box-shadow:var(--shadow-card);border-color:rgba(var(--ink-rgb),.2)}
 .proj-card.active-card{border-color:var(--ink)}
 .proj-name{font-size:14px;font-weight:700;color:var(--ink);line-height:1.3;margin-bottom:6px}
 .proj-teacher{font-size:12px;color:var(--slate);margin-bottom:14px}
-.proj-budget-bar{height:4px;background:rgba(20,20,19,.08);border-radius:4px;margin-bottom:6px}
+.proj-budget-bar{height:4px;background:rgba(var(--ink-rgb),.08);border-radius:4px;margin-bottom:6px}
 .proj-bar-fill{height:100%;border-radius:4px;background:var(--ink);transition:width .4s}
 .proj-bar-fill.over{background:var(--signal)}
 .proj-numbers{display:flex;justify-content:space-between;font-size:11px;font-family:var(--mono)}
@@ -228,8 +249,8 @@ tr:hover td{background:rgba(243,240,238,.5)}
 .modal{background:var(--lifted);border-radius:40px;padding:36px;width:600px;max-width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 32px 80px rgba(0,0,0,.22)}
 .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
 .modal-head h2{font-size:20px;font-weight:700;letter-spacing:-.02em;color:var(--ink)}
-.modal-x{width:32px;height:32px;border-radius:50%;background:rgba(20,20,19,.07);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--slate);transition:.15s}
-.modal-x:hover{background:rgba(20,20,19,.14);color:var(--ink)}
+.modal-x{width:32px;height:32px;border-radius:50%;background:rgba(var(--ink-rgb),.07);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--slate);transition:.15s}
+.modal-x:hover{background:rgba(var(--ink-rgb),.14);color:var(--ink)}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .form-full{grid-column:1/-1}
 /* ⚠️ ตาราง/ข้อความยาวไม่มีช่องว่างธรรมชาติ (เลขที่เอกสาร, ชื่อรายการยาวๆ) ต้องบังคับตัดคำได้เสมอ กัน
@@ -239,11 +260,11 @@ tr:hover td{background:rgba(243,240,238,.5)}
 .docx-btn-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .fg{display:flex;flex-direction:column;gap:5px}
 .fg label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--slate)}
-.fc{border:1.5px solid rgba(20,20,19,.15);border-radius:var(--r-btn);padding:10px 14px;font-family:var(--font);font-size:13px;color:var(--ink);background:var(--white);outline:none;transition:.2s;width:100%}
+.fc{border:1.5px solid rgba(var(--ink-rgb),.15);border-radius:var(--r-btn);padding:10px 14px;font-family:var(--font);font-size:13px;color:var(--ink);background:var(--white);outline:none;transition:.2s;width:100%}
 .fc:focus{border-color:var(--ink)}
 textarea.fc{resize:vertical;min-height:60px}
-.modal-foot{display:flex;gap:10px;justify-content:flex-end;padding-top:20px;border-top:1px solid rgba(20,20,19,.08);margin-top:22px}
-.btn-cancel{background:none;border:1.5px solid rgba(20,20,19,.15);color:var(--slate);padding:9px 20px;border-radius:var(--r-btn);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;padding-top:20px;border-top:1px solid rgba(var(--ink-rgb),.08);margin-top:22px}
+.btn-cancel{background:none;border:1.5px solid rgba(var(--ink-rgb),.15);color:var(--slate);padding:9px 20px;border-radius:var(--r-btn);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
 .btn-cancel:hover{border-color:var(--ink);color:var(--ink)}
 
 /* ======= SMALL MODALS ======= */
@@ -258,7 +279,7 @@ textarea.fc{resize:vertical;min-height:60px}
 
 /* ======= LOADING ======= */
 .loading-overlay{position:fixed;inset:0;background:var(--canvas);z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
-.loading-spinner{width:36px;height:36px;border:3px solid rgba(20,20,19,.1);border-top-color:var(--ink);border-radius:50%;animation:spin .7s linear infinite}
+.loading-spinner{width:36px;height:36px;border:3px solid rgba(var(--ink-rgb),.1);border-top-color:var(--ink);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading-text{font-size:14px;color:var(--slate);font-weight:500}
 

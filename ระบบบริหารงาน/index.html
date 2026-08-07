@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="./css/styles.css">
+<script src="../js/theme-sync.js"></script>
 <style>
 /* Auth gate */
 body:not(.is-admin) .admin-only { display: none !important; }
@@ -19,7 +20,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
 /* Toast notification */
 #toast {
   position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
-  background: var(--ink,#141413); color: #fff;
+  background: #141413; color: #fff; /* ตั้งใจไม่ผูก var(--ink) — toast ควรเป็นแผ่นเข้ม-ตัวอักษรขาวเสมอไม่ว่าจะ dark mode หรือไม่ (var(--ink) สลับเป็นสีอ่อนตอน dark mode จะทำให้ตัวอักษรขาวจมหาย) */
   padding: 10px 22px; border-radius: 24px; font-size: 13px; font-weight: 500;
   opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; z-index: 9999;
   max-width: calc(100vw - 32px); box-sizing: border-box; text-align: center; overflow-wrap: break-word;
@@ -657,7 +658,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
       <div class="fg form-full">
         <label>ประเภท <span style="color:var(--arc)">*</span></label>
         <div style="display:flex;gap:8px">
-          <button type="button" class="fin-type-btn active" data-val="รับ" onclick="setFinType('รับ')" style="flex:1;padding:9px;border-radius:var(--r-btn);border:1.5px solid var(--up);background:rgba(45,156,92,.1);color:var(--up);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer">รับ</button>
+          <button type="button" class="fin-type-btn active" data-val="รับ" onclick="setFinType('รับ')" style="flex:1;padding:9px;border-radius:var(--r-btn);border:1.5px solid var(--up);background:rgba(var(--up-rgb),.1);color:var(--up);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer">รับ</button>
           <button type="button" class="fin-type-btn" data-val="จ่าย" onclick="setFinType('จ่าย')" style="flex:1;padding:9px;border-radius:var(--r-btn);border:1.5px solid var(--dust);background:transparent;color:var(--slate);font-family:var(--font);font-size:14px;cursor:pointer">จ่าย</button>
           <button type="button" class="fin-type-btn" data-val="ยอดยกมา" onclick="setFinType('ยอดยกมา')" style="flex:1;padding:9px;border-radius:var(--r-btn);border:1.5px solid var(--dust);background:transparent;color:var(--slate);font-family:var(--font);font-size:14px;cursor:pointer">ยอดยกมา</button>
         </div>
@@ -729,7 +730,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
       <div class="fg">
         <label>ลำดับที่ (จ.?) <span style="color:var(--arc)">*</span></label>
         <div style="display:flex;align-items:center">
-          <span style="background:var(--canvas);border:1.5px solid rgba(20,20,19,.15);border-right:none;border-radius:var(--r-btn) 0 0 var(--r-btn);padding:10px 12px;font-size:13px;font-weight:700;color:var(--slate);font-family:var(--mono)">จ.</span>
+          <span style="background:var(--canvas);border:1.5px solid rgba(var(--ink-rgb),.15);border-right:none;border-radius:var(--r-btn) 0 0 var(--r-btn);padding:10px 12px;font-size:13px;font-weight:700;color:var(--slate);font-family:var(--mono)">จ.</span>
           <input class="fc" type="number" id="pSeq" min="1" placeholder="1" style="border-radius:0 var(--r-btn) var(--r-btn) 0;border-left:none">
         </div>
       </div>
@@ -908,7 +909,7 @@ body:not(.is-admin) .admin-only { display: none !important; }
           <button type="button" class="ext-type-btn" data-val="รายรับ" onclick="setExtType('รายรับ')"
             style="flex:1;padding:9px;border-radius:var(--r-btn);border:1.5px solid var(--dust);background:transparent;color:var(--slate);font-family:var(--font);font-size:14px;cursor:pointer">รายรับ</button>
           <button type="button" class="ext-type-btn" data-val="รายจ่าย" onclick="setExtType('รายจ่าย')"
-            style="flex:1;padding:9px;border-radius:var(--r-btn);border:1.5px solid var(--signal);background:rgba(207,69,0,.1);color:var(--signal);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer">รายจ่าย</button>
+            style="flex:1;padding:9px;border-radius:var(--r-btn);border:1.5px solid var(--signal);background:rgba(var(--signal-rgb),.1);color:var(--signal);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer">รายจ่าย</button>
         </div>
       </div>
       <div class="fg">
@@ -1346,6 +1347,15 @@ body:not(.is-admin) .admin-only { display: none !important; }
 <script src="./js/external.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+// Chart.js วาดลง <canvas> ไม่รับสีจาก CSS variable อัตโนมัติ — ต้องตั้งสีข้อความ/เส้นกริดเอง
+// ตาม dark mode ตอนนี้ก่อนสร้างกราฟจริง (theme-sync.js ใส่ class dark-mode ให้ <html> ไปแล้วตั้งแต่ <head>)
+if (window.Chart) {
+  var _isDark = document.documentElement.classList.contains('dark-mode');
+  Chart.defaults.color = _isDark ? '#A9A39C' : '#696969';           // เหมือน --slate
+  Chart.defaults.borderColor = _isDark ? 'rgba(240,238,236,.12)' : 'rgba(20,20,19,.08)'; // เส้นกริด เหมือน --ink-rgb แบบจาง
+}
+</script>
 <!-- PIVOT 2026-07-11: เอกสารพัสดุเปลี่ยนจาก HTML+browser print (jsPDF/pdf-font.js เดิม) เป็นสร้างไฟล์
      .docx จริงด้วย docx library — ให้ Word จัดหน้ากระดาษเอง ตัดปัญหาการเดา CSS ทิ้งทั้งหมด (ดู
      js/docx-templates.js หัวไฟล์) — เก็บ pdf-engine.js ไว้แค่ตัวเดียวเพื่อใช้ GARUDA_B64 (รูปครุฑ) -->
