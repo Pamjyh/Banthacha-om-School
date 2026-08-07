@@ -379,7 +379,7 @@ Apply migration column-restrict `settings` (ด้านบน) ก่อน fro
 
 **Revert ฉุกเฉินแล้ว**: `GRANT SELECT ON settings TO anon,authenticated` กลับเป็นทั้งตาราง (migration `emergency_revert_settings_select_restore_checkin`) — verified เช็คอินใช้งานได้ปกติแล้ว **แต่ `admin_hash` กลับมาอ่านได้ public ชั่วคราว** (trade-off ตั้งใจ)
 
-⚠️ **ค้างอยู่**: ต้องรอ Pam push commit ที่ค้างทั้งหมด (รวม `6117e89` sw.js bump) + ยืนยันว่าเว็บจริงโหลดโค้ดใหม่แล้ว (เช็ค network tab ว่า query เป็น column list ไม่ใช่ `*`) ถึงจะ apply column-restrict ซ้ำได้อย่างปลอดภัย — **Claude ห้าม apply เองอีกจนกว่า Pam ยืนยัน**
+✅ **ปิด incident แล้ว**: พบว่า `origin/main` มี fix ตัวจริง (`c4999a5`+`6117e89`) push ไปแล้วจริงระหว่างทาง (อีก session push ไปพร้อมกัน) Pam ทดสอบเช็คอินกับเว็บจริงยืนยันใช้งานได้ปกติ → re-apply column-restrict `admin_hash` สำเร็จ (migration `reapply_settings_admin_hash_protection`) verified ครบ 2 ทาง — จบ incident, ไม่มีอะไรค้าง
 
 ---
 
