@@ -48,6 +48,11 @@
   --pink-bg:       #fce4ef;
   --pink-hover:    #f8d0e3;
 
+  --badge-on-text:   #0e6124;
+  --badge-off-text:  #a84100;
+  --badge-soon-text: #5b2fc3;
+  --badge-blue-text: #0059a8;
+
   --radius-sm:     8px;
   --radius-md:     12px;
   --radius-lg:     16px;
@@ -58,7 +63,9 @@
 }
 
 /* 🌙 Dark mode — สลับอัตโนมัติตามเวลา (ช่วง "ตอนดึก" หลัง 3 ทุ่ม, ดู updateGreeting() ใน JS)
-   override เฉพาะ token กลาง สีแบรนด์/ไอคอนแต่ละระบบใช้ค่าเดิม (พาสเทลสว่างตัดกับพื้นมืดพอดี) */
+   override เฉพาะ token กลาง
+   หมายเหตุ 2026-08-08: เดิมตั้งใจให้พาสเทลสว่าง (--teal-bg ฯลฯ) คงค่าเดิมเพราะคิดว่า "ตัดกับพื้นมืดพอดี"
+   แต่ Pam ทดสอบจริงแล้วรู้สึกแสบตา/สว่างจ้าเกินไป — เลยเพิ่ม override ให้แถบไอคอนเป็นโทนเข้มลงแทน (ดูด้านล่าง) */
 html.dark-mode {
   --canvas-soft:   #14161a;
   --canvas:        #1e2126;
@@ -71,6 +78,20 @@ html.dark-mode {
   --primary-dark:  #7fbfff;
   --shadow-card:   0 1px 3px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.3);
   --shadow-hover:  0 10px 28px rgba(0,0,0,.5);
+
+  /* แถบไอคอนการ์ด + badge — พาสเทลสว่างเดิมกลายเป็นสี่เหลี่ยมสว่างจ้าลอยบนพื้นเข้ม
+     เปลี่ยนเป็นโทนเข้ม (desaturate + ลด lightness) แต่คง hue เดิมให้แยกระบบออกจากกันได้ */
+  --teal-bg:      #1a3634; --teal-hover:   #213f3d;
+  --green-bg:     #183a22; --green-hover:  #1f4529;
+  --orange-bg:    #3a2410; --orange-hover: #452c14;
+  --purple-bg:    #28204a; --purple-hover: #312756;
+  --blue-bg:      #152d47; --blue-hover:   #1c3854;
+  --pink-bg:      #3a1526; --pink-hover:   #451b2e;
+
+  --badge-on-text:   #7fe0a0;
+  --badge-off-text:  #ffb066;
+  --badge-soon-text: #c4a8f5;
+  --badge-blue-text: #7db8f0;
 }
 html.dark-mode #system-overlay { background: var(--canvas); }
 
@@ -387,7 +408,7 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--radius-full);
   white-space: nowrap;
 }
-.badge-active { background: var(--green-bg); color: #0e6124; }
+.badge-active { background: var(--green-bg); color: var(--badge-on-text); }
 .badge-active::before {
   content: '';
   display: inline-block; width: 7px; height: 7px;
@@ -399,8 +420,8 @@ a { color: inherit; text-decoration: none; }
   50%  { box-shadow: 0 0 0 4px rgba(26,174,57,.08); }
   100% { box-shadow: 0 0 0 0   rgba(26,174,57,.0); }
 }
-.badge-soon { background: var(--purple-bg); color: #5b2fc3; }
-.badge-off  { background: var(--orange-bg); color: #a84100; }
+.badge-soon { background: var(--purple-bg); color: var(--badge-soon-text); }
+.badge-off  { background: var(--orange-bg); color: var(--badge-off-text); }
 .badge-off::before {
   content: '';
   display: inline-block; width: 7px; height: 7px;
@@ -510,7 +531,7 @@ a { color: inherit; text-decoration: none; }
   border-bottom: 1px solid var(--hairline);
 }
 .staff-directory-summary .badge {
-  background: var(--blue-bg); color: #0059a8; /* สีคงที่ ไม่ผูก --primary-dark กันจางหายตอน dark mode (bg เป็นพาสเทลสว่างเสมอ) */
+  background: var(--blue-bg); color: var(--badge-blue-text);
 }
 .staff-directory-grid {
   display: grid;
@@ -885,6 +906,7 @@ function applyTheme(isDark) {
   document.documentElement.classList.toggle('dark-mode', isDark);
   const btn = document.getElementById('theme-toggle-btn');
   if (btn) btn.textContent = isDark ? '☀️' : '🌙'; // โชว์ไอคอนของโหมดที่จะกดสลับไป
+  updateSpecialDayBanner(new Date()); // สลับสีแบนเนอร์วันสำคัญให้ตรงโหมดทันที ไม่ต้องรอ updateGreeting() รอบถัดไป (ทุก 60 วิ)
 }
 function toggleTheme() {
   const next = !document.documentElement.classList.contains('dark-mode');
@@ -910,28 +932,30 @@ function nthSaturdayOfJan(year, n) {
   return null;
 }
 const SPECIAL_DAYS = [
-  // bg/color เป็นค่าคงที่ไม่ผูกกับ dark mode (เหมือน badge อื่นๆ) กันตัวหนังสือจางหายตอนสลับธีมมืด
+  // bg/color = โหมดสว่าง, bgDark/colorDark = โหมดมืด (แยกคู่กันเพราะ pastel สว่างเดิมกลายเป็น
+  // แผ่นสว่างจ้าลอยบนพื้นเข้ม — แก้เหมือนแถบไอคอนการ์ด 2026-08-08)
   { test: now => now.getMonth() === 0 && now.getDate() === 1,
-    text: '🎉 สวัสดีปีใหม่', bg: '#fdeede', color: '#a84100' },
+    text: '🎉 สวัสดีปีใหม่', bg: '#fdeede', color: '#a84100', bgDark: '#3a2410', colorDark: '#ffb066' },
   { test: now => now.getMonth() === 0 && now.getDate() === nthSaturdayOfJan(now.getFullYear(), 2),
-    text: '🎈 วันเด็กแห่งชาติ', bg: '#e3f0fc', color: '#0059a8' },
+    text: '🎈 วันเด็กแห่งชาติ', bg: '#e3f0fc', color: '#0059a8', bgDark: '#152d47', colorDark: '#7db8f0' },
   { test: now => now.getMonth() === 0 && now.getDate() === 16,
-    text: '🙏 วันครูแห่งชาติ — ขอบคุณคุณครูทุกท่านครับ', bg: '#ece8fc', color: '#5b2fc3' },
+    text: '🙏 วันครูแห่งชาติ — ขอบคุณคุณครูทุกท่านครับ', bg: '#ece8fc', color: '#5b2fc3', bgDark: '#28204a', colorDark: '#c4a8f5' },
   { test: now => now.getMonth() === 3 && now.getDate() >= 13 && now.getDate() <= 15,
-    text: '💦 สุขสันต์วันสงกรานต์', bg: '#ddf3f2', color: '#0f6a66' },
+    text: '💦 สุขสันต์วันสงกรานต์', bg: '#ddf3f2', color: '#0f6a66', bgDark: '#1a3634', colorDark: '#7fd9d4' },
   { test: now => now.getMonth() === 7 && now.getDate() === 12,
-    text: '💐 วันแม่แห่งชาติ', bg: '#fce4ef', color: '#9c1959' },
+    text: '💐 วันแม่แห่งชาติ', bg: '#fce4ef', color: '#9c1959', bgDark: '#3a1526', colorDark: '#f090b8' },
   { test: now => now.getMonth() === 11 && now.getDate() === 5,
-    text: '💙 วันพ่อแห่งชาติ', bg: '#e3f0fc', color: '#0059a8' },
+    text: '💙 วันพ่อแห่งชาติ', bg: '#e3f0fc', color: '#0059a8', bgDark: '#152d47', colorDark: '#7db8f0' },
 ];
 function updateSpecialDayBanner(now) {
   const el = document.getElementById('special-day-banner');
   if (!el) return;
   const day = SPECIAL_DAYS.find(item => item.test(now));
   if (!day) { el.hidden = true; return; }
+  const dark = document.documentElement.classList.contains('dark-mode');
   el.textContent      = day.text;
-  el.style.background = day.bg;
-  el.style.color      = day.color;
+  el.style.background = dark ? day.bgDark   : day.bg;
+  el.style.color      = dark ? day.colorDark : day.color;
   el.hidden = false;
 }
 
@@ -1207,7 +1231,7 @@ function renderAdminList() {
       '<span style="font-size:14px;color:var(--ink)">' + SYSTEM_LABELS[id] + '</span>' +
       '<button type="button" class="admin-toggle-btn" data-id="' + id + '" data-status="' + (isOn ? 'on' : 'off') + '" ' +
         'style="padding:6px 14px;border-radius:999px;border:none;font-family:\'Sarabun\',sans-serif;font-size:13px;font-weight:600;cursor:pointer;' +
-        'background:' + (isOn ? 'var(--green-bg)' : 'var(--orange-bg)') + ';color:' + (isOn ? '#0e6124' : '#a84100') + '">' +
+        'background:' + (isOn ? 'var(--green-bg)' : 'var(--orange-bg)') + ';color:' + (isOn ? 'var(--badge-on-text)' : 'var(--badge-off-text)') + '">' +
         (isOn ? 'ใช้งานได้' : 'ปิดอยู่') +
       '</button>' +
     '</div>';
