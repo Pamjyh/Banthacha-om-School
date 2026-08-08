@@ -334,6 +334,22 @@ function renderExtCharts(list){
     return;
   }
 
+  // สีชุดกราฟต้องอ่านจาก CSS custom property สดๆ ทุกครั้งที่ render (ไม่ hardcode hex ของโหมดสว่างค้างไว้
+  // เหมือนเดิม) เพราะ canvas วาดสีตรงๆ ไม่รับ var() แบบ CSS — --up/--signal มีค่า dark mode ของตัวเองอยู่แล้ว
+  // ใน css/styles.css แต่โค้ดกราฟเดิมไม่เคยอ่าน ทำให้กราฟค้างโทนสว่างไว้แม้สลับ dark mode แล้ว
+  function extCssVar(name, fallback){
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+  var upColor      = extCssVar('--up',      '#2d9c5c');
+  var upRgb        = extCssVar('--up-rgb',  '45,156,92');
+  var signalColor  = extCssVar('--signal',  '#CF4500');
+  var signalRgb    = extCssVar('--signal-rgb', '207,69,0');
+  var whiteColor   = extCssVar('--white',   '#fff');   // เดิม hardcode '#fff' เป็นเส้นขอบ/จุด "cutout ตัดกับพื้นการ์ด" — พื้นการ์ดมืดแล้วเลยต้องตามให้ทัน กันเป็นวงแหวน/จุดขาวจ้าลอยบนพื้นเข้ม
+  var slateColor   = extCssVar('--slate',   '#696969');
+  var accentColor  = extCssVar('--chart-accent',     '#3860BE');
+  var accentRgb    = extCssVar('--chart-accent-rgb', '56,96,190');
+
   // 1. Bar chart — monthly income vs expense
   var barIn  = Array(12).fill(0);
   var barOut = Array(12).fill(0);
@@ -352,8 +368,8 @@ function renderExtCharts(list){
       data: {
         labels: EXT_MONTHS_TH,
         datasets: [
-          { label:'รายรับ',  data: barIn,  backgroundColor:'rgba(45,156,92,0.75)',  borderColor:'#2d9c5c', borderWidth:1, borderRadius:3 },
-          { label:'รายจ่าย', data: barOut, backgroundColor:'rgba(207,69,0,0.75)',   borderColor:'#CF4500', borderWidth:1, borderRadius:3 }
+          { label:'รายรับ',  data: barIn,  backgroundColor:'rgba('+upRgb+',0.75)',     borderColor:upColor,     borderWidth:1, borderRadius:3 },
+          { label:'รายจ่าย', data: barOut, backgroundColor:'rgba('+signalRgb+',0.75)', borderColor:signalColor, borderWidth:1, borderRadius:3 }
         ]
       },
       options:{
@@ -389,7 +405,7 @@ function renderExtCharts(list){
             data: catData,
             backgroundColor: EXT_PALETTE.slice(0, catLabels.length),
             borderWidth: 2,
-            borderColor: '#fff'
+            borderColor: whiteColor
           }]
         },
         options:{
@@ -408,7 +424,7 @@ function renderExtCharts(list){
     } else {
       var c = ctxPie.getContext('2d');
       c.clearRect(0,0,ctxPie.width,ctxPie.height);
-      c.fillStyle = '#888';
+      c.fillStyle = slateColor;
       c.font = '13px Sarabun';
       c.textAlign = 'center';
       c.fillText('ยังไม่มีรายจ่าย', ctxPie.width/2, ctxPie.height/2);
@@ -436,13 +452,13 @@ function renderExtCharts(list){
         datasets: [{
           label: 'ยอดสะสม (บาท)',
           data: cumulData,
-          borderColor: '#3860BE',
-          backgroundColor: 'rgba(56,96,190,0.08)',
+          borderColor: accentColor,
+          backgroundColor: 'rgba('+accentRgb+',0.08)',
           fill: true,
           tension: 0.35,
           pointRadius: 5,
-          pointBackgroundColor: cumulData.map(function(v){ return v>=0?'#3860BE':'#CF4500'; }),
-          pointBorderColor: '#fff',
+          pointBackgroundColor: cumulData.map(function(v){ return v>=0?accentColor:signalColor; }),
+          pointBorderColor: whiteColor,
           pointBorderWidth: 2
         }]
       },

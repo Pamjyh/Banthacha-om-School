@@ -6,6 +6,7 @@
   --ink-rgb:20,20,19; --canvas-rgb:243,240,238; /* triplet คู่กับ --ink/--canvas ไว้ทำ rgba(...) แบบ alpha (border/hover tint) ที่ปรับตาม dark mode ได้ */
   --canvas-dim:#EDEAE7; /* เดิม hardcode #f5f5f3 อยู่ใน index.html บรรทัดหัวตาราง "รวม" — ย้ายมาเป็นตัวแปรให้ปรับ dark mode ได้ */
   --up-rgb:45,156,92; --signal-rgb:207,69,0; --slate-rgb:105,105,105; /* triplet ให้ finance.js/external.js ทำพื้นหลังปุ่ม "รับ/จ่าย" แบบโปร่งใสที่ปรับ dark mode ได้ (เดิม hardcode rgba(...) ตรงๆ ใน JS) */
+  --chart-accent:#3860BE; --chart-accent-rgb:56,96,190; /* เส้นกราฟยอดสะสมใน external.js ไม่มีสีธีมกลางให้ผูกอยู่ก่อน (ไม่ใช่ up/signal) เลยเพิ่มตัวแปรแยก */
   --r-btn:20px; --r-card:24px; --r-pill:999px;
   --shadow-nav:0 4px 24px rgba(0,0,0,.06);
   --shadow-card:0 8px 32px rgba(0,0,0,.07);
@@ -24,6 +25,7 @@ html.dark-mode {
   --ink-rgb:240,238,236; --canvas-rgb:23,25,26;
   --canvas-dim:#1e2021;
   --up-rgb:76,191,125; --signal-rgb:255,107,74; --slate-rgb:169,163,156;
+  --chart-accent:#6f9cf5; --chart-accent-rgb:111,156,245;
 }
 /* .b-buy/.b-hire ใช้ rgba() พื้นหลังแบบโปร่งใส (ไม่ใช่สีทึบเหมือน badge อื่น) — บนพื้นมืดจะจางจนอ่านไม่ออก
    ต้องบอกสีใหม่ตรงๆ ให้ dark mode แทนที่จะพึ่งตัวแปรกลาง */
