@@ -874,9 +874,9 @@ function updateGreeting() {
   if (bEl)  { bEl.textContent = g.badge; bEl.style.background = g.bg; bEl.style.color = g.color; }
 
   // 🌙 Dark mode — auto ตามเวลา เว้นแต่ผู้ใช้กดเลือกเองแล้ว (ดู THEME_KEY ด้านล่าง)
+  // applyTheme() เรียก updateSpecialDayBanner() ให้อยู่แล้วทุกครั้ง (กันแบนเนอร์ค้างสีตอนสลับโหมด)
+  // ไม่ต้องเรียกซ้ำตรงนี้อีก (เจอระหว่าง scrutinize F1 — เรียกซ้ำ 2 ครั้งทุก 60 วิ ไม่กระทบผล แต่สิ้นเปลือง)
   applyTheme(currentThemeIsDark(now));
-
-  updateSpecialDayBanner(now);
 }
 function updateClock() {
   const now = new Date();

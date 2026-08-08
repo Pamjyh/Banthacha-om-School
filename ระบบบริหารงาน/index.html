@@ -1355,6 +1355,16 @@ if (window.Chart) {
   Chart.defaults.color = _isDark ? '#A9A39C' : '#696969';           // เหมือน --slate
   Chart.defaults.borderColor = _isDark ? 'rgba(240,238,236,.12)' : 'rgba(20,20,19,.08)'; // เส้นกริด เหมือน --ink-rgb แบบจาง
 }
+// สีข้างบนตั้งครั้งเดียวตอนโหลดหน้า — ถ้า Pam เปิด Portal อีกแท็บ/หน้าต่างแล้วสลับ dark mode ขณะ
+// ค้างอยู่แท็บ "กราฟ" เงินนอกพอดี canvas ที่วาดไปแล้วจะไม่รีเฟรชสีเอง (Chart.js ไม่ reactive ต่อ CSS var)
+// เจอระหว่าง scrutinize F2 — ฟังอีเวนต์ storage ซ้ำ (เหมือน theme-sync.js) แล้วสั่งวาดกราฟใหม่เฉพาะตอน
+// อยู่แท็บกราฟจริง กันงานเปล่าตอนอยู่แท็บอื่น/ยังไม่โหลดข้อมูลเงินนอกเลย
+window.addEventListener('storage', function (e) {
+  if (e.key === 'schoolPortalTheme' && typeof EXT_LOADED !== 'undefined' && EXT_LOADED
+      && typeof EXT_TAB !== 'undefined' && EXT_TAB === 'charts') {
+    renderExtCharts(getExtFiltered());
+  }
+});
 </script>
 <!-- PIVOT 2026-07-11: เอกสารพัสดุเปลี่ยนจาก HTML+browser print (jsPDF/pdf-font.js เดิม) เป็นสร้างไฟล์
      .docx จริงด้วย docx library — ให้ Word จัดหน้ากระดาษเอง ตัดปัญหาการเดา CSS ทิ้งทั้งหมด (ดู
