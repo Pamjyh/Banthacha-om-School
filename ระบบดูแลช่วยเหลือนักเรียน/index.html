@@ -11,18 +11,27 @@
     --pri:#8e44ad; --pri-dark:#6c3483; --bg:#f5f2f9; --card:#fff;
     --danger:#e74c3c; --ok:#27ae60; --text:#2c2c2c; --muted:#888; --br:14px;
     --pri-dark-text:#6c3483; --danger-text:#e74c3c; --warn-text:#a04000;
+    --grade-bg:#f0eaf5; --grade-bg-hover:#e8dff0; --danger-bg:#fdecea; --msg-error-text:#c0392b;
+    --ok-bg:#eafaf1; --ok-text:#1e8449;
   }
   html.dark-mode{
     --bg:#18171b; --card:#242228;
     --text:#F0EEF2; --muted:#A69FAA;
     --pri-dark-text:#c48ee0; --danger-text:#ff8a7a; --warn-text:#ffb066;
     /* --pri/--pri-dark/--danger ไม่แตะ — role พื้นปุ่ม/hover fill ต้องคงความเข้มไว้ให้ตัวอักษรขาวอ่านออก */
+    /* --grade-bg/--danger-bg เดิมพาสเทลอ่อนคงที่ จับคู่กับตัวอักษรคงที่ — ปลอดภัยตอนเป็น chip เล็ก
+       แต่ .grade-header เป็นแถบเต็มความกว้าง + .pin-key เป็นกริดปุ่มเต็มหน้าจอ PIN + .msg.error/.badge.health
+       เป็นกล่องแจ้งเตือนเด่น เลยดูจ้าเกินไปบนพื้นมืด (ฟีดแบ็ก Pam: บางจุดยังสว่างจ้าอยู่)
+       เลยแยก token ใหม่ให้มืดลงแทน คู่กับ --pri-dark-text/--danger-text (ที่เปลี่ยนสีอยู่แล้ว) */
+    --grade-bg:#2a1f38; --grade-bg-hover:#332845; --danger-bg:#331a17; --msg-error-text:#ff8a7a;
+    --ok-bg:#152a1c; --ok-text:#4ADE80;
   }
   html.dark-mode .sync-bar,
   html.dark-mode .stat-pill,
   html.dark-mode .call-option{background:#2a2830}
   html.dark-mode .stat-pill{border-color:#3d3844}
   html.dark-mode .call-option:hover{background:#332f3a}
+  html.dark-mode .stat-pill:hover{background:#332f3a}
   html.dark-mode .stulist-item:hover{background:#2a2830}
   html.dark-mode .stulist-item{border-bottom-color:#332f3a}
   html.dark-mode .modal-box{background:var(--card)}
@@ -52,23 +61,23 @@
   .stulist-item .meta{font-size:.8rem;color:var(--muted)}
   .badge{font-size:.7rem;padding:2px 8px;border-radius:20px;background:#eee;color:#666}
   .badge.temp{background:#fdebd0;color:#a04000}
-  .section-title{font-weight:700;color:var(--pri-dark-text);margin:18px 0 8px;border-bottom:2px solid #f0eaf5;padding-bottom:6px}
+  .section-title{font-weight:700;color:var(--pri-dark-text);margin:18px 0 8px;border-bottom:2px solid var(--grade-bg);padding-bottom:6px}
   .section-title:first-child{margin-top:0}
   .top-actions{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
   .sync-bar{font-size:.8rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;background:#faf7fc;padding:8px 12px;border-radius:10px;margin-bottom:14px}
   .msg{padding:10px 14px;border-radius:10px;margin-bottom:12px;font-size:.9rem}
-  .msg.error{background:#fdecea;color:#c0392b}
-  .msg.ok{background:#eafaf1;color:#1e8449}
+  .msg.error{background:var(--danger-bg);color:var(--msg-error-text)}
+  .msg.ok{background:var(--ok-bg);color:var(--ok-text)}
   #back-btn{background:none;color:#fff;font-size:1.3rem;padding:2px 10px}
   .maps-link{display:inline-block;margin-top:4px;font-size:.85rem;color:var(--pri-dark-text)}
   .grade-group{margin-bottom:6px}
-  .grade-header{display:flex;justify-content:space-between;align-items:center;padding:12px 10px;background:#f0eaf5;border-radius:10px;cursor:pointer;font-weight:600;color:var(--pri-dark);user-select:none}
-  .grade-header:hover{background:#e8dff0}
+  .grade-header{display:flex;justify-content:space-between;align-items:center;padding:12px 10px;background:var(--grade-bg);border-radius:10px;cursor:pointer;font-weight:600;color:var(--pri-dark-text);user-select:none}
+  .grade-header:hover{background:var(--grade-bg-hover)}
   .grade-count{font-size:.8rem;color:var(--muted);font-weight:400}
   .grade-body{padding:2px 4px}
   .stulist-item .name-row{display:flex;align-items:center;gap:6px;flex:1;min-width:0;cursor:pointer}
   .call-btn{background:none;border:none;font-size:1.3rem;padding:4px 10px;cursor:pointer;flex:0 0 auto;line-height:1}
-  .call-btn:hover{background:#f0eaf5;border-radius:50%}
+  .call-btn:hover{background:var(--grade-bg);border-radius:50%}
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
   .modal-box{background:#fff;border-radius:var(--br);padding:20px;max-width:320px;width:100%}
   .modal-box h3{margin:0 0 14px;font-size:1rem}
@@ -82,15 +91,15 @@
   .stat-pill.active{background:var(--pri);color:#fff;border-color:var(--pri)}
   .stat-pill .stat-num{font-size:1.15rem;font-weight:700;color:var(--pri-dark-text)}
   .stat-pill.active .stat-num{color:#fff}
-  .badge.health{background:#fdecea;color:#c0392b}
+  .badge.health{background:var(--danger-bg);color:var(--msg-error-text)}
   /* PIN pad login — pw-input ยังเป็น input จริงเหมือนเดิม (พิมพ์คีย์บอร์ดจากคอมยังใช้ได้ปกติ)
      แค่ทำให้หน้าตาเป็นจุดโต ๆ แบบ iPhone passcode + เพิ่มปุ่มตัวเลขให้กดด้วยนิ้วบนมือถือ */
   #pw-input{text-align:center;font-size:1.8rem;letter-spacing:.4em;padding:14px 10px}
   /* เดิมปุ่มยืดเต็มความกว้างการ์ด (1fr) บนมือถือเลยกลายเป็นวงกลมใหญ่เกิน ~90-100px กดแล้วรู้สึกไม่แม่น
      เปลี่ยนเป็นขนาดคงที่ 70px (ใกล้เคียงปุ่มโทรศัพท์จริง) แล้วจัดกึ่งกลางแทน */
   .pin-pad{display:grid;grid-template-columns:repeat(3,70px);justify-content:center;gap:14px;margin-top:16px}
-  .pin-key{width:70px;height:70px;border-radius:50%;font-size:1.4rem;background:#f0eaf5;color:var(--pri-dark);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:0}
-  .pin-key:hover{background:#e8dff0}
+  .pin-key{width:70px;height:70px;border-radius:50%;font-size:1.4rem;background:var(--grade-bg);color:var(--pri-dark-text);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;min-height:0}
+  .pin-key:hover{background:var(--grade-bg-hover)}
   .pin-key-ok{background:var(--pri);color:#fff}
   .pin-key-ok:hover{background:var(--pri-dark)}
 </style>
