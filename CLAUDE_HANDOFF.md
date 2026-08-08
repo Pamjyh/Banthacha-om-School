@@ -429,6 +429,16 @@ Backend ทั้งหมด apply บน Supabase แล้ว (project `cgwtg
 
 **ยังไม่ทดสอบจริง**: ยังไม่ได้เห็น weekly/monthly summary หรือ absence-alert ยิงจริงรอบแรก (ยังไม่ถึงกำหนดเวลา) — เช็ค `cron.job_run_details` วันจันทร์เป็นต้นไป
 
+### ✅ Scrutinize + fix รอบ 2 (2026-08-07 เย็น) — commit ถัดไปหลัง `a3cc1ed`
+
+Pam ขอ scrutinize batch ด้านบนก่อนใช้งานจริง เจอ 2 MAJOR + 1 MINOR แก้ครบแล้ว:
+
+- **[F1] MAJOR แก้แล้ว**: `send_line_weekly_summary()`/`send_line_monthly_summary()` เดิมคำนวณ `leave_days` ด้วย calendar-day overlap (`LEAST/GREATEST` ตรงๆ) นับเสาร์-อาทิตย์ที่คาบอยู่ในใบลาด้วย ทำให้ `leave_days` พองเกินจริง แล้วไปกลบ `absent_days` ที่ควรจะเห็น (สูตร `GREATEST(0, work_days-present_days-leave_days)`) — **เสี่ยงรายงานเท็จว่า "มาครบ" ทั้งที่จริงมีคนขาดไม่มีใบลา** ขัดกับเป้าหมายฟีเจอร์ตรงๆ แก้เป็นวนวันทีละวันนับเฉพาะวันทำการที่มีใบลาคลุม (migration `fix_weekly_monthly_leave_days_weekday_aware`) — verified ด้วย dry-run DO block ไม่มี error + เช็ค function def ยืนยันโค้ดเก่าหายไปจริง
+- **[F2] MAJOR แก้แล้ว**: tab "โควตาลา" ใช้ `l.days` ตรงๆ (มาจาก `calcLeaveDays()` ที่นับปฏิทินรวมเสาร์-อาทิตย์ ไม่ใช่วันทำการ) เทียบกับโควตาที่เป็นหน่วย "วันทำการ" — ผิดหน่วย แถมใบลาที่คาบข้ามปี (เช่น 30 ธ.ค.–2 ม.ค.) นับเต็มจำนวนวันเข้าปีที่ query ทั้งที่มีแค่บางวันอยู่ในปีนั้นจริง แก้เป็นวนวันทีละวันกรอง weekday + clip ตามปีที่เลือก (`index.html` ใน `loadLeaveQuota()`)
+- **[F3] MINOR แก้แล้ว**: สรุปเย็น (16:45) กับสรุปสัปดาห์เดิม (16:50) ชนกันทุกวันศุกร์ ผอ. ได้ 2 ข้อความรวด — เลื่อนสรุปสัปดาห์เป็น **17:15 น. ไทย** (`15 10 * * 5`) ให้ห่างมากขึ้น
+
+**ตรวจ RLS/security เพิ่มเติมระหว่าง scrutinize (ผ่านหมด ไม่มี finding)**: ทดสอบจริงว่า `admin_audit_log` insert ผ่าน SECURITY DEFINER (owner `postgres`, `rolbypassrls=true`) ได้จริงแม้ RLS เปิดไม่มี policy, และยืนยันว่า anon เห็น 0 แถวจริง (insert แถวทดสอบแล้วเช็คด้วย `SET LOCAL ROLE anon` เทียบ count คนละ role) — audit log ไม่มีทางรั่วหรือ block การทำงานของ `admin_*` RPC อื่น
+
 ---
 
 ## 5. ระบบสารบัญ

@@ -2,7 +2,7 @@
 // Service Worker — โรงเรียนบ้านท่าชะอม
 // v1.0 — cache-first static, network-only API
 // =====================================================================
-const CACHE_NAME = 'banthacha-om-v36'; // v36: ระบบลงเวลา เพิ่ม audit log/ปฏิทินลา/โควตาลา tabs + Export PDF รายเดือน (2026-08-07)
+const CACHE_NAME = 'banthacha-om-v37'; // v37: ระบบลงเวลา แก้ F2 scrutinize — โควตาลานับวันทำการถูกต้อง (2026-08-07)
 // ⚠️ พบว่า sw.js ใช้ stale-while-revalidate ทุกไฟล์ same-origin (ยกเว้น NO_CACHE_PATHS/HOSTS) รวมถึง
 // js/pdf-templates.js ด้วย — คืน cache เก่าทันทีเสมอ ค่อย update cache ใน background ไว้ใช้รอบถัดไป
 // ทำให้ push โค้ดใหม่ขึ้น GitHub Pages ไม่พอ ต้อง hard refresh ก็ยังไม่เห็นของใหม่ในรอบเดียว (Pam เจอจริง

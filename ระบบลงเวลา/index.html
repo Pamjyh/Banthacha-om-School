@@ -565,10 +565,25 @@ async function loadLeaveQuota(){
   const yStart=`${quotaYear}-01-01`, yEnd=`${quotaYear}-12-31`;
   const {data:leaves}=await sb.from('leaves').select('*').eq('status','approved').lte('start_date',yEnd).gte('end_date',yStart);
   const body=document.getElementById('adminBody');if(!body)return;
+  // นับวันทำการจริง (จ-ศ ไม่รวมวันหยุด/รวมวันเปิดพิเศษ) ตัดตามปีที่เลือก — ไม่ใช้ l.days ตรงๆ
+  // เพราะ calcLeaveDays() นับวันตามปฏิทินรวมเสาร์-อาทิตย์ ทำให้เทียบกับโควตา "วันทำการ" ผิด
+  // และใบลาที่คาบข้ามปี (เช่น 30 ธ.ค.–2 ม.ค.) จะถูกตัดให้เหลือเฉพาะวันที่อยู่ในปีที่เลือกจริง
+  const holidays=new Set(settingsCache.holidays||[]);
+  const extras=new Set(settingsCache.extra_workdays||[]);
+  const localDateStr=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const yStartDt=new Date(quotaYear,0,1), yEndDt=new Date(quotaYear,11,31);
   const rows=(emps||[]).map(u=>{
     const used={};QUOTA_TYPES.forEach(t=>used[t.v]=0);
     (leaves||[]).filter(l=>l.employee_id===u.id).forEach(l=>{
-      if(l.leave_type in used) used[l.leave_type]+=(l.days||0);
+      if(!(l.leave_type in used))return;
+      const [sy,sm,sd]=l.start_date.split('-').map(Number);
+      const [ey,em,ed]=l.end_date.split('-').map(Number);
+      const ls=new Date(Math.max(new Date(sy,sm-1,sd),yStartDt));
+      const le=new Date(Math.min(new Date(ey,em-1,ed),yEndDt));
+      for(let d=new Date(ls);d<=le;d.setDate(d.getDate()+1)){
+        const ds=localDateStr(d),dw=d.getDay();
+        if((dw>=1&&dw<=5&&!holidays.has(ds))||extras.has(ds)) used[l.leave_type]++;
+      }
     });
     return {u,used};
   });
