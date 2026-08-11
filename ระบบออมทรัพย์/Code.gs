@@ -165,7 +165,28 @@ function initSheets() {
     h.setFrozenRows(1);
   }
 
+  // sheet ประวัติแก้ไข (scrutinize 2026-08-11 F2): เดิม editTransaction/deleteTransaction ไม่เหลือหลักฐานอะไรเลย
+  // ธนาคารจริงไม่มีทางแก้/ลบรายการโดยไม่เก็บของเดิมไว้ตรวจสอบย้อนหลังได้ — เพิ่ม sheet log แยก ไม่กระทบโครงสร้างเดิม
+  let lg = ss.getSheetByName('ประวัติแก้ไข');
+  if (!lg) {
+    lg = ss.insertSheet('ประวัติแก้ไข');
+    lg.getRange(1,1,1,6).setValues([['วันที่','การกระทำ','txId','ค่าเดิม','ค่าใหม่','โดย']]);
+    styleHeader(lg, 6);
+    lg.setFrozenRows(1);
+  }
+
   return { ok: true, message: 'ตรวจสอบและอัพเดท Sheets สำเร็จ' };
+}
+
+// F2 fix (scrutinize 2026-08-11): เรียกก่อน setValue/deleteRow จริงใน editTransaction/deleteTransaction เสมอ
+// ถ้า sheet 'ประวัติแก้ไข' ยังไม่ถูกสร้าง (ยังไม่ได้รัน initSheets รอบใหม่) จะ catch เงียบๆ ไม่ทำให้ธุรกรรมหลักล้มเหลว
+// เพราะการแก้ไข/ลบจริงสำคัญกว่าการ log — แต่ไม่ block ผู้ใช้ด้วยเหตุผลที่ไม่เกี่ยวกับสิ่งที่เขาตั้งใจทำ
+function logTxChange(action, txId, oldVal, newVal, byRole) {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const s = ss.getSheetByName('ประวัติแก้ไข');
+    if (s) s.appendRow([thaiDate(new Date()), action, txId, oldVal, newVal, byRole]);
+  } catch (e) {}
 }
 
 // ============================================================
@@ -608,11 +629,13 @@ function editTransaction(p) {
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] === p.txId) {
         const sid = data[i][1], type = data[i][4];
+        const oldAmt = parseFloat(data[i][5]) || 0;
         if (type === 'ถอน') {
-          const oldAmt = parseFloat(data[i][5])||0;
           const balWithout = getBalance(sid) + oldAmt;
           if (newAmount > balWithout) return { ok: false, error: 'ยอดไม่พอ (มี ' + balWithout + ' บาท)' };
         }
+        // F2 fix (scrutinize 2026-08-11): เก็บ log ก่อนเขียนทับจริง — เดิมยอดเก่าหายไปเลย ตรวจสอบย้อนหลังไม่ได้
+        logTxChange('แก้ไข', p.txId, oldAmt, newAmount, p.password === ADMIN_PASSWORD ? 'แอดมิน' : 'ครู');
         txSheet.getRange(i+1, 6).setValue(newAmount);
         SpreadsheetApp.flush();
         invalidateBalanceCache();
@@ -628,19 +651,32 @@ function editTransaction(p) {
 function deleteTransaction(p) {
   if (!checkAuth(p)) return { ok: false, error: 'ไม่มีสิทธิ์' };
   if (!p.txId) return { ok: false, error: 'ไม่ระบุรายการ' };
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const txSheet = ss.getSheetByName('ธุรกรรม');
-  const data = txSheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === p.txId) {
-      const sid = data[i][1];
-      txSheet.deleteRow(i + 1);
-      SpreadsheetApp.flush();
-      invalidateBalanceCache();
-      return { ok: true, newBalance: getBalance(sid) };
-    }
+  // F1 fix (scrutinize 2026-08-11): เดิมอ่าน snapshot แล้ว deleteRow ตาม index โดยไม่มี lock คั่น
+  // เหตุผลเดียวกับ addTransaction/editTransaction ที่แก้ไปแล้ว — ถ้ามีคำขอแทรกกลางระหว่างอ่าน snapshot
+  // กับ deleteRow แถวที่ลบอาจไม่ใช่แถวที่ตั้งใจ (index เลื่อนไปแล้ว) ลบผิดรายการแบบเงียบๆ
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    return { ok: false, error: 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณารอสักครู่แล้วลองใหม่' };
   }
-  return { ok: false, error: 'ไม่พบรายการ' };
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const txSheet = ss.getSheetByName('ธุรกรรม');
+    const data = txSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === p.txId) {
+        const sid = data[i][1];
+        // F2 fix (scrutinize 2026-08-11): เก็บ log ก่อนลบจริง — ธนาคารจริงไม่มีทางลบรายการโดยไม่เหลือหลักฐาน
+        logTxChange('ลบ', p.txId, data[i][5], '', p.password === ADMIN_PASSWORD ? 'แอดมิน' : 'ครู');
+        txSheet.deleteRow(i + 1);
+        SpreadsheetApp.flush();
+        invalidateBalanceCache();
+        return { ok: true, newBalance: getBalance(sid) };
+      }
+    }
+    return { ok: false, error: 'ไม่พบรายการ' };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function getHistory(p) {
