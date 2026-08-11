@@ -717,7 +717,11 @@ function getHistory(p) {
     });
 
   if (p.studentId) data = data.filter(r => r.studentId === p.studentId);
-  if (p.grade)     data = data.filter(r => r.grade === p.grade);
+  // F2 fix (scrutinize 2026-08-11): เดิม strict equality — ถ้า grade ที่บันทึกไว้มีช่องว่างเกิน/รูปแบบเพี้ยนแม้ตัวเดียว
+  // (เช่น "ป.1 " มี trailing space) จะหลุดจาก filter นี้ไปเงียบๆ ทำให้หน้าครู (ที่ส่ง grade มา filter ตรงนี้) เห็นน้อยกว่าจริง
+  // ขณะที่หน้าแอดมิน (group เองฝั่ง client จาก key ดิบ) ไปโป่งอยู่ใน "อื่นๆ/ไม่ทราบชั้น" แทน — สองฝั่งเบี้ยวกันคนละแบบ
+  // trim ทั้งสองข้างก่อนเทียบ กันช่องว่างหลุดทำให้ค่าที่ควรเป็นชั้นเดียวกันไม่ match กัน
+  if (p.grade)     data = data.filter(r => String(r.grade).trim() === String(p.grade).trim());
   if (p.date)      data = data.filter(r => r.date.indexOf(p.date) === 0);
   // fix (2026-08-07): เดิมไม่มี filter เดือน/ปีเลย ทั้งที่หน้าแอดมินส่ง month/year มาด้วย
   // ทำให้ limit (บรรทัดถัดไป) ตัดเอา "500 รายการล่าสุดทั้งโรงเรียน" ก่อน ค่อยกรองเดือนที่ frontend ทีหลัง
@@ -1633,11 +1637,13 @@ function keepWarm() {
 function checkAuth(p) {
   return p.password === TEACHER_PASSWORD || p.password === ADMIN_PASSWORD;
 }
+// F1 fix (scrutinize 2026-08-11): เดิมใช้ local getter (getFullYear/getMonth/getDate/getHours) ขึ้นกับ
+// GAS Project Settings > Time Zone ตรงๆ — ถ้าโปรเจกต์ไม่ได้ตั้งเป็น Asia/Bangkok พอดี ธุรกรรมที่ทำใกล้เที่ยงคืน/ต้นเดือน
+// จะถูกลงวันที่/เดือนผิด (หายจากเดือนที่ควรอยู่ไปโป่งเดือนข้างเคียง) เพราะ addTransaction เขียนค่านี้เป็น string ล้วนลงเซลล์
+// (ไม่ใช่ Date object) ทำให้ getHistory อ่านกลับมาแบบ rawDate instanceof Date = false เสมอ แล้วใช้ string นี้ตรงๆ
+// ไม่ผ่าน thaiDateParts()/thaiDateStrFromParts() ที่ตั้งใจรวม convention +7h ไว้จุดเดียวเลย — เปลี่ยนให้เรียกจุดเดียวกันแทน
 function thaiDate(d) {
-  const y = d.getFullYear()+543;
-  const hh = String(d.getHours()).padStart(2,'0');
-  const mm = String(d.getMinutes()).padStart(2,'0');
-  return d.getDate() + ' ' + THAI_MONTHS[d.getMonth()] + ' ' + y + ' ' + hh + ':' + mm;
+  return thaiDateStrFromParts(thaiDateParts(d), true);
 }
 function thaiYear() { return new Date().getFullYear() + 543; }
 

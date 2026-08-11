@@ -1167,7 +1167,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbweQhJ4RE6PQrdTQkPCCMH8praFAw0lCE26sLK9eKl_F8x2y-Vu2kq0DDTA-jPR1Vdhfw/exec';
+var API = 'https://script.google.com/macros/s/AKfycbyYb5Y6cCXWafEWJvFsQXvmf6oomCdDC71w67jWeitgwa7BGDRbsLVe9DicnCHvmRNxpQ/exec';
 // รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
 var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
@@ -1657,8 +1657,11 @@ function renderAdTxByGrade(id, txs) {
     el.innerHTML = '<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีธุรกรรม</div>';
     return;
   }
+  // F2 fix (scrutinize 2026-08-11): เดิม group ด้วย key ดิบ t.grade — ถ้ามี trailing space/รูปแบบเพี้ยน
+  // (เช่น "ป.1 ") จะกลายเป็น key คนละตัวกับ "ป.1" ใน GRADES ทำให้ renderSection(g) หา byGrade[g] ไม่เจอ
+  // รายการนั้นเลยไปโป่งอยู่ใน "อื่นๆ/ไม่ทราบชั้น" แทน ขณะที่ฝั่งครู (Code.gs filter ตรงๆ) นับคนละยอด — trim ก่อน group
   var byGrade = {};
-  txs.forEach(function(t){ (byGrade[t.grade]=byGrade[t.grade]||[]).push(t); });
+  txs.forEach(function(t){ var gk = String(t.grade||'').trim(); (byGrade[gk]=byGrade[gk]||[]).push(t); });
   var html = '';
   function renderSection(label, list) {
     if (!list || !list.length) return;
@@ -1670,9 +1673,9 @@ function renderAdTxByGrade(id, txs) {
       '</div>'+
       '<div class="txl">'+list.map(txItemHtml).join('')+'</div>';
   }
-  GRADES.forEach(function(g){ renderSection((ICONS[g]||'')+' ชั้น'+g, byGrade[g]); });
-  var known = {}; GRADES.forEach(function(g){known[g]=true;});
-  renderSection('อื่นๆ/ไม่ทราบชั้น', txs.filter(function(t){ return !known[t.grade]; }));
+  GRADES.forEach(function(g){ renderSection((ICONS[g]||'')+' ชั้น'+g, byGrade[g.trim()]); });
+  var known = {}; GRADES.forEach(function(g){known[g.trim()]=true;});
+  renderSection('อื่นๆ/ไม่ทราบชั้น', txs.filter(function(t){ return !known[String(t.grade||'').trim()]; }));
   el.innerHTML = html || '<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีธุรกรรม</div>';
 }
 
@@ -2525,7 +2528,10 @@ function loadAdTxData() {
       var todayStr = now2.getUTCDate()+' '+MONTHS_SHORT[now2.getUTCMonth()]+' '+(now2.getUTCFullYear()+543);
       txs = txs.filter(function(t){ return t.date && t.date.indexOf(todayStr) === 0; });
     } else { // 'month'
-      txs = txs.filter(function(t){ return t.date && t.date.indexOf(adTxMonth) >= 0 && t.date.indexOf(String(adTxYear)) >= 0; });
+      // F3 fix (scrutinize 2026-08-11): เดิมเทียบ t.date ดิบ ไม่ normalize ผ่าน fmtDate() เหมือนฝั่งครู (doLoadMonthData)
+      // ปกติไม่กระทบเพราะข้อมูลเป็น Thai string อยู่แล้ว แต่ถ้ามีแถวหลุดมาเป็น ISO string (import/แก้มือ) ฝั่งนี้จะพลาดแต่ครูจับได้
+      // ทำให้สองฝั่งเบี้ยวกันได้ — unify ให้ผ่าน fmtDate() เหมือนกันเสมอ
+      txs = txs.filter(function(t){ var d = fmtDate(t.date); return d && d.indexOf(adTxMonth) >= 0 && d.indexOf(String(adTxYear)) >= 0; });
     }
 
     // คำนวณ summary
