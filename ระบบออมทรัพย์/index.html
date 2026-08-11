@@ -2594,17 +2594,19 @@ function loadAdTxData() {
 function renderGradeSummaryTable(txs) {
   var rows = GRADES.map(function(g){
     var gTrim = g.trim();
+    // F2 fix (scrutinize 2026-08-11 รอบตรวจซ้ำ): เดิม filter ทิ้งชั้นที่ไม่มีธุรกรรมไปเลย (return '') — แยกไม่ออกว่า
+    // "ชั้นนี้จริงๆไม่มีใครฝากเดือนนี้" กับ "ชั้นนี้มีบั๊กทำให้ข้อมูลหาย" (ทั้งบทสนทนานี้เจอเคส "ชั้นหายเงียบๆ" มาหลายรอบแล้ว)
+    // โชว์ทุกชั้นเสมอ ชั้นที่ไม่มีรายการให้เห็นชัดว่า "(ไม่มีรายการ)" ไม่ใช่แค่หายไปจากตาราง
     var list = txs.filter(function(t){ return String(t.grade||'').trim() === gTrim; });
     var dep = list.filter(function(t){return t.type==='ฝาก';}).reduce(function(s,t){return s+t.amount;},0);
     var wit = list.filter(function(t){return t.type==='ถอน';}).reduce(function(s,t){return s+t.amount;},0);
-    if (!list.length) return '';
     return '<tr>'+
-      '<td style="padding:8px 10px;font-size:13px;border-bottom:1px solid var(--gl)">'+(ICONS[g]||'')+' '+esc(g)+'</td>'+
-      '<td style="padding:8px 10px;font-size:13px;text-align:right;color:var(--ga-text);font-weight:600;border-bottom:1px solid var(--gl)">+'+fmt(dep)+'</td>'+
-      '<td style="padding:8px 10px;font-size:13px;text-align:right;color:var(--red-text);font-weight:600;border-bottom:1px solid var(--gl)">'+(wit>0?'-'+fmt(wit):'—')+'</td>'+
+      '<td style="padding:8px 10px;font-size:13px;border-bottom:1px solid var(--gl)">'+(ICONS[g]||'')+' '+esc(g)+
+        (!list.length?' <span style="color:var(--ts);font-size:11px">(ไม่มีรายการ)</span>':'')+'</td>'+
+      '<td style="padding:8px 10px;font-size:13px;text-align:right;color:'+(dep>0?'var(--ga-text)':'var(--ts)')+';font-weight:600;border-bottom:1px solid var(--gl)">'+(dep>0?'+'+fmt(dep):'—')+'</td>'+
+      '<td style="padding:8px 10px;font-size:13px;text-align:right;color:'+(wit>0?'var(--red-text)':'var(--ts)')+';font-weight:600;border-bottom:1px solid var(--gl)">'+(wit>0?'-'+fmt(wit):'—')+'</td>'+
       '</tr>';
   }).join('');
-  if (!rows) return '';
   return '<div style="background:var(--white);border-radius:var(--cr);box-shadow:var(--cs);overflow:hidden">'+
     '<table style="width:100%;border-collapse:collapse">'+
     '<tr style="background:var(--hg)">'+

@@ -167,25 +167,30 @@ function initSheets() {
 
   // sheet ประวัติแก้ไข (scrutinize 2026-08-11 F2): เดิม editTransaction/deleteTransaction ไม่เหลือหลักฐานอะไรเลย
   // ธนาคารจริงไม่มีทางแก้/ลบรายการโดยไม่เก็บของเดิมไว้ตรวจสอบย้อนหลังได้ — เพิ่ม sheet log แยก ไม่กระทบโครงสร้างเดิม
-  let lg = ss.getSheetByName('ประวัติแก้ไข');
-  if (!lg) {
-    lg = ss.insertSheet('ประวัติแก้ไข');
-    lg.getRange(1,1,1,6).setValues([['วันที่','การกระทำ','txId','ค่าเดิม','ค่าใหม่','โดย']]);
-    styleHeader(lg, 6);
-    lg.setFrozenRows(1);
-  }
+  // (สร้างผ่าน ensureLogSheet ตัวเดียวกับที่ logTxChange ใช้ กันโค้ดสร้าง sheet ซ้ำ 2 จุดแล้วเพี้ยนกัน)
+  ensureLogSheet(ss);
 
   return { ok: true, message: 'ตรวจสอบและอัพเดท Sheets สำเร็จ' };
 }
 
-// F2 fix (scrutinize 2026-08-11): เรียกก่อน setValue/deleteRow จริงใน editTransaction/deleteTransaction เสมอ
-// ถ้า sheet 'ประวัติแก้ไข' ยังไม่ถูกสร้าง (ยังไม่ได้รัน initSheets รอบใหม่) จะ catch เงียบๆ ไม่ทำให้ธุรกรรมหลักล้มเหลว
-// เพราะการแก้ไข/ลบจริงสำคัญกว่าการ log — แต่ไม่ block ผู้ใช้ด้วยเหตุผลที่ไม่เกี่ยวกับสิ่งที่เขาตั้งใจทำ
+// F1 fix (scrutinize 2026-08-11 รอบตรวจซ้ำ): เดิม logTxChange พึ่งว่า sheet 'ประวัติแก้ไข' ถูกสร้างไว้แล้วผ่าน
+// initSheets ที่ต้องกดเอง — ไฟล์นี้เคยโดนบั๊กคลาสนี้มาก่อนแล้วจริง (ดู comment ensureTxNoteCol ด้านล่าง: "เคยเจอปัญหา
+// คอลัมน์ 'เลขที่' ไม่มีอยู่จริงเพราะ initSheets() ไม่เคยถูกเรียก") ใช้ self-healing แบบเดียวกัน สร้าง sheet เองตอนใช้จริง
+// ไม่พึ่งว่าใครจะกด "ตรวจสอบ/อัพเดท Sheets" ก่อน — กันไม่ให้ audit log เงียบหายไปแบบไม่มีใครรู้
+function ensureLogSheet(ss) {
+  let s = ss.getSheetByName('ประวัติแก้ไข');
+  if (!s) {
+    s = ss.insertSheet('ประวัติแก้ไข');
+    s.getRange(1,1,1,6).setValues([['วันที่','การกระทำ','txId','ค่าเดิม','ค่าใหม่','โดย']]);
+    styleHeader(s, 6);
+    s.setFrozenRows(1);
+  }
+  return s;
+}
 function logTxChange(action, txId, oldVal, newVal, byRole) {
   try {
     const ss = SpreadsheetApp.openById(SHEET_ID);
-    const s = ss.getSheetByName('ประวัติแก้ไข');
-    if (s) s.appendRow([thaiDate(new Date()), action, txId, oldVal, newVal, byRole]);
+    ensureLogSheet(ss).appendRow([thaiDate(new Date()), action, txId, oldVal, newVal, byRole]);
   } catch (e) {}
 }
 
