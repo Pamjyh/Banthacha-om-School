@@ -726,7 +726,14 @@ function getHistory(p) {
   if (p.month && p.year) data = data.filter(r => r.date.indexOf(p.month) >= 0 && r.date.indexOf(String(p.year)) >= 0);
 
   data.reverse();
-  if (p.limit) data = data.slice(0, parseInt(p.limit));
+  // fix รอบ 2 (2026-08-07): รอบแรกแก้แค่ "ลำดับ" ให้ filter เดือนก่อน limit ตัด แต่ตัวเลข limit (500 จากฝั่งแอดมิน)
+  // เองก็เล็กเกินไปสำหรับ "หนึ่งเดือน ทั้งโรงเรียนรวม 8 ชั้น" อยู่ดี ถ้าเดือนนั้นมีธุรกรรมรวมเกิน 500 (โรงเรียนเก็บออมทรัพย์รายสัปดาห์ นักเรียนหลักร้อยคน
+  // เดือนเดียวทะลุ 500 ได้ง่ายมาก) ชั้นที่ดันตกอยู่นอกช่วง 500 ที่เหลือ (ตาม reverse แล้วตัด) จะหายไปทั้งชั้นแบบเงียบๆ
+  // (พิสูจน์ด้วยจำลองตัวเลข: 8 ชั้น x 25 คน x ฝากสัปดาห์ละครั้ง = 800 รายการ/เดือน > 500 → ป.1 หายไปทั้งชั้น 2,000 บาท)
+  // ทางแก้ที่ถูกต้อง: ถ้า query ถูก scope ด้วยช่วงเวลาแล้ว (date หรือ month+year) ผลลัพธ์ถูกจำกัดด้วยข้อมูลจริงของช่วงนั้นอยู่แล้ว
+  // ไม่ควรมี limit มาตัดซ้ำอีกชั้น — ตัด limit เฉพาะตอนที่ query ไม่ได้ระบุช่วงเวลาเลย (กรณีในอนาคตที่อาจมี "ดูล่าสุด N รายการ" แบบไม่ระบุช่วง)
+  var alreadyScopedByTime = !!(p.date || (p.month && p.year));
+  if (p.limit && !alreadyScopedByTime) data = data.slice(0, parseInt(p.limit));
   return { ok: true, transactions: data };
 }
 
