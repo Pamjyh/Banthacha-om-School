@@ -14,6 +14,11 @@ const NEXT_GRADE = {
   'ป.3':'ป.4','ป.4':'ป.5','ป.5':'ป.6','ป.6':'จบการศึกษา'
 };
 
+// F1/F2 fix (scrutinize 2026-08-11): เดิม getStudents/getBootstrap เทียบค่า "ชั้น" กันคนละแบบ —
+// getStudents ใช้ strict equality ไม่ trim, getBootstrap trim แล้วทิ้งเงียบๆถ้าไม่ตรง GRADES เป๊ะ (ดู comment ที่ 1239)
+// ที่เคยเจอปัญหาจริงกับ อ.3 มาก่อน — รวม normalize เป็นจุดเดียว ใช้ทั้งสองฟังก์ชัน กันแก้ที่เดียวแล้วอีกที่ลืมตามอีก
+function normGrade(g) { return String(g || '').trim(); }
+
 // เทอม: เทอม1 = พ.ค.-ก.ย., เทอม2 = พ.ย.-มี.ค.
 const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
@@ -328,8 +333,10 @@ function getStudents(p) {
     }));
 
   // กรองตามชั้น — ถ้าไม่พบ grade column ให้แสดงทั้งหมด
+  // F1 fix (scrutinize 2026-08-11): เดิม strict equality ไม่ trim — นักเรียนที่มีค่า "ชั้น" เพี้ยนแม้ช่องว่างเกิน
+  // จะหายไปทั้งคนจากรายชื่อ+ยอดคงเหลือของชั้นนั้นเลย (ไม่มี fallback แบบที่ generateDepositRegistry มี) ใช้ normGrade ให้ตรงกับ getBootstrap
   if (p.grade && idxGrade >= 0) {
-    students = students.filter(s => s.grade === p.grade);
+    students = students.filter(s => normGrade(s.grade) === normGrade(p.grade));
   }
 
   // เรียงตามเลขที่ (shared กับ getBootstrap() — ดู sortStudentsByRoll ด้านล่าง กันโค้ดเรียงคนละที่แล้วเพี้ยนกัน)
@@ -1602,8 +1609,11 @@ function getBootstrap(p) {
     if (!r[idxId]) return;
     const status = idxStatus >= 0 ? String(r[idxStatus] || '').trim() : '';
     if (status === 'จบการศึกษา') return;
-    const grade = idxGrade >= 0 ? String(r[idxGrade] || '').trim() : '';
-    if (!gradeMap[grade]) return; // ชั้นที่ไม่อยู่ใน GRADES
+    const grade = normGrade(idxGrade >= 0 ? r[idxGrade] : '');
+    // F2 fix (scrutinize 2026-08-11): เดิม return ทิ้งเงียบๆถ้า grade ไม่ตรง GRADES เป๊ะ (เคยเจอปัญหานี้กับ อ.3 มาก่อน
+    // ดู comment ที่ generateDepositRegistry) — คนหายไปทั้งคนจากทุกที่ที่ใช้ getBootstrap โดยไม่มีทางรู้เลย
+    // เปลี่ยนให้เก็บไว้ใน key ของตัวเอง (ไม่ทิ้ง) อย่างน้อยข้อมูลยังตรวจสอบได้ ไม่หายเงียบไปจากระบบเลย
+    if (!gradeMap[grade]) gradeMap[grade] = [];
     gradeMap[grade].push({
       id:          String(r[idxId] || ''),
       name:        idxName   >= 0 ? String(r[idxName]   || '') : '',
