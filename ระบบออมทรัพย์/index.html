@@ -128,9 +128,11 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .ovbd{display:none;padding:8px 14px;border-top:1px solid var(--gl)}.ovbd.on{display:block}
 .ovr{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--ceramic);font-size:13px}.ovr:last-child{border-bottom:none}
 
-.atabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--hg);border-top:1px solid var(--gu);flex-shrink:0}
-.atab{padding:10px 2px;border:none;background:transparent;color:var(--tws);font-size:11px;font-family:'Sarabun',sans-serif;cursor:pointer;text-align:center;line-height:1.4;transition:color 0.2s;border-top:2px solid transparent}
-.atab.on{color:var(--tw);border-top-color:var(--ga-text)}.atab:hover{color:var(--tw)}
+/* UX fix (2026-08-11): ย้าย .atabs จากล่างขึ้นบน (ตรงกับ view tabs ฝั่งครู) — สลับ border-top เป็น border-bottom
+   เพราะตอนอยู่บนสุด ขีดคั่นควรอยู่ใต้แถบ ไม่ใช่เหนือแถบ (เดิม design ไว้สำหรับ bottom nav) */
+.atabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--hg);border-bottom:1px solid var(--gu);flex-shrink:0}
+.atab{padding:10px 2px;border:none;background:transparent;color:var(--tws);font-size:11px;font-family:'Sarabun',sans-serif;cursor:pointer;text-align:center;line-height:1.4;transition:color 0.2s;border-bottom:2px solid transparent}
+.atab.on{color:var(--tw);border-bottom-color:var(--ga-text)}.atab:hover{color:var(--tw)}
 
 .ic{background:var(--white);border-radius:var(--cr);border:1px solid var(--gl);padding:1rem;margin-bottom:10px;box-shadow:var(--cs)}
 .ic-t{font-family:'Mitr',sans-serif;font-size:15px;font-weight:600;color:var(--sbux-text);margin-bottom:4px;letter-spacing:-0.01em}
@@ -1052,7 +1054,9 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     </div>
     <button class="nav-out" onclick="logout()">ออกจากระบบ</button>
   </div>
-  <div class="body" id="admin-body"></div>
+  <!-- UX fix (2026-08-11 ตามที่ Pam ขอ): เดิม .atabs อยู่หลัง #admin-body — พอ #admin-body ยาว (เช่นแท็บธุรกรรม
+       ที่มี list ยาวทั้งโรงเรียน) ต้องเลื่อนลงมาสุดหน้าก่อนถึงจะสลับแท็บได้ เพราะ .page ใช้ min-height:100vh (ไม่ใช่ height คงที่)
+       ทำให้หน้าโตตามเนื้อหา ไม่ใช่ #admin-body scroll ในตัวเอง — ย้ายมาไว้บนสุดแทน ตรงกับฝั่งครู (view tabs ก็อยู่บนสุดเหมือนกัน) -->
   <div class="atabs">
     <button class="atab on" id="at-ov" onclick="adTab('ov')">📊<br>ภาพรวม</button>
     <button class="atab" id="at-tx" onclick="adTab('tx')">📋<br>ธุรกรรม</button>
@@ -1060,6 +1064,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
     <button class="atab" id="at-gd" onclick="adTab('gd')">🏅<br>จบแล้ว</button>
     <button class="atab" id="at-bk" onclick="adTab('bk')">🏦<br>ฝากธนาคาร</button>
   </div>
+  <div class="body" id="admin-body"></div>
 </div>
 
 <!-- MODALS -->
@@ -1167,7 +1172,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbyYb5Y6cCXWafEWJvFsQXvmf6oomCdDC71w67jWeitgwa7BGDRbsLVe9DicnCHvmRNxpQ/exec';
+var API = 'https://script.google.com/macros/s/AKfycbyXe59e_S9zJmGsvPAbXr812HD79X83o1d9CjlN1OSP1V-c2NCwC8Cs1U4MZl5YxviL0w/exec';
 // รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
 var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
