@@ -129,8 +129,11 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 .ovr{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--ceramic);font-size:13px}.ovr:last-child{border-bottom:none}
 
 /* UX fix (2026-08-11): ย้าย .atabs จากล่างขึ้นบน (ตรงกับ view tabs ฝั่งครู) — สลับ border-top เป็น border-bottom
-   เพราะตอนอยู่บนสุด ขีดคั่นควรอยู่ใต้แถบ ไม่ใช่เหนือแถบ (เดิม design ไว้สำหรับ bottom nav) */
-.atabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--hg);border-bottom:1px solid var(--gu);flex-shrink:0}
+   เพราะตอนอยู่บนสุด ขีดคั่นควรอยู่ใต้แถบ ไม่ใช่เหนือแถบ (เดิม design ไว้สำหรับ bottom nav)
+   F1 fix (scrutinize 2026-08-11 รอบตรวจซ้ำ): เพิ่ม sticky ต่อจาก .nav (ที่ sticky top:0 อยู่แล้ว) กันต้องเลื่อนขึ้น
+   ไปสลับแท็บเวลาอยู่ลึกในลิสต์ยาวๆ — ค่า top ตั้งจริงด้วย JS (setAtabsSticky ใน loadAdmin) ไม่ hardcode
+   เพราะความสูง .nav ขึ้นกับความยาวชื่อโรงเรียน/ข้อความ เปลี่ยนได้ */
+.atabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--hg);border-bottom:1px solid var(--gu);flex-shrink:0;position:sticky;top:0;z-index:29}
 .atab{padding:10px 2px;border:none;background:transparent;color:var(--tws);font-size:11px;font-family:'Sarabun',sans-serif;cursor:pointer;text-align:center;line-height:1.4;transition:color 0.2s;border-bottom:2px solid transparent}
 .atab.on{color:var(--tw);border-bottom-color:var(--ga-text)}.atab:hover{color:var(--tw)}
 
@@ -2345,7 +2348,17 @@ function askDelTx(txId,type,amount,name,stuId) {
 }
 
 // ===== ADMIN =====
+// F1 fix (scrutinize 2026-08-11 รอบตรวจซ้ำ): วัดความสูงจริงของ .nav แล้วตั้ง .atabs ให้ sticky ต่อจากมันพอดี
+// ไม่ hardcode ตัวเลข เพราะความสูง .nav ขึ้นกับเนื้อหา (ชื่อโรงเรียน/ข้อความ nav-sub) เปลี่ยนได้ในอนาคต
+function setAtabsSticky() {
+  var nav = document.querySelector('#pg-admin .nav');
+  var atabs = document.querySelector('#pg-admin .atabs');
+  if (nav && atabs) atabs.style.top = nav.offsetHeight + 'px';
+}
+// ผูก resize ครั้งเดียวตอนโหลดสคริปต์ (ไม่ผูกซ้ำใน loadAdmin ที่เรียกได้หลายครั้ง — กัน listener พอกพูนทุกครั้งที่เข้าหน้าแอดมิน)
+window.addEventListener('resize', setAtabsSticky);
 function loadAdmin() {
+  setAtabsSticky();
   document.getElementById('admin-body').innerHTML='<div class="load">⏳ กำลังโหลด...</div>';
   apiCall({action:'getAllSummary',password:_pw},function(r){
     if (!r.ok) {
