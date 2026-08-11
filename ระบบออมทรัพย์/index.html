@@ -1167,7 +1167,7 @@ body{font-family:'Sarabun','Helvetica Neue',Helvetica,Arial,sans-serif;backgroun
 
 <script>
 // ===== CONFIG =====
-var API = 'https://script.google.com/macros/s/AKfycbyCcNj42XGOYVfLFiMnjg8OtrzfqR1jZ_HlNbaGmCC3dPoZg4-6y5OxCixDGSySYDZbtg/exec';
+var API = 'https://script.google.com/macros/s/AKfycbweQhJ4RE6PQrdTQkPCCMH8praFAw0lCE26sLK9eKl_F8x2y-Vu2kq0DDTA-jPR1Vdhfw/exec';
 // รหัสผ่านไม่ได้เก็บในไฟล์ — ตรวจสอบที่ server เท่านั้น
 var _pw = null;  // session password (เก็บใน memory เท่านั้น)
 // ==================
@@ -1622,28 +1622,58 @@ function renderFilteredGradeTx() {
   renderTxList('tx-grade', list);
 }
 
+// แยกออกจาก renderTxList (2026-08-07) เพื่อให้ renderAdTxByGrade (มุมมองรายเดือนแยกชั้นของแอดมิน) ใช้ markup เดียวกัน
+// ไม่ fork โค้ดซ้ำ — ต้อง reuse จุดนี้เท่านั้น เพราะเป็นจุดที่ F1 fix (data-* กัน XSS) อยู่ ถ้า fork แล้วลืมพก fix ไปด้วยจะเปิดช่องโหว่ซ้ำ
+function txItemHtml(t) {
+  var isD=t.type==='ฝาก';
+  return '<div class="txi">'+
+    '<div class="txb '+(isD?'d':'w')+'">'+(isD?'💰':'💸')+'</div>'+
+    '<div class="txi-info">'+
+    '<div class="txn">'+esc(t.name)+'</div>'+
+    '<div class="txd">'+fmtDate(t.date)+' · ชั้น'+t.grade+'</div></div>'+
+    '<div class="txa '+(isD?'d':'w')+'">'+(isD?'+':'-')+fmt(t.amount)+'฿</div>'+
+    // F1 fix (scrutinize 2026-08-07): เดิมฝัง esc(t.name) เป็น JS string argument ตรงใน onclick="" — ชื่อที่มี " หลุด attribute ได้
+    // (นี่คือจุดที่อันตรายสุด เพราะ role==='admin' เท่านั้นที่ render — แอดมินเปิดแท็บธุรกรรมแล้วโดน onmouseover แปลกปลอมได้ตรงนี้)
+    // เปลี่ยนมาอ่านผ่าน data-* + this.dataset แทน เหมือน renderStus ด้านบน
+    (role==='admin'?'<div style="display:flex;flex-direction:column;gap:3px;margin-left:5px">'+
+    '<button class="ebtn" style="font-size:10px;padding:3px 5px" data-id="'+esc(t.id)+'" data-type="'+esc(t.type)+'" data-amt="'+t.amount+'" data-name="'+esc(t.name)+'" onclick="openEditTx(this.dataset.id,this.dataset.type,parseFloat(this.dataset.amt),this.dataset.name)">✏️</button>'+
+    '<button class="ebtn del" style="font-size:10px;padding:3px 5px" data-id="'+esc(t.id)+'" data-type="'+esc(t.type)+'" data-amt="'+t.amount+'" data-name="'+esc(t.name)+'" data-sid="'+esc(t.studentId)+'" onclick="askDelTx(this.dataset.id,this.dataset.type,parseFloat(this.dataset.amt),this.dataset.name,this.dataset.sid)">🗑️</button>'+
+    '</div>':'')+'</div>';
+}
 function renderTxList(id,txs) {
   var el=document.getElementById(id);
   if (!txs||!txs.length) {
     el.innerHTML='<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีธุรกรรม</div>';
     return;
   }
-  el.innerHTML=txs.map(function(t){
-    var isD=t.type==='ฝาก';
-    return '<div class="txi">'+
-      '<div class="txb '+(isD?'d':'w')+'">'+(isD?'💰':'💸')+'</div>'+
-      '<div class="txi-info">'+
-      '<div class="txn">'+esc(t.name)+'</div>'+
-      '<div class="txd">'+fmtDate(t.date)+' · ชั้น'+t.grade+'</div></div>'+
-      '<div class="txa '+(isD?'d':'w')+'">'+(isD?'+':'-')+fmt(t.amount)+'฿</div>'+
-      // F1 fix (scrutinize 2026-08-07): เดิมฝัง esc(t.name) เป็น JS string argument ตรงใน onclick="" — ชื่อที่มี " หลุด attribute ได้
-      // (นี่คือจุดที่อันตรายสุด เพราะ role==='admin' เท่านั้นที่ render — แอดมินเปิดแท็บธุรกรรมแล้วโดน onmouseover แปลกปลอมได้ตรงนี้)
-      // เปลี่ยนมาอ่านผ่าน data-* + this.dataset แทน เหมือน renderStus ด้านบน
-      (role==='admin'?'<div style="display:flex;flex-direction:column;gap:3px;margin-left:5px">'+
-      '<button class="ebtn" style="font-size:10px;padding:3px 5px" data-id="'+esc(t.id)+'" data-type="'+esc(t.type)+'" data-amt="'+t.amount+'" data-name="'+esc(t.name)+'" onclick="openEditTx(this.dataset.id,this.dataset.type,parseFloat(this.dataset.amt),this.dataset.name)">✏️</button>'+
-      '<button class="ebtn del" style="font-size:10px;padding:3px 5px" data-id="'+esc(t.id)+'" data-type="'+esc(t.type)+'" data-amt="'+t.amount+'" data-name="'+esc(t.name)+'" data-sid="'+esc(t.studentId)+'" onclick="askDelTx(this.dataset.id,this.dataset.type,parseFloat(this.dataset.amt),this.dataset.name,this.dataset.sid)">🗑️</button>'+
-      '</div>':'')+'</div>';
-  }).join('');
+  el.innerHTML=txs.map(txItemHtml).join('');
+}
+
+// มุมมองรายเดือนแยกชั้นของแอดมิน (2026-08-07) — group ตาม GRADES ให้เห็นเป็นก้อนต่อชั้น พร้อมยอดฝาก/ถอนย่อยต่อชั้น
+// ชั้นที่ไม่มีธุรกรรมเดือนนั้นข้ามไปเลย (ไม่โชว้หัวชั้นเปล่า) — ธุรกรรมที่ grade ไม่ตรง GRADES ที่รู้จัก (ข้อมูลเพี้ยน) ยังโผล่ท้ายสุดเสมอ กันเงินหายเงียบๆ เหมือน exportMonthly
+function renderAdTxByGrade(id, txs) {
+  var el = document.getElementById(id);
+  if (!txs || !txs.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีธุรกรรม</div>';
+    return;
+  }
+  var byGrade = {};
+  txs.forEach(function(t){ (byGrade[t.grade]=byGrade[t.grade]||[]).push(t); });
+  var html = '';
+  function renderSection(label, list) {
+    if (!list || !list.length) return;
+    var dep = list.filter(function(t){return t.type==='ฝาก';}).reduce(function(s,t){return s+t.amount;},0);
+    var wit = list.filter(function(t){return t.type==='ถอน';}).reduce(function(s,t){return s+t.amount;},0);
+    html += '<div style="font-family:\'Mitr\',sans-serif;font-size:14px;font-weight:600;color:var(--sbux);margin:14px 0 8px;display:flex;justify-content:space-between;align-items:baseline;gap:8px">'+
+      '<span>'+label+'</span>'+
+      '<span style="font-size:12px;color:var(--ts);font-weight:400;white-space:nowrap">'+list.length+' รายการ · +'+fmt(dep)+(wit>0?' / -'+fmt(wit):'')+' ฿</span>'+
+      '</div>'+
+      '<div class="txl">'+list.map(txItemHtml).join('')+'</div>';
+  }
+  GRADES.forEach(function(g){ renderSection((ICONS[g]||'')+' ชั้น'+g, byGrade[g]); });
+  var known = {}; GRADES.forEach(function(g){known[g]=true;});
+  renderSection('อื่นๆ/ไม่ทราบชั้น', txs.filter(function(t){ return !known[t.grade]; }));
+  el.innerHTML = html || '<div style="text-align:center;color:var(--ts);font-size:13px;padding:1rem">ยังไม่มีธุรกรรม</div>';
 }
 
 // ===== DAILY SUMMARY =====
@@ -2418,7 +2448,7 @@ function renderOv(c) {
   c.innerHTML=html;
 }
 function toggleOv(id) {var e=document.getElementById('ov-'+id); if(e) e.classList.toggle('on');}
-var adTxMode = 'today'; // 'today' | 'month' | 'all'
+var adTxMode = 'today'; // 'today' | 'month' — เอา 'all' ออกแล้ว (2026-08-07 ตามที่ Pam ขอ) รายเดือนแยกตามชั้นแทน (ดู renderAdTxByGrade)
 var adTxMonth = null;  // เดือนที่เลือก เช่น "มิ.ย."
 var adTxYear  = null;  // ปีที่เลือก เช่น 2569
 
@@ -2443,8 +2473,6 @@ function renderAdTx(c) {
     ' style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:\'Sarabun\',sans-serif;cursor:pointer;font-weight:600;letter-spacing:-0.01em;transition:all 0.2s;background:'+(adTxMode==='today'?'var(--hg)':'transparent')+';color:'+(adTxMode==='today'?'#fff':'var(--ts)')+'">📅 วันนี้</button>'+
     '<button id="adtx-btn-month" onclick="setAdTxMode(\'month\')"'+
     ' style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:\'Sarabun\',sans-serif;cursor:pointer;font-weight:600;letter-spacing:-0.01em;transition:all 0.2s;background:'+(adTxMode==='month'?'var(--hg)':'transparent')+';color:'+(adTxMode==='month'?'#fff':'var(--ts)')+'">📆 รายเดือน</button>'+
-    '<button id="adtx-btn-all" onclick="setAdTxMode(\'all\')"'+
-    ' style="flex:1;padding:8px;border-radius:var(--br);border:none;font-size:13px;font-family:\'Sarabun\',sans-serif;cursor:pointer;font-weight:600;letter-spacing:-0.01em;transition:all 0.2s;background:'+(adTxMode==='all'?'var(--hg)':'transparent')+';color:'+(adTxMode==='all'?'#fff':'var(--ts)')+'">📋 ทั้งหมด</button>'+
     '</div>'+
 
     // filter เดือน/ปี (แสดงเฉพาะ mode month)
@@ -2477,11 +2505,9 @@ function loadAdTxData() {
 
   if (adTxMode === 'today') {
     params.date = now.getUTCDate()+' '+MONTHS_SHORT[now.getUTCMonth()]+' '+(now.getUTCFullYear()+543);
-  } else if (adTxMode === 'month') {
+  } else { // 'month'
     params.month = adTxMonth;
     params.year  = String(adTxYear);
-  } else {
-    params.limit = 100;
   }
 
   document.getElementById('adtxl').innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
@@ -2495,7 +2521,7 @@ function loadAdTxData() {
     if (adTxMode === 'today') {
       var todayStr = now2.getUTCDate()+' '+MONTHS_SHORT[now2.getUTCMonth()]+' '+(now2.getUTCFullYear()+543);
       txs = txs.filter(function(t){ return t.date && t.date.indexOf(todayStr) === 0; });
-    } else if (adTxMode === 'month') {
+    } else { // 'month'
       txs = txs.filter(function(t){ return t.date && t.date.indexOf(adTxMonth) >= 0 && t.date.indexOf(String(adTxYear)) >= 0; });
     }
 
@@ -2506,8 +2532,7 @@ function loadAdTxData() {
     var witCnt   = txs.filter(function(t){return t.type==='ถอน';}).length;
 
     var title = adTxMode==='today' ? now2.getUTCDate()+' '+MONTHS_FULL[now2.getUTCMonth()]+' '+(now2.getUTCFullYear()+543)
-              : adTxMode==='month' ? MONTHS_FULL[MONTHS_SHORT.indexOf(adTxMonth)]+' '+adTxYear
-              : 'ธุรกรรมล่าสุด';
+              : MONTHS_FULL[MONTHS_SHORT.indexOf(adTxMonth)]+' '+adTxYear;
 
     // summary cards
     var sumEl = document.getElementById('adtx-summary');
@@ -2537,7 +2562,9 @@ function loadAdTxData() {
       return;
     }
 
-    renderTxList('adtxl', txs);
+    // รายเดือนแยกเป็นชั้น (ตามที่ Pam ขอ 2026-08-07) — วันนี้ยังโชว์รวมเป็น list เดียวเหมือนเดิม (ธุรกรรมน้อย ไม่ต้องแยก)
+    if (adTxMode === 'month') renderAdTxByGrade('adtxl', txs);
+    else renderTxList('adtxl', txs);
   });
 }
 function renderPr(c) {
