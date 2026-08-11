@@ -1756,10 +1756,13 @@ function doLoadMonthData() {
   _monthWaitCount = 0;
   if (mEl) mEl.innerHTML = '<div class="load">⏳ กำลังโหลด...</div>';
 
-  apiCall({action:'getHistory', grade:curGrade, limit:1000, password:_pw}, function(r) {
+  // fix (2026-08-07): ส่ง month/year ให้ backend filter ก่อน limit ตัดด้วย (เดิมพึ่ง grade filter อย่างเดียวแล้วกรองเดือนที่ frontend ทีหลัง
+  // รอดมาได้เพราะ grade เดียวปกติไม่เกิน 1000 รายการ แต่ถ้าสะสมหลายปีจนเกิน จะโดนบั๊กเดียวกับที่เจอฝั่งแอดมิน — ส่งให้ backend กรองเองให้ชัวร์)
+  apiCall({action:'getHistory', grade:curGrade, month:stuMonthSel, year:String(stuYearSel), limit:1000, password:_pw}, function(r) {
     if (!r.ok) { if(mEl) mEl.innerHTML='<div class="load">โหลดไม่ได้: '+r.error+'</div>'; return; }
 
     // กรองตามเดือน/ปีที่เลือก — ผ่าน fmtDate() ก่อนเพื่อรองรับทั้ง ISO และ Thai format
+    // (backend กรองให้แล้วตั้งแต่ apiCall ด้านบน อันนี้เหลือไว้เป็น defense-in-depth เฉยๆ ไม่ลบเพราะไม่มีผลเสีย)
     var yearStr = ' '+String(stuYearSel);
     var txs = (r.transactions||[]).filter(function(t){
       if (!t.date) return false;

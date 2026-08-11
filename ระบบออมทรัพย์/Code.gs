@@ -719,6 +719,11 @@ function getHistory(p) {
   if (p.studentId) data = data.filter(r => r.studentId === p.studentId);
   if (p.grade)     data = data.filter(r => r.grade === p.grade);
   if (p.date)      data = data.filter(r => r.date.indexOf(p.date) === 0);
+  // fix (2026-08-07): เดิมไม่มี filter เดือน/ปีเลย ทั้งที่หน้าแอดมินส่ง month/year มาด้วย
+  // ทำให้ limit (บรรทัดถัดไป) ตัดเอา "500 รายการล่าสุดทั้งโรงเรียน" ก่อน ค่อยกรองเดือนที่ frontend ทีหลัง
+  // ถ้าเดือนที่ขอไม่ได้อยู่ใน 500 รายการล่าสุด ข้อมูลเดือนนั้นหายไปเงียบๆ ก่อนถึง frontend เลย (ยอดรายเดือนแอดมินขาดหายไปหลักพัน-หมื่นบาทได้)
+  // ต้อง filter เดือน/ปีตรงนี้ ก่อน reverse+limit เสมอ ให้ limit ตัดแค่ "ภายในเดือนที่ขอ" ไม่ใช่ตัดทั้งโรงเรียนก่อนรู้ด้วยซ้ำว่าจะเอาเดือนไหน
+  if (p.month && p.year) data = data.filter(r => r.date.indexOf(p.month) >= 0 && r.date.indexOf(String(p.year)) >= 0);
 
   data.reverse();
   if (p.limit) data = data.slice(0, parseInt(p.limit));
