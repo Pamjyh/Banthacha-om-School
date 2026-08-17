@@ -822,10 +822,14 @@ function getAllSummary(p) {
     const status = String(r[ssStatus >= 0 ? ssStatus : 4] || '');
     const bank   = String(r[ssBank   >= 0 ? ssBank   : 5] || '');
     const roll   = ssRoll >= 0 ? String(r[ssRoll] || '') : '';
-    if (status === 'จบการศึกษา' || !grades[grade]) return;
+    // fix (scrutinize 2026-08-11): เดิม !grades[grade] เทียบ grade ดิบไม่ trim — บั๊กคลาสเดียวกับที่แก้ไปแล้วใน
+    // getStudents/getBootstrap (ดู normGrade) แต่ลืมฟังก์ชันนี้ นักเรียนที่มีค่า "ชั้น" เพี้ยนช่องว่างจะหายไปทั้งคน
+    // จากหน้าภาพรวมเงียบๆ — ใช้ normGrade ให้ตรงกับจุดอื่น
+    const gradeKey = normGrade(grade);
+    if (status === 'จบการศึกษา' || !grades[gradeKey]) return;
     const bal = balances[id] || 0;
-    grades[grade].students.push({ id, name, grade, entryYear:year, bankAccount:bank, rollNo:roll, balance:bal });
-    grades[grade].totalBalance += bal;
+    grades[gradeKey].students.push({ id, name, grade: gradeKey, entryYear:year, bankAccount:bank, rollNo:roll, balance:bal });
+    grades[gradeKey].totalBalance += bal;
   });
   // เรียงตามเลขที่ต่อชั้น (shared กับ getStudents()/getBootstrap() — ดู sortStudentsByRoll ด้านบน
   // เคยลืมอัปเดตจุดนี้มาก่อน เป็น duplicate ที่ 3 ของ pattern เดียวกัน พบระหว่าง scrutinize 2026-07-07)

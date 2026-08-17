@@ -2456,6 +2456,24 @@ function renderOv(c) {
   var html='<div class="grand"><div style="font-size:12px;color:var(--tws);margin-bottom:4px;font-family:\'Mitr\',sans-serif">ยอดออมรวมทั้งโรงเรียน</div>'+
     '<div class="gv">'+fmt(adData.grandTotal)+' บาท</div>'+
     '<div class="gs">นักเรียน '+adData.totalStudents+' คน · '+GRADES.length+' ชั้นเรียน</div></div>';
+
+  // ฟีเจอร์ใหม่ (2026-08-11 ตามที่ Pam ถาม): แยกคนที่มี/ไม่มีเลขบัญชี ธ.ก.ส. — เดิมมีแค่ตอนสร้างทะเบียนฝากธนาคาร
+  // (แท็บ 🏦 ฝากธนาคาร) เห็นเฉพาะคนที่ "ฝากเดือนนี้แต่ไม่มีบัญชี" อันนี้เป็นภาพรวมทั้งโรงเรียนไม่ผูกกับเดือนไหน
+  // ให้แอดมินตามงานล่วงหน้าได้ก่อนถึงรอบส่งธนาคารจริง
+  var allStudents = GRADES.reduce(function(acc,g){ return acc.concat((adData.grades[g]||{students:[]}).students); }, []);
+  var noAcct = allStudents.filter(function(s){ return !s.bankAccount; });
+  var hasAcct = allStudents.length - noAcct.length;
+  html += '<div class="ovblk"><div class="ovhd" onclick="toggleOv(\'noacct\')">'+
+    '<div class="ovg">🏦 เลขบัญชี ธ.ก.ส.</div>'+
+    '<div style="text-align:right"><div class="ovt" style="color:'+(noAcct.length?'#ff8a75':'var(--ga-text)')+'">มีแล้ว '+hasAcct+' · ยังไม่มี '+noAcct.length+'</div>'+
+    '<div class="ovc">แตะเพื่อดูรายชื่อ</div></div></div>'+
+    '<div class="ovbd" id="ov-noacct">'+
+    (noAcct.length ? noAcct.map(function(s){
+      return '<div class="ovr"><span>'+(s.rollNo?'<b>'+esc(s.rollNo)+'.</b> ':'')+esc(s.name)+' <span style="color:var(--ts);font-size:12px">('+esc(s.grade)+')</span></span>'+
+        '<span style="color:#ff8a75;font-size:12px">ยังไม่มีบัญชี</span></div>';
+    }).join('') : '<div style="color:var(--ts);font-size:13px;padding:4px 0">มีเลขบัญชีครบทุกคนแล้ว 🎉</div>')+
+    '</div></div>';
+
   GRADES.forEach(function(g){
     var d=adData.grades[g]||{students:[],totalBalance:0};
     html+='<div class="ovblk"><div class="ovhd" onclick="toggleOv(\''+g.replace('.','_')+'\')">'+
@@ -2464,7 +2482,8 @@ function renderOv(c) {
       '<div class="ovc">'+d.students.length+' คน</div></div></div>'+
       '<div class="ovbd" id="ov-'+g.replace('.','_')+'">'+
       (d.students.length ? d.students.map(function(s){
-        return '<div class="ovr"><span>'+(s.rollNo?'<b>'+esc(s.rollNo)+'.</b> ':'')+esc(s.name)+'</span>'+
+        return '<div class="ovr"><span>'+(s.rollNo?'<b>'+esc(s.rollNo)+'.</b> ':'')+esc(s.name)+
+          (s.bankAccount?'':' <span style="color:#ff8a75;font-size:11px">⚠️ ไม่มีบัญชี</span>')+'</span>'+
           '<span style="font-weight:600;color:'+(s.balance>=0?'var(--ga-text)':'var(--red-text)')+'">'+fmt(s.balance)+' ฿</span></div>';
       }).join('') : '<div style="color:var(--ts);font-size:13px;padding:4px 0">ยังไม่มีนักเรียน</div>')+
       '</div></div>';
