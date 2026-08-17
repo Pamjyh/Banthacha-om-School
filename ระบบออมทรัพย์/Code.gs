@@ -1574,38 +1574,71 @@ function exportTerm(p) {
 // ============================================================
 // PROMOTE
 // ============================================================
-function promoteGrade(p) {
+function promoteGrade(p, _skipLock) {
   if (p.password !== ADMIN_PASSWORD) return { ok: false, error: 'เฉพาะผู้ดูแล' };
   const grade = p.grade;
   if (!grade || !NEXT_GRADE[grade]) return { ok: false, error: 'ชั้นไม่ถูกต้อง' };
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  const studSheet = ss.getSheetByName('นักเรียน');
-  const histSheet = ss.getSheetByName('ประวัติเลื่อนชั้น');
-  const data = studSheet.getDataRange().getValues();
-  const nextGrade = NEXT_GRADE[grade];
-  const dateStr = thaiDate(new Date());
-  const year = thaiYear();
-  let count = 0;
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][2] === grade && data[i][4] === 'กำลังเรียน') {
-      histSheet.appendRow([data[i][0], data[i][1], grade, nextGrade, year, dateStr]);
-      if (nextGrade === 'จบการศึกษา') {
-        studSheet.getRange(i+1, 3).setValue('จบการศึกษา');
-        studSheet.getRange(i+1, 5).setValue('จบการศึกษา');
-      } else {
-        studSheet.getRange(i+1, 3).setValue(nextGrade);
-      }
-      count++;
+
+  var lock = null;
+  if (!_skipLock) {
+    lock = LockService.getScriptLock();
+    if (!lock.tryLock(10000)) {
+      return { ok: false, error: 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณารอสักครู่แล้วลองใหม่' };
     }
   }
-  return { ok: true, promoted: count, from: grade, to: nextGrade };
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const studSheet = ss.getSheetByName('นักเรียน');
+    const histSheet = ss.getSheetByName('ประวัติเลื่อนชั้น');
+    const data = studSheet.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    // หา index แบบ dynamic — รองรับชื่อคอลัมน์หลายแบบ และป้องกัน column order เปลี่ยน
+    function findCol(names) {
+      for (var n of names) {
+        var idx = headers.indexOf(n);
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    }
+    const idxGrade  = findCol(['ชั้นปัจจุบัน','ชั้น']);
+    const idxStatus = findCol(['สถานะ']);
+    if (idxGrade < 0 || idxStatus < 0) return { ok: false, error: 'ไม่พบคอลัมน์ ชั้นปัจจุบัน/สถานะ ในชีต นักเรียน' };
+
+    const nextGrade = NEXT_GRADE[grade];
+    const dateStr = thaiDate(new Date());
+    const year = thaiYear();
+    let count = 0;
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][idxGrade] === grade && data[i][idxStatus] === 'กำลังเรียน') {
+        histSheet.appendRow([data[i][0], data[i][1], grade, nextGrade, year, dateStr]);
+        if (nextGrade === 'จบการศึกษา') {
+          studSheet.getRange(i+1, idxGrade+1).setValue('จบการศึกษา');
+          studSheet.getRange(i+1, idxStatus+1).setValue('จบการศึกษา');
+        } else {
+          studSheet.getRange(i+1, idxGrade+1).setValue(nextGrade);
+        }
+        count++;
+      }
+    }
+    return { ok: true, promoted: count, from: grade, to: nextGrade };
+  } finally {
+    if (lock) lock.releaseLock();
+  }
 }
 
 function promoteAll(p) {
   if (p.password !== ADMIN_PASSWORD) return { ok: false, error: 'เฉพาะผู้ดูแล' };
-  const results = [];
-  [...GRADES].reverse().forEach(g => results.push(promoteGrade({ password: ADMIN_PASSWORD, grade: g })));
-  return { ok: true, results };
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) { // นานกว่าปกติเพราะทำหลายชั้นต่อกันในคำขอเดียว
+    return { ok: false, error: 'ระบบกำลังประมวลผลรายการอื่นอยู่ กรุณารอสักครู่แล้วลองใหม่' };
+  }
+  try {
+    const results = [];
+    [...GRADES].reverse().forEach(g => results.push(promoteGrade({ password: ADMIN_PASSWORD, grade: g }, true))); // skipLock กันล็อกซ้อน
+    return { ok: true, results };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function getGraduated(p) {

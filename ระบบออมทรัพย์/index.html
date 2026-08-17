@@ -2704,8 +2704,13 @@ function askPrAll() {
   hide('pr-err'); document.getElementById('pr-btn').onclick=doPr; openMo('pr');
 }
 function doPr() {
+  var btn=document.getElementById('pr-btn');
+  if (btn.disabled) return; // กันกดซ้ำระหว่างรอผล
+  var origText=btn.textContent;
+  btn.disabled=true; btn.textContent='⏳ กำลังดำเนินการ...';
   var params=pendPr.type==='all'?{action:'promoteAll',password:_pw}:{action:'promoteGrade',password:_pw,grade:pendPr.grade};
   apiCall(params,function(r){
+    btn.disabled=false; btn.textContent=origText;
     if (!r.ok) {document.getElementById('pr-err').textContent=r.error;document.getElementById('pr-err').style.display='block'; return;}
     closeMo('pr');
     toast(pendPr.type==='all'?'✓ เลื่อนชั้นทั้งโรงเรียนสำเร็จ!':'✓ เลื่อนชั้น '+pendPr.grade+' สำเร็จ ('+r.promoted+' คน)','ok');
